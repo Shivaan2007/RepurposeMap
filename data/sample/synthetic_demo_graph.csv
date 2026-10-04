@@ -1,0 +1,24 @@
+source_name,source_type,relation,target_name,target_type
+DEMO Drug Alpha,drug,drug_targets_protein,DEMO Protein Kinase 1,gene/protein
+DEMO Drug Alpha,drug,drug_targets_protein,DEMO Protein Receptor 2,gene/protein
+DEMO Drug Beta,drug,drug_targets_protein,DEMO Protein Kinase 1,gene/protein
+DEMO Drug Beta,drug,drug_targets_protein,DEMO Protein Enzyme 3,gene/protein
+DEMO Drug Gamma,drug,drug_targets_protein,DEMO Protein Enzyme 3,gene/protein
+DEMO Drug Alpha,drug,drug_indicated_for_disease,DEMO Disease Zeta,disease
+DEMO Drug Beta,drug,drug_indicated_for_disease,DEMO Disease Eta,disease
+DEMO Drug Gamma,drug,drug_indicated_for_disease,DEMO Disease Theta,disease
+DEMO Drug Epsilon,drug,drug_indicated_for_disease,DEMO Disease Iota,disease
+DEMO Protein Kinase 1,gene/protein,protein_associated_with_disease,DEMO Disease Zeta,disease
+DEMO Protein Receptor 2,gene/protein,protein_associated_with_disease,DEMO Disease Zeta,disease
+DEMO Protein Enzyme 3,gene/protein,protein_associated_with_disease,DEMO Disease Eta,disease
+DEMO Protein Enzyme 3,gene/protein,protein_associated_with_disease,DEMO Disease Theta,disease
+DEMO Protein X,gene/protein,protein_associated_with_disease,DEMO Disease Zeta,disease
+DEMO Protein Y,gene/protein,protein_associated_with_disease,DEMO Disease Eta,disease
+DEMO Protein Kinase 1,gene/protein,protein_participates_in_pathway,DEMO Pathway Omega,pathway
+DEMO Protein Kinase 1,gene/protein,protein_regulates_pathway,DEMO Pathway Omega,pathway
+DEMO Protein Receptor 2,gene/protein,protein_participates_in_pathway,DEMO Pathway Omega,pathway
+DEMO Protein Enzyme 3,gene/protein,protein_participates_in_pathway,DEMO Pathway Sigma,pathway
+DEMO Disease Zeta,disease,disease_involves_pathway,DEMO Pathway Omega,pathway
+DEMO Disease Eta,disease,disease_involves_pathway,DEMO Pathway Sigma,pathway
+DEMO Protein Kinase 1,gene/protein,protein_interacts_with_protein,DEMO Protein X,gene/protein
+DEMO Protein X,gene/protein,protein_interacts_with_protein,DEMO Protein Y,gene/protein
