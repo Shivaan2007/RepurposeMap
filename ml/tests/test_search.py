@@ -12,13 +12,13 @@ def graph(sample_csv: Path):
 
 def test_exact_name_returns_that_entity_with_its_type(graph):
     results = search_entities(graph, "DEMO Drug Alpha")
-    assert results == [EntityMatch(name="DEMO Drug Alpha", node_type="drug")]
+    assert results == [EntityMatch(id="DEMO Drug Alpha", name="DEMO Drug Alpha", node_type="drug")]
 
 
 def test_search_ignores_case(graph):
     assert search_entities(graph, "demo drug alpha") == search_entities(graph, "DEMO DRUG ALPHA")
     assert search_entities(graph, "demo drug alpha") == [
-        EntityMatch(name="DEMO Drug Alpha", node_type="drug")
+        EntityMatch(id="DEMO Drug Alpha", name="DEMO Drug Alpha", node_type="drug")
     ]
 
 

@@ -80,7 +80,8 @@ def _build_graph(edges: pd.DataFrame) -> nx.MultiDiGraph:
 
     graph = nx.MultiDiGraph()
     for name, node_type in node_types.items():
-        graph.add_node(name, node_type=node_type)
+        # The synthetic format has no IDs, so the name is both the key and the display name.
+        graph.add_node(name, node_type=node_type, name=name)
     for row in edges.itertuples(index=False):
         # Using the relation as the parallel-edge key keeps one edge per
         # (source, relation, target) and lets the same pair carry several relations.

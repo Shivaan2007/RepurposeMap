@@ -3,7 +3,8 @@ from pathlib import Path
 
 import pytest
 
-from repurposemap.graph import PathStep, find_paths, format_path, load_graph
+from repurposemap.graph import PathStep, find_paths, find_paths_detailed, format_path, load_graph
+from repurposemap.graph import paths
 
 ALPHA = "DEMO Drug Alpha"
 ZETA = "DEMO Disease Zeta"
@@ -152,3 +153,59 @@ def test_non_positive_limits_raise_clear_error(graph, kwargs: dict[str, int]):
 def test_format_path_shows_entities_and_relation_names(graph):
     text = format_path([DIRECT_STEP])
     assert text == f"{ALPHA}\n  --drug_indicated_for_disease-->\n{ZETA}"
+
+
+def test_truncated_search_is_reported_not_silently_empty(graph):
+    # A zero-length budget stops the search before any path is walked.
+    result = find_paths_detailed(graph, ALPHA, ETA, max_edge_checks=1)
+    assert result.paths == []
+    assert result.truncated is True
+    assert result.stop_reason == "edge check limit reached"
+
+
+def test_completed_search_is_not_marked_truncated(graph):
+    result = find_paths_detailed(graph, ALPHA, ZETA)
+    assert result.truncated is False
+    assert result.stop_reason is None
+
+
+def test_search_stops_once_max_paths_are_found(graph):
+    result = find_paths_detailed(graph, ALPHA, ZETA, max_paths=2)
+    assert len(result.paths) == 2
+    assert result.truncated is False
+
+
+class _FakeClock:
+    """Each reading advances the clock by 10 seconds, so any time limit is exceeded quickly."""
+
+    def __init__(self) -> None:
+        self.now = 0.0
+
+    def monotonic(self) -> float:
+        self.now += 10.0
+        return self.now
+
+
+def test_search_stops_when_time_limit_is_exceeded(graph, monkeypatch):
+    monkeypatch.setattr(paths, "time", _FakeClock())
+    monkeypatch.setattr(paths, "_CLOCK_CHECK_INTERVAL", 1)
+    result = find_paths_detailed(graph, ALPHA, ETA, time_limit_s=1)
+    assert result.truncated is True
+    assert result.stop_reason == "time limit reached"
+
+
+@pytest.mark.parametrize("kwargs", [{"time_limit_s": 0}, {"max_edge_checks": 0}])
+def test_non_positive_budgets_raise_clear_error(graph, kwargs: dict[str, float]):
+    with pytest.raises(ValueError, match="must be"):
+        find_paths_detailed(graph, ALPHA, ZETA, **kwargs)
+
+
+def test_search_result_is_deterministic(graph):
+    assert find_paths(graph, ALPHA, ZETA) == find_paths(graph, ALPHA, ZETA)
+
+
+def test_direct_edge_is_found_before_a_deep_search_would_use_the_budget(graph):
+    # A small budget is enough to see the direct edge, but not to finish a
+    # deeper backward pass. The direct path must still be returned.
+    result = find_paths_detailed(graph, ALPHA, ZETA, max_edge_checks=10)
+    assert [DIRECT_STEP] in result.paths

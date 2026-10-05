@@ -21,3 +21,9 @@ def write_csv(tmp_path: Path) -> Callable[[str], Path]:
         return path
 
     return _write
+
+
+@pytest.fixture
+def primekg_csv() -> Path:
+    """Tiny synthetic fixture in the PrimeKG schema. The full kg.csv is not needed for tests."""
+    return Path(__file__).resolve().parent / "fixtures" / "primekg_mini.csv"

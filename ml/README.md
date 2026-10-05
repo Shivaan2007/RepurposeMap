@@ -1,82 +1,49 @@
 # RepurposeMap ML: graph exploration
 
-This folder holds the Python package for graph loading and exploration. It is currently at **Milestone 1: explore the graph**.
+This folder holds the Python package for graph loading and exploration. It is at **Milestone 1: explore the graph**. The main README has the full picture. This file lists the package layout and the commands.
 
-> **Research use only.** Outputs are hypotheses for expert review, not treatment recommendations. The current graph is **synthetic demo data**. Entity names start with `DEMO`, and the relationships are invented to exercise the code. Do not cite them as biology.
+> **Research use only.** Outputs are hypotheses for expert review, not treatment recommendations. A path in the graph is not evidence of efficacy. The synthetic sample is invented data. Do not cite it as biology.
 
-## Current limitations
+## Package layout
 
-- The graph is the synthetic sample in `data/sample/synthetic_demo_graph.csv`.
-- **PrimeKG has not been integrated yet.** The loader reads an internal five-column edge schema. A PrimeKG adapter will come after we inspect the real file's columns.
-- The CLI is for **local graph exploration only**. It has no web interface, no model, and no evidence lookup.
+- `repurposemap/adapters/primekg.py`: parses PrimeKG's real `kg.csv` (12 columns) into the generic graph. All PrimeKG-specific logic lives here.
+- `repurposemap/graph/loader.py`: loads the synthetic five-column edge table.
+- `repurposemap/graph/search.py`: name search and exact-name lookup. Returns IDs, names, types and external IDs.
+- `repurposemap/graph/paths.py`: bounded directed path search (`find_paths`, `find_paths_detailed`) and formatting.
+- `repurposemap/graph/stats.py`: counts by node type and relation.
+- `repurposemap/cli.py`: argument parsing and output only.
 
-## Setup
+## Node identity
 
-Requires Python 3.12, run from the repository root.
+Nodes are keyed by a canonical ID:
 
-```bash
-python3.12 -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-```
+- **PrimeKG:** the node index from the file, as a string. Each node carries `name`, `node_type`, `external_id` (PrimeKG's `*_id`) and `provenance`.
+- **Synthetic sample:** the entity name, which is also its `name`.
+
+Names are never graph keys, because PrimeKG has names shared by several nodes. The CLI resolves a name to an ID only when it matches exactly one node. Otherwise it lists the candidates.
 
 ## Commands
 
-Run these from the repository root. Each command reads the synthetic demo graph by default. Add `--csv PATH` to load a different edge table.
-
-### Graph statistics
+Run these from the repository root. Each command reads the synthetic demo graph by default. Add `--source primekg` to read PrimeKG, and `--csv PATH` to load a different file.
 
 ```bash
 python -m repurposemap stats
-```
-
-Prints total nodes and edges, plus counts by node type and by relation type.
-
-### Entity search
-
-```bash
 python -m repurposemap search --query "drug"
-python -m repurposemap search --query "protein" --max-results 3
+python -m repurposemap paths --source-name "DEMO Drug Alpha" --target-name "DEMO Disease Zeta"
+
+python -m repurposemap stats --source primekg
+python -m repurposemap search --source primekg --query "sildenafil"
+python -m repurposemap paths --source primekg --source-name "sildenafil" --target-id 38436 --max-path-length 2
 ```
 
-Case-insensitive, partial-name search. Exact name matches are listed first. `--max-results` defaults to 10.
-
-### Path finding
-
-```bash
-python -m repurposemap paths --source "DEMO Drug Alpha" --target "DEMO Disease Zeta"
-python -m repurposemap paths --source "DEMO Drug Alpha" --target "DEMO Disease Eta" --max-path-length 4
-python -m repurposemap paths --source "DEMO Drug Alpha" --target "DEMO Disease Zeta" --max-results 2
-```
-
-Finds directed paths, following each relation in its stored direction. Paths are printed shortest first and numbered:
-
-```
-4 path(s) from 'DEMO Drug Alpha' to 'DEMO Disease Zeta':
-
-[1] 1 hop(s)
-DEMO Drug Alpha
-  --drug_indicated_for_disease-->
-DEMO Disease Zeta
-```
-
-- `--max-path-length` sets the maximum number of hops. The default is 4.
-- `--max-results` sets the maximum number of paths printed. The default is 10.
-- If no path exists within the limit, the command says so and exits with code 0.
-- Unknown entity names exit with code 1 and print an error to stderr.
-
-### If `python -m repurposemap` cannot find the package
-
-On macOS, a repository inside an iCloud-synced folder such as `~/Desktop` can cause the editable-install `.pth` file to be marked hidden. Python then ignores it. Create the virtual environment outside the synced folder, or run from the source directly:
-
-```bash
-PYTHONPATH=ml/src python -m repurposemap stats
-```
-
-The test suite does not need either workaround, because `pyproject.toml` sets `pythonpath = ["ml/src"]` for pytest.
+Path options: `--max-path-length` (default 4 hops), `--max-results` (default 10), `--time-limit` (default 20 seconds). If a search stops at a limit, the output says so, and an empty result is then not proof that no path exists.
 
 ## Tests
 
 ```bash
 pytest
 ```
+
+The tests use the synthetic sample and a fully synthetic 15-row fixture in `tests/fixtures/` that matches the PrimeKG schema. They do not need the full 936 MB file.
+
+If `python -m repurposemap` cannot find the package on macOS, see the troubleshooting section in the main README.

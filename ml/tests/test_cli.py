@@ -44,7 +44,7 @@ def test_search_max_results_is_respected(sample_csv: Path, capsys: pytest.Captur
 def test_paths_command_prints_numbered_routes(
     sample_csv: Path, capsys: pytest.CaptureFixture[str]
 ):
-    exit_code = main(["paths", "--source", ALPHA, "--target", "DEMO Disease Zeta", "--csv", str(sample_csv)])
+    exit_code = main(["paths", "--source-name", ALPHA, "--target-name", "DEMO Disease Zeta", "--csv", str(sample_csv)])
     out = capsys.readouterr().out
     assert exit_code == 0
     assert "4 path(s)" in out
@@ -56,7 +56,7 @@ def test_paths_command_respects_max_path_length(
     sample_csv: Path, capsys: pytest.CaptureFixture[str]
 ):
     exit_code = main(
-        ["paths", "--source", ALPHA, "--target", ETA, "--max-path-length", "3", "--csv", str(sample_csv)]
+        ["paths", "--source-name", ALPHA, "--target-name", ETA, "--max-path-length", "3", "--csv", str(sample_csv)]
     )
     out = capsys.readouterr().out
     assert exit_code == 0
@@ -66,7 +66,7 @@ def test_paths_command_respects_max_path_length(
 def test_paths_command_reports_missing_entity_as_error(
     sample_csv: Path, capsys: pytest.CaptureFixture[str]
 ):
-    exit_code = main(["paths", "--source", "DEMO Drug Missing", "--target", ETA, "--csv", str(sample_csv)])
+    exit_code = main(["paths", "--source-name", "DEMO Drug Missing", "--target-name", ETA, "--csv", str(sample_csv)])
     assert exit_code == 1
     assert "source entity not found" in capsys.readouterr().err
 

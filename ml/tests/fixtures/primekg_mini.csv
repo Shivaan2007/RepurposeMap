@@ -1,0 +1,16 @@
+relation,display_relation,x_index,x_id,x_type,x_name,x_source,y_index,y_id,y_type,y_name,y_source
+protein_protein,ppi,101,DEMO-GENE-NU,gene/protein,DEMO Protein Nu,NCBI,102,DEMO-GENE-XI,gene/protein,DEMO Protein Xi,NCBI
+drug_protein,carrier,105,DEMO-DRUG-PI,drug,DEMO Compound Pi,DrugBank,107,DEMO-GENE-RHO,gene/protein,DEMO Protein Rho,NCBI
+drug_protein,target,103,DEMO-DRUG-KAPPA,drug,DEMO Drug Kappa,DrugBank,101,DEMO-GENE-NU,gene/protein,DEMO Protein Nu,NCBI
+drug_protein,target,105,DEMO-DRUG-PI,drug,DEMO Compound Pi,DrugBank,107,DEMO-GENE-RHO,gene/protein,DEMO Protein Rho,NCBI
+indication,indication,109,DEMO-DRUG-MU,drug,DEMO Drug Mu,DrugBank,110,DEMO-DIS-TAU,disease,DEMO Disease Tau,MONDO
+indication,indication,111,DEMO-DRUG-ETA,drug,DEMO Drug Eta,DrugBank,112,DEMO-DIS-UPSILON,disease,DEMO Disease Upsilon,MONDO
+indication,indication,103,DEMO-DRUG-KAPPA,drug,DEMO Drug Kappa,DrugBank,104,DEMO-DIS-LAMBDA,disease,DEMO Disease Lambda,MONDO
+protein_protein,ppi,102,DEMO-GENE-XI,gene/protein,DEMO Protein Xi,NCBI,101,DEMO-GENE-NU,gene/protein,DEMO Protein Nu,NCBI
+drug_protein,carrier,107,DEMO-GENE-RHO,gene/protein,DEMO Protein Rho,NCBI,105,DEMO-DRUG-PI,drug,DEMO Compound Pi,DrugBank
+drug_protein,target,101,DEMO-GENE-NU,gene/protein,DEMO Protein Nu,NCBI,103,DEMO-DRUG-KAPPA,drug,DEMO Drug Kappa,DrugBank
+drug_protein,target,107,DEMO-GENE-RHO,gene/protein,DEMO Protein Rho,NCBI,105,DEMO-DRUG-PI,drug,DEMO Compound Pi,DrugBank
+indication,indication,110,DEMO-DIS-TAU,disease,DEMO Disease Tau,MONDO,109,DEMO-DRUG-MU,drug,DEMO Drug Mu,DrugBank
+indication,indication,112,DEMO-DIS-UPSILON,disease,DEMO Disease Upsilon,MONDO,111,DEMO-DRUG-ETA,drug,DEMO Drug Eta,DrugBank
+indication,indication,104,DEMO-DIS-LAMBDA,disease,DEMO Disease Lambda,MONDO,103,DEMO-DRUG-KAPPA,drug,DEMO Drug Kappa,DrugBank
+exposure_disease,linked to,106,DEMO-EXP-PI,exposure,DEMO Compound Pi,CTD,108,DEMO-DIS-SIGMA,disease,DEMO Disease Sigma,MONDO
