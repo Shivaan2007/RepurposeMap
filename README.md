@@ -11,21 +11,23 @@ RepurposeMap is **not** a treatment recommendation system. It does not:
 - give dosing or clinical advice
 - treat a path in the graph as evidence that a drug works. Connectivity in a knowledge graph is not evidence of treatment efficacy.
 
-## Current status: Milestone 1, "Explore the graph"
+## Current status: Milestone 2, "Path quality and a first drug-ranking baseline"
 
-Implemented:
+Milestone 1 (exploring the graph) is complete. It covers real PrimeKG integration, canonical node IDs, statistics, entity search, bounded path finding and the CLI.
 
-- **Real PrimeKG integration.** The adapter reads PrimeKG's `kg.csv` (129,375 nodes, 8,100,498 edges) and keeps its real schema.
-- **Synthetic demo graph** in `data/sample/`, still the default for the CLI.
-- **Canonical node IDs.** Every node is keyed by an ID. Names are display attributes and are never graph keys.
-- **Statistics**: total nodes and edges, plus counts by node type and by relation.
-- **Entity search**: case-insensitive partial-name search. Results return the ID, name, type and, for PrimeKG, the source's own identifier.
-- **Path finding**: bounded directed path search with relation names and PrimeKG's display labels preserved. It has hop, result, and time limits.
-- **Command-line interface** for both sources.
+Milestone 2 adds:
+
+- **Relation policy.** Every PrimeKG relation pair is put in one of four categories: preferred mechanistic, acceptable, caution or excluded. Excluded relations include drug-drug interactions and the treatment labels (`indication`, `contraindication`, `off-label use`) that the evaluation is testing. The policy is a transparent research heuristic, not a medically validated rule. See [ml/README.md](ml/README.md).
+- **Hub handling.** Intermediate nodes with many allowed neighbours are penalised by degree alone. No node is named in the code.
+- **Path-quality score.** An interpretable score with a structured breakdown (length, relation, hub penalty, flags). It is a heuristic, not a confidence value.
+- **Drug-ranking baseline.** Ranks drug candidates for one disease by the sum of its top three valid path scores. The output is labelled a research hypothesis ranking.
+- **Evaluation harness.** Holds out known indications, hides the direct edge in both directions, and reports rank, Hits@10 and reciprocal rank. It is a sanity check, not a benchmark.
+- **CLI commands** `explain-paths`, `rank-drugs` and `evaluate-baseline`.
 
 Not implemented yet:
 
-- **No candidate ranking and no machine learning.** Connectivity in the graph is not a ranking.
+- **No machine learning.** The ranking is a non-ML baseline. The evaluation is three pairs, and it does not support any claim of predictive performance.
+- No TransE, R-GCN, or other trained model.
 - No evidence lookup (PubMed, ClinicalTrials.gov) and no drug safety information.
 - No web API (FastAPI) and no frontend (React).
 
@@ -92,7 +94,18 @@ python -m repurposemap search --source primekg --query "sildenafil"
 python -m repurposemap search --source primekg --query "metformin" --max-results 5
 python -m repurposemap paths --source primekg --source-name "sildenafil" --target-name "pulmonary arterial hypertension"
 python -m repurposemap paths --source primekg --source-id 14937 --target-id 38436 --max-path-length 2
+
+# path quality: raw shortest paths next to quality-ranked paths
+python -m repurposemap explain-paths --source primekg --source-name "sildenafil" --target-id 38436
+
+# drug-ranking baseline (research hypothesis ranking, not a treatment recommendation)
+python -m repurposemap rank-drugs --source primekg --disease "pulmonary arterial hypertension" --top-k 10
+
+# held-out indication sanity check (not a benchmark)
+python -m repurposemap evaluate-baseline --source primekg --max-pairs 3 --seed 0
 ```
+
+The scoring commands (`explain-paths`, `rank-drugs`, `evaluate-baseline`) need `--source primekg`. Their relation policy is written for PrimeKG. Full options and the formulas are in [ml/README.md](ml/README.md).
 
 Options:
 
@@ -175,16 +188,19 @@ RepurposeMap/
     ├── src/repurposemap/   # Python package
     │   ├── cli.py          # command-line interface
     │   ├── adapters/       # source-specific parsing (PrimeKG)
-    │   └── graph/          # generic loader, stats, search, bounded paths
-    └── tests/              # pytest suite and fixtures
+    │   ├── graph/          # generic loader, stats, search, bounded paths
+    │   ├── scoring/        # relation policy, hub penalty, path-quality score
+    │   ├── ranking/        # drug-ranking baseline
+    │   └── evaluation/     # held-out indication harness
+    └── tests/              # pytest suite, fixtures and small test graphs
 ```
 
 ## Roadmap
 
 These are planned, not implemented:
 
-1. Path-based drug ranking baseline.
-2. Relation semantics for ranking (for example, which edge types count as evidence).
+1. Disease-based train/test split and a larger evaluation.
+2. Drug-level hub handling, so that generic compounds with many targets do not dominate the ranking.
 3. TransE knowledge-graph embedding baseline.
 4. Relational graph neural network for drug-disease link prediction.
 5. Explanations built from biological paths.
