@@ -11,22 +11,25 @@ RepurposeMap is **not** a treatment recommendation system. It does not:
 - give dosing or clinical advice
 - treat a path in the graph as evidence that a drug works. Connectivity in a knowledge graph is not evidence of treatment efficacy.
 
-## Current status: Milestone 2, "Path quality and a first drug-ranking baseline"
+## Current status: Milestone 3, "Proper disease-based evaluation"
 
 Milestone 1 (exploring the graph) is complete. It covers real PrimeKG integration, canonical node IDs, statistics, entity search, bounded path finding and the CLI.
 
-Milestone 2 adds:
+Milestone 2 added the relation policy, hub and drug-promiscuity penalties, the path-quality score, and the first drug-ranking baseline.
 
-- **Relation policy.** Every PrimeKG relation pair is put in one of four categories: preferred mechanistic, acceptable, caution or excluded. Excluded relations include drug-drug interactions and the treatment labels (`indication`, `contraindication`, `off-label use`) that the evaluation is testing. The policy is a transparent research heuristic, not a medically validated rule. See [ml/README.md](ml/README.md).
-- **Hub handling.** Intermediate nodes with many allowed neighbours are penalised by degree alone. No node is named in the code.
-- **Path-quality score.** An interpretable score with a structured breakdown (length, relation, hub penalty, flags). It is a heuristic, not a confidence value.
-- **Drug-ranking baseline.** Ranks drug candidates for one disease by the sum of its top three valid path scores. The output is labelled a research hypothesis ranking.
-- **Evaluation harness.** Holds out known indications, hides the direct edge in both directions, and reports rank, Hits@10 and reciprocal rank. It is a sanity check, not a benchmark.
-- **CLI commands** `explain-paths`, `rank-drugs` and `evaluate-baseline`.
+Milestone 3 adds:
+
+- **Disease-based evaluation.** Known indications are split by *disease ID*, not by edge: every treatment of a held-out disease is removed, all at once, into one training graph. See "why not split by edge" in [ml/README.md](ml/README.md).
+- **Explicit leakage checks** that fail loudly if a held-out treatment edge, or a train/test overlap, is found.
+- **Model-agnostic metrics.** Filtered rank, Hits@1/3/10 and MRR, built to score any future ranking (the path baseline today, TransE or an R-GCN later) without change.
+- **Random-order baseline**, over the same candidates the path baseline found, for a fair comparison.
+- **Updated `evaluate-baseline` CLI command**, now disease-based: `--test-diseases`, `--test-fraction`, `--seed`.
+
+On a controlled 20-disease, 147-pair benchmark, the path baseline scores Hits@10 = 0.034 and MRR = 0.0158, against Hits@10 = 0.007 and MRR = 0.0035 for a random-order baseline over the same candidates — about 5x and 4.5x better than random, respectively. Absolute performance is still weak. This is a small, controlled evaluation, not a validated benchmark, and these numbers are not clinical evidence; the baseline and the harness exist as a comparison point for TransE and R-GCN. Details in [ml/README.md](ml/README.md).
 
 Not implemented yet:
 
-- **No machine learning.** The ranking is a non-ML baseline. The evaluation is three pairs, and it does not support any claim of predictive performance.
+- **No machine learning.** The ranking is a non-ML baseline. The evaluation covers a few dozen diseases, and it does not support any claim of predictive performance.
 - No TransE, R-GCN, or other trained model.
 - No evidence lookup (PubMed, ClinicalTrials.gov) and no drug safety information.
 - No web API (FastAPI) and no frontend (React).
@@ -101,8 +104,8 @@ python -m repurposemap explain-paths --source primekg --source-name "sildenafil"
 # drug-ranking baseline (research hypothesis ranking, not a treatment recommendation)
 python -m repurposemap rank-drugs --source primekg --disease "pulmonary arterial hypertension" --top-k 10
 
-# held-out indication sanity check (not a benchmark)
-python -m repurposemap evaluate-baseline --source primekg --max-pairs 3 --seed 0
+# disease-based evaluation, with a random-order baseline for comparison (not a benchmark)
+python -m repurposemap evaluate-baseline --source primekg --test-diseases 20 --seed 42
 ```
 
 The scoring commands (`explain-paths`, `rank-drugs`, `evaluate-baseline`) need `--source primekg`. Their relation policy is written for PrimeKG. Full options and the formulas are in [ml/README.md](ml/README.md).
@@ -199,11 +202,10 @@ RepurposeMap/
 
 These are planned, not implemented:
 
-1. Disease-based train/test split and a larger evaluation.
-2. Drug-level hub handling, so that generic compounds with many targets do not dominate the ranking.
-3. TransE knowledge-graph embedding baseline.
-4. Relational graph neural network for drug-disease link prediction.
-5. Explanations built from biological paths.
-6. Supporting evidence from PubMed and ClinicalTrials.gov.
-7. Drug safety information.
-8. FastAPI backend and React + TypeScript + Tailwind frontend.
+1. A larger disease-based evaluation, beyond the small, fast run used for sanity checking.
+2. TransE knowledge-graph embedding baseline, scored with the same evaluation harness.
+3. Relational graph neural network for drug-disease link prediction.
+4. Explanations built from biological paths.
+5. Supporting evidence from PubMed and ClinicalTrials.gov.
+6. Drug safety information.
+7. FastAPI backend and React + TypeScript + Tailwind frontend.

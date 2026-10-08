@@ -10,7 +10,7 @@ Run from the repository root:
     python -m repurposemap paths --source primekg --source-name "sildenafil" --target-name "pulmonary arterial hypertension"
     python -m repurposemap explain-paths --source primekg --source-name "sildenafil" --target-id 38436
     python -m repurposemap rank-drugs --source primekg --disease "pulmonary arterial hypertension" --top-k 10
-    python -m repurposemap evaluate-baseline --source primekg --max-pairs 5
+    python -m repurposemap evaluate-baseline --source primekg --test-diseases 20 --seed 42
 
 The default source is the synthetic demo data in data/sample/. ``--source primekg``
 reads PrimeKG's kg.csv from data/raw/primekg/. Output is for exploration only. It is
@@ -34,11 +34,12 @@ import networkx as nx
 
 from repurposemap.adapters import DEFAULT_PRIMEKG_CSV, load_primekg
 from repurposemap.evaluation import (
-    DEFAULT_EVAL_PAIRS,
-    DEFAULT_EVAL_SEED,
-    EvaluationResult,
-    evaluate_baseline,
-    select_pairs,
+    DEFAULT_EVAL_MAX_CANDIDATES,
+    DEFAULT_EVAL_MAX_EDGE_CHECKS_PER_DRUG,
+    DEFAULT_EVAL_TIME_LIMIT_PER_DRUG_S,
+    DiseaseEvaluationResult,
+    EvaluationConfig,
+    evaluate_disease_split,
 )
 from repurposemap.graph import (
     DEFAULT_MAX_PATH_LENGTH,
@@ -58,6 +59,7 @@ from repurposemap.graph import (
 )
 from repurposemap.ranking import DrugCandidate, DrugRanking, rank_drugs
 from repurposemap.ranking.drugs import (
+    DEFAULT_MAX_BACKWARD_EDGE_CHECKS,
     DEFAULT_MAX_CANDIDATES,
     DEFAULT_MAX_EDGE_CHECKS_PER_DRUG,
     DEFAULT_PATHS_PER_DRUG,
@@ -80,6 +82,9 @@ SOURCES = ("sample", "primekg")
 DEFAULT_CANDIDATE_PATHS = 200
 DEFAULT_EXPLAIN_RAW_RESULTS = 5
 DEFAULT_TOP_K = 10
+DEFAULT_EVAL_SEED = 0
+DEFAULT_TEST_DISEASES = 20
+DEFAULT_TEST_FRACTION = 0.1
 SCORING_COMMANDS = ("explain-paths", "rank-drugs", "evaluate-baseline")
 
 
@@ -166,22 +171,37 @@ def build_parser() -> argparse.ArgumentParser:
 
     evaluate = subparsers.add_parser(
         "evaluate-baseline",
-        help="hold out known indications and report the held-out drug's rank",
+        help="proper disease-based evaluation: hide held-out diseases' treatments, then rank",
     )
     evaluate.add_argument(
-        "--max-pairs", type=int, default=DEFAULT_EVAL_PAIRS,
-        help=f"indication pairs to evaluate (default {DEFAULT_EVAL_PAIRS})",
+        "--test-diseases", type=int, default=DEFAULT_TEST_DISEASES,
+        help=f"maximum number of test diseases (default {DEFAULT_TEST_DISEASES})",
+    )
+    evaluate.add_argument(
+        "--test-fraction", type=float, default=DEFAULT_TEST_FRACTION,
+        help=f"share of diseases held out before the --test-diseases cap (default {DEFAULT_TEST_FRACTION:g})",
     )
     evaluate.add_argument(
         "--seed", type=int, default=DEFAULT_EVAL_SEED,
-        help=f"seed for choosing pairs, so runs repeat (default {DEFAULT_EVAL_SEED})",
+        help=f"seed for the split and the random baseline, so runs repeat (default {DEFAULT_EVAL_SEED})",
     )
-    _add_ranking_arguments(evaluate)
+    _add_ranking_arguments(
+        evaluate,
+        max_candidates_default=DEFAULT_EVAL_MAX_CANDIDATES,
+        time_limit_default=DEFAULT_EVAL_TIME_LIMIT_PER_DRUG_S,
+        max_edge_checks_default=DEFAULT_EVAL_MAX_EDGE_CHECKS_PER_DRUG,
+    )
     _add_source_arguments(evaluate)
     return parser
 
 
-def _add_ranking_arguments(parser: argparse.ArgumentParser) -> None:
+def _add_ranking_arguments(
+    parser: argparse.ArgumentParser,
+    *,
+    max_candidates_default: int = DEFAULT_MAX_CANDIDATES,
+    time_limit_default: float = DEFAULT_TIME_LIMIT_PER_DRUG_S,
+    max_edge_checks_default: int = DEFAULT_MAX_EDGE_CHECKS_PER_DRUG,
+) -> None:
     parser.add_argument(
         "--max-path-length", type=int, default=DEFAULT_RANK_PATH_LENGTH,
         help=f"maximum hops from drug to disease (default {DEFAULT_RANK_PATH_LENGTH})",
@@ -191,16 +211,23 @@ def _add_ranking_arguments(parser: argparse.ArgumentParser) -> None:
         help=f"shortest candidate paths kept per drug (default {DEFAULT_PATHS_PER_DRUG})",
     )
     parser.add_argument(
-        "--max-candidates", type=int, default=DEFAULT_MAX_CANDIDATES,
-        help=f"drug candidates searched; the rest are skipped and reported (default {DEFAULT_MAX_CANDIDATES})",
+        "--max-candidates", type=int, default=max_candidates_default,
+        help=f"drug candidates searched; the rest are skipped and reported (default {max_candidates_default})",
     )
     parser.add_argument(
-        "--time-limit-per-drug", type=float, default=DEFAULT_TIME_LIMIT_PER_DRUG_S,
-        help=f"seconds per drug search (default {DEFAULT_TIME_LIMIT_PER_DRUG_S:g})",
+        "--time-limit-per-drug", type=float, default=time_limit_default,
+        help=f"seconds per drug search (default {time_limit_default:g})",
     )
     parser.add_argument(
-        "--max-edge-checks-per-drug", type=int, default=DEFAULT_MAX_EDGE_CHECKS_PER_DRUG,
-        help=f"edge checks per drug search (default {DEFAULT_MAX_EDGE_CHECKS_PER_DRUG:,})",
+        "--max-edge-checks-per-drug", type=int, default=max_edge_checks_default,
+        help=f"edge checks per drug search (default {max_edge_checks_default:,})",
+    )
+    parser.add_argument(
+        "--max-backward-edge-checks", type=int, default=DEFAULT_MAX_BACKWARD_EDGE_CHECKS,
+        help=(
+            "edge checks for the one search that finds candidates; bounds a densely "
+            f"connected disease (default {DEFAULT_MAX_BACKWARD_EDGE_CHECKS:,})"
+        ),
     )
 
 
@@ -328,25 +355,24 @@ def _run_rank_drugs(args: argparse.Namespace, graph: nx.MultiDiGraph) -> str:
         max_candidates=args.max_candidates,
         time_limit_per_drug_s=args.time_limit_per_drug,
         max_edge_checks_per_drug=args.max_edge_checks_per_drug,
+        max_backward_edge_checks=args.max_backward_edge_checks,
     )
     return render_rank_drugs(ranking, args.top_k)
 
 
 def _run_evaluate(args: argparse.Namespace, graph: nx.MultiDiGraph) -> str:
-    policy = RelationPolicy()
-    pairs = select_pairs(graph, args.max_pairs, args.seed)
-    result = evaluate_baseline(
-        graph,
-        pairs,
-        neighbour_counts=NeighbourCounts(graph, policy),
-        policy=policy,
+    config = EvaluationConfig(
         seed=args.seed,
+        test_fraction=args.test_fraction,
+        max_test_diseases=args.test_diseases,
         max_path_length=args.max_path_length,
         paths_per_drug=args.paths_per_drug,
         max_candidates=args.max_candidates,
         time_limit_per_drug_s=args.time_limit_per_drug,
         max_edge_checks_per_drug=args.max_edge_checks_per_drug,
+        max_backward_edge_checks=args.max_backward_edge_checks,
     )
+    result = evaluate_disease_split(graph, config)
     return render_evaluation(result)
 
 
@@ -490,6 +516,11 @@ def render_rank_drugs(ranking: DrugRanking, top_k: int) -> str:
     ]
     if ranking.n_truncated_searches:
         lines.append(f"Searches stopped at a limit: {ranking.n_truncated_searches}. Their paths may be incomplete.")
+    if ranking.backward_search_truncated:
+        lines.append(
+            "The candidate search itself stopped at its edge-check budget. "
+            "Some farther candidates may be missing, biased toward the ones found first."
+        )
     if not ranking.ranked:
         lines.append("No candidate drug has a valid path to this disease within the hop limit.")
         lines.append("This is not proof that no drug could work.")
@@ -504,25 +535,38 @@ def render_rank_drugs(ranking: DrugRanking, top_k: int) -> str:
     return "\n".join(lines)
 
 
-def render_evaluation(result: EvaluationResult) -> str:
+def render_evaluation(result: DiseaseEvaluationResult) -> str:
+    """Render a disease-based evaluation. Research use only, not a treatment recommendation."""
+    config_line = ", ".join(f"{key}={value}" for key, value in result.config.to_dict().items())
     lines = [
+        "Path baseline evaluation — research use only",
         "Research hypothesis evaluation. Not a treatment recommendation.",
-        f"Baseline sanity check on {result.n_pairs} held-out indication pair(s), seed {result.seed}.",
-        "Small sample, not a trained model. These numbers are not predictive performance.",
+        f"Configuration: {config_line}",
+        f"Train diseases: {result.n_train_diseases}   Test diseases: {result.n_test_diseases}",
+        f"Train indication edges: {result.n_train_indications}   "
+        f"Held-out (test) indication edges: {result.n_test_indications}",
+        f"Diseases with candidate cap reached: {result.n_diseases_with_candidate_cap_hit}   "
+        f"with a truncated per-drug search: {result.n_diseases_with_truncated_searches}   "
+        f"with the candidate-finding search truncated: {result.n_diseases_with_backward_search_truncated}",
         "",
     ]
     for outcome in result.outcomes:
-        pair = outcome.pair
-        where = f"rank {outcome.rank}" if outcome.rank is not None else "not ranked"
+        where = f"rank {outcome.path_rank}" if outcome.path_rank is not None else "not ranked"
+        random_where = f"rank {outcome.random_rank}" if outcome.random_rank is not None else "not ranked"
         lines.append(
-            f"  {pair.drug_name} -> {pair.disease_name}: {where} of {outcome.n_ranked} ranked, "
-            f"hit@10 {'yes' if outcome.hit_at_k else 'no'}, reciprocal rank {outcome.reciprocal_rank:.3f}"
+            f"  {outcome.drug_name} -> {outcome.disease_name}: {where} of {outcome.n_candidates} candidates "
+            f"(random baseline: {random_where})"
         )
-    lines += [
-        "",
-        f"Hits@10: {result.hits_at_10:.3f}",
-        f"Mean reciprocal rank: {result.mean_reciprocal_rank:.3f}",
-    ]
+    lines.append("")
+    for k in result.config.top_ks:
+        lines.append(f"Hits@{k}: {result.hits_at(k):.3f}  (random baseline: {result.random_hits_at(k):.3f})")
+    lines.append(f"MRR: {result.mrr:.3f}  (random baseline: {result.random_mrr:.3f})")
+    lines.append(f"Runtime: {result.runtime_s:.1f}s")
+    lines.append("")
+    lines.append(
+        "A handful of test diseases cannot support a claim of predictive performance. "
+        "Compare against the random baseline above before reading anything into these numbers."
+    )
     return "\n".join(lines)
 
 

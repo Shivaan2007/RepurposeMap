@@ -78,22 +78,41 @@ def test_explain_paths_needs_the_primekg_source(sample_csv: Path, capsys):
     assert "add --source primekg" in capsys.readouterr().err
 
 
-def test_evaluate_baseline_prints_metrics_and_the_sanity_check_label(primekg_csv: Path, capsys):
+def test_evaluate_baseline_prints_disease_based_header_and_metrics(primekg_csv: Path, capsys):
+    # The fixture has 3 indication pairs, one disease each. --test-fraction 1.0 holds out all of them.
     exit_code = main([
         "evaluate-baseline", "--source", "primekg", "--csv", str(primekg_csv),
-        "--max-pairs", "3", "--seed", "0",
+        "--test-diseases", "3", "--test-fraction", "1.0", "--seed", "0",
     ])
     out = capsys.readouterr().out
     assert exit_code == 0
-    assert "Baseline sanity check on 3 held-out indication pair(s), seed 0." in out
-    assert "not predictive performance" in out
-    assert "Hits@10:" in out and "Mean reciprocal rank:" in out
+    assert "Path baseline evaluation — research use only" in out
+    assert "Research hypothesis evaluation. Not a treatment recommendation." in out
+    assert "Train diseases: 0   Test diseases: 3" in out
+    assert "Held-out (test) indication edges: 3" in out
+    assert "Hits@1:" in out and "Hits@3:" in out and "Hits@10:" in out
+    assert "MRR:" in out and "random baseline" in out
+    assert "Runtime:" in out
+
+
+def test_evaluate_baseline_rejects_a_bad_test_fraction(primekg_csv: Path, capsys):
+    exit_code = main([
+        "evaluate-baseline", "--source", "primekg", "--csv", str(primekg_csv), "--test-fraction", "0",
+    ])
+    err = capsys.readouterr().err
+    assert exit_code == 1
+    assert "test_fraction" in err
 
 
 def test_evaluate_baseline_is_reproducible_for_a_seed(primekg_csv: Path, capsys):
-    args = ["evaluate-baseline", "--source", "primekg", "--csv", str(primekg_csv), "--max-pairs", "2", "--seed", "4"]
+    args = [
+        "evaluate-baseline", "--source", "primekg", "--csv", str(primekg_csv),
+        "--test-diseases", "2", "--test-fraction", "1.0", "--seed", "4",
+    ]
     main(args)
     first = capsys.readouterr().out
     main(args)
     second = capsys.readouterr().out
-    assert first == second
+    # Runtime varies between runs; everything else must match exactly.
+    strip_runtime = lambda text: "\n".join(line for line in text.splitlines() if not line.startswith("Runtime:"))
+    assert strip_runtime(first) == strip_runtime(second)

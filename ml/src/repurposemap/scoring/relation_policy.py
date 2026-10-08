@@ -12,7 +12,7 @@ count as evidence.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from enum import StrEnum
 
 import networkx as nx
@@ -118,18 +118,29 @@ def policy_view(
     graph: nx.MultiDiGraph,
     policy: RelationPolicy,
     hidden_pairs: Iterable[tuple[str, str]] = (),
+    extra_filter: Callable[[str, str, tuple[str, str]], bool] | None = None,
 ) -> nx.MultiDiGraph:
     """Return a read-only view with excluded edges and ``hidden_pairs`` removed.
 
     ``hidden_pairs`` are ``(source, target)`` node IDs whose edges are hidden in
     the stored direction. Evaluation uses this to hide a held-out indication
     edge. The view is lazy, so no edges are copied.
+
+    ``extra_filter``, if given, is ANDed into the same filter closure instead of
+    being applied as a second, separately nested ``subgraph_view``. Composing
+    filters this way matters: every edge access during a path search must pass
+    through every filter layer wrapping the graph, so stacking two
+    ``subgraph_view`` calls (one from a caller, one here) roughly doubles the
+    per-edge cost of every search. A profiled disease-evaluation run spent most
+    of its time in exactly this nested-view overhead, not in the search itself.
     """
     hidden = frozenset(hidden_pairs)
 
     def keep(u: str, v: str, key: tuple[str, str]) -> bool:
         if (u, v) in hidden:
             return False
-        return policy.edge_allowed(graph[u][v][key])
+        if not policy.edge_allowed(graph[u][v][key]):
+            return False
+        return extra_filter is None or extra_filter(u, v, key)
 
     return nx.subgraph_view(graph, filter_edge=keep)

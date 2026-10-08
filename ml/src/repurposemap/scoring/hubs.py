@@ -12,7 +12,7 @@ popular.
 
 from __future__ import annotations
 
-from collections.abc import Iterator, Mapping
+from collections.abc import Callable, Iterator, Mapping
 
 import networkx as nx
 
@@ -37,8 +37,13 @@ class NeighbourCounts(Mapping[str, int]):
     only looks up the nodes on a path, so the full graph is never scanned.
     """
 
-    def __init__(self, graph: nx.MultiDiGraph, policy: RelationPolicy) -> None:
-        self._view = policy_view(graph, policy)
+    def __init__(
+        self,
+        graph: nx.MultiDiGraph,
+        policy: RelationPolicy,
+        extra_filter: Callable[[str, str, tuple[str, str]], bool] | None = None,
+    ) -> None:
+        self._view = policy_view(graph, policy, extra_filter=extra_filter)
         self._cache: dict[str, int] = {}
 
     def __getitem__(self, node: str) -> int:

@@ -1,6 +1,6 @@
 # RepurposeMap ML: graph exploration and path-quality baseline
 
-This folder holds the Python package. It is at **Milestone 2: path quality and a first drug-ranking baseline**. The main README has the full picture. This file covers the package layout, the scoring rules, the baseline formula, and the commands.
+This folder holds the Python package. It is at **Milestone 3: proper disease-based evaluation**, on top of Milestone 2's path quality and drug-ranking baseline. The main README has the full picture. This file covers the package layout, the scoring rules, the baseline formula, the evaluation methodology, and the commands.
 
 > **Research use only.** Every output here is a hypothesis for expert review, not a treatment recommendation. A path in the graph is not evidence of efficacy. The drug ranking is a non-ML baseline, not a trained model. The synthetic sample is invented data. Do not cite it as biology.
 
@@ -13,7 +13,14 @@ This folder holds the Python package. It is at **Milestone 2: path quality and a
 - `repurposemap/scoring/promiscuity.py`: distinct-target counts for drugs, and the drug-side promiscuity penalty.
 - `repurposemap/scoring/path_quality.py`: the path score, its breakdown, deterministic ranking, and the "why this order" explanation.
 - `repurposemap/ranking/drugs.py`: the drug-ranking baseline for one disease.
-- `repurposemap/evaluation/baseline.py`: held-out indication evaluation (rank, Hits@10, reciprocal rank).
+- `repurposemap/evaluation/baseline.py`: the Milestone 2 per-pair sanity check. Kept for quick manual checks; superseded for CLI use.
+- `repurposemap/evaluation/indications.py`: extracts known drug-disease indication records from the graph.
+- `repurposemap/evaluation/split.py`: `EvaluationConfig` and the deterministic disease-based train/test split.
+- `repurposemap/evaluation/training_graph.py`: builds the one training graph with test diseases' treatments removed.
+- `repurposemap/evaluation/leakage.py`: explicit leakage checks that fail loudly.
+- `repurposemap/evaluation/metrics.py`: filtered rank, Hits@K, MRR. Decoupled from any one model.
+- `repurposemap/evaluation/random_baseline.py`: the random-order comparison baseline.
+- `repurposemap/evaluation/disease_eval.py`: ties the above into `evaluate_disease_split`, the function the CLI calls.
 - `repurposemap/cli.py`: argument parsing and output only.
 
 ## Node identity
@@ -156,28 +163,69 @@ Known limits of the formula:
 
 ## Evaluation harness
 
-`evaluate-baseline` takes known indication pairs, chosen with a fixed seed:
+`evaluate-baseline` is a **disease-based** evaluation. It measures whether the baseline can recover a known treatment after every treatment for that *disease* is hidden, not after hiding one drug-disease edge while leaving everything else about that disease visible.
 
-1. Hide the held-out pair in **both directions**. The code checks that no direct edge remains visible before ranking. If one does, it raises an error.
-2. Rank every candidate drug for the disease.
-3. Record the held-out drug's rank (1 is best), or "not ranked".
+### Why not split by edge
 
-Metrics:
+An edge-level split hides one `(drug, disease)` pair at a time and leaves the rest of the graph untouched. That is safe for a baseline that cannot learn from the graph, which is what Milestone 2's sanity check did. It is not safe for anything that fits on the graph, such as a future TransE or R-GCN model:
 
-- **Hits@10:** share of pairs whose drug ranks in the top 10.
-- **Mean reciprocal rank (MRR):** mean of `1/rank`, with 0 for a pair that is not ranked.
+- The disease keeps every one of its *other* drug indications visible. A model trained on "all edges except this one" can still learn the disease's treatment profile from its other treatments, and from drugs that resemble the held-out one.
+- Re-running the hide-one-pair-at-a-time process for every pair never produces one single training graph. A learned model needs exactly one training graph to fit, so the evaluation has to decide, once, what is hidden for that one fit.
 
-This is a **sanity check, not a benchmark**. A few pairs cannot support any claim of predictive performance. A pair the baseline does not rank scores 0, which conflates "not reachable within the hop and candidate limits" with "the baseline ranks it poorly". A proper disease-based train/test split is the next step.
+### The split
+
+The split is on **disease ID**:
+
+1. Extract every `(drug, disease)` pair linked by an `indication` edge (`repurposemap.evaluation.indications`). Contraindications, drug-drug interactions, and weak graph associations (gene, phenotype, anatomy links, and the rest) are never treated as treatments.
+2. Choose a set of **test diseases**, deterministically for a given seed: `round(test_fraction * n_diseases)`, capped by `max_test_diseases`, at least one (`repurposemap.evaluation.split`).
+3. **Every** indication edge of a test disease goes to the test set. **None** of it goes to training. A disease with three known drugs has all three held out together, never some in training and some in test.
+4. Build one training graph: a view of the full graph with every test disease's indication edges removed, in both directions (`repurposemap.evaluation.training_graph`). Everything else stays, including gene, protein, pathway, phenotype and anatomy links for test diseases, and the indication edges of train diseases. This simulates "a disease with its biological knowledge, but no treatment information" for every test disease.
+
+### What stays visible for a test disease
+
+Only its `indication` edges are gone. Its disease-gene associations, phenotypes, anatomy links, and position in the disease hierarchy all stay. The path baseline could, in principle, use any of that; the relation policy (not the split) decides what actually counts as evidence.
+
+### Leakage checks
+
+`repurposemap.evaluation.leakage.assert_no_leakage` runs after the training graph is built and before any ranking. It fails loudly (raises `ValueError`, listing every violation) if:
+
+1. Any indication edge in the training graph touches a test disease.
+2. Any held-out `(drug, disease)` test pair is still connected by an indication edge.
+3. The train and test disease sets overlap.
+
+A fourth risk, that the ranking code itself inspects a held-out edge, is handled structurally rather than checked at run time: the ranking only ever sees the training graph (the edges are gone, not hidden behind a per-call argument), and the relation policy excludes the `indication` relation everywhere regardless.
+
+### Metrics
+
+Computed over every held-out `(drug, disease)` pair, not over diseases: a disease with three true drugs contributes three ranks.
+
+- **Filtered rank.** For a disease with several true drugs, finding one drug's rank first removes every *other* true drug for that disease from the ranked list. This is the standard knowledge-graph link-prediction practice, so that a baseline ranking two correct drugs 1st and 2nd is not punished for the second one "pushing down" the first.
+- **Hits@K** (K = 1, 3, 10): the share of held-out pairs whose drug's filtered rank is at most K. 1.0 means every true drug was in the top K; 0.0 means none were.
+- **MRR (mean reciprocal rank):** the mean of `1/rank` over every held-out pair, with 0 for a pair that is not ranked at all. It rewards ranking the true drug first much more than ranking it tenth, and it is never dominated by one disease with many candidates the way a disease-averaged metric could be.
+
+### Random baseline
+
+Each test disease also gets a **random-order baseline**: the same candidate drugs the path baseline found for that disease, shuffled with a seed derived from `(seed, disease_id)`. Same candidates, same metrics, different order. This is the real question the evaluation asks: not "can the baseline rank the true drug highly", but "does the baseline do any better than shuffling the same list". A result that does not beat random is not evidence the baseline captures anything.
+
+### Configuration
+
+Every knob is one `EvaluationConfig` (`repurposemap.evaluation.split`), with no hidden defaults: `seed`, `test_fraction`, `max_test_diseases`, `top_ks`, and the path-ranking parameters (`max_path_length`, `paths_per_drug`, `max_candidates`, `time_limit_per_drug_s`, `max_edge_checks_per_drug`). `evaluate-baseline`'s output prints the configuration it ran with, so a result is never read without knowing what produced it. `max_candidates` defaults to 500 for evaluation, not rank-drugs' 2,000, because evaluation runs this once per test disease and must stay well under an hour for a few dozen diseases.
+
+### What this does not show
+
+- This is still a **sanity check on a handful of diseases**, not a validated benchmark. Twenty test diseases cannot support a claim of predictive performance.
+- A pair the baseline does not rank scores 0 on every metric, which conflates "not reachable within the hop and candidate limits" with "the baseline ranks it poorly".
+- The old per-pair sanity check (`repurposemap.evaluation.evaluate_baseline`) still exists as a function, for a quick manual check of one or two pairs. The CLI no longer uses it; `evaluate-baseline` now runs the disease-based evaluation above.
 
 ## Measured results (full PrimeKG, this machine)
 
 Machine: 8-core Mac, 8 GB RAM. Times are wall-clock.
 
 - **Load** (`load_primekg`): 94 to 99 seconds.
-- **Relation policy and hub counts:** computed lazily, only for nodes on a path. The full-graph count took about 56 seconds, so the lazy version is the one used.
+- **Relation policy and hub counts:** computed lazily, only for nodes on a path.
 - **explain-paths** (one pair, 200 candidate paths): 9 to 12 seconds after load.
 - **rank-drugs** for pulmonary arterial hypertension: 53 to 60 seconds, 2,000 candidates (cap reached, about 30 ms per drug).
-- **evaluate-baseline**, 3 pairs: about 610 to 625 seconds in total, about 200 seconds per pair. Each pair ranks up to 2,000 candidates.
+- **evaluate-baseline**, 20 test diseases, the current defaults (500 candidates, 5 s, 1,000,000 edge checks per drug): about 18.5 minutes in total, roughly 55 seconds per disease on average. See "Disease-based evaluation: a controlled benchmark" below for how this number was reached; an earlier, unfixed version of this code path took far longer, for a reason that had nothing to do with the diseases themselves.
 
 Known-pair sanity checks. Each direct indication edge is the raw shortest path, and the policy excludes it. These are sanity checks only, not evidence of performance.
 
@@ -200,14 +248,24 @@ Drug-ranking example, pulmonary arterial hypertension, top 10 after the promiscu
 
 Before the penalty, copper, zinc and zinc acetate were in the top ten. Copper and zinc acetate are now outside the top 15, and zinc chloride is 15th with a 0.25 penalty. The list still includes some drugs with a few targets, such as dorsomorphin and heptyl glucoside, which score on path count and path length. These are candidates for review, not findings.
 
-Evaluation example, `evaluate-baseline --max-pairs 3 --seed 0`, after the penalty:
+### Disease-based evaluation: a controlled benchmark
 
-- Prednisolone -> infectious anterior uveitis: not ranked (0 candidate drugs had a valid path to this disease).
-- Opicapone -> Parkinson disease: not ranked (2,000 candidates were ranked, and the held-out drug was not among them).
-- Quizartinib -> acute myeloid leukemia with t(9;11)(p22;q23): rank 307 of 2,000 (316 before the penalty).
-- **Hits@10: 0.000. MRR: 0.001.**
+Run with `evaluate-baseline --source primekg --test-diseases 20 --seed 42`, the current defaults (500 candidates, 5 second and 1,000,000-edge-check per-drug budget), on a single process with nothing else competing for the machine:
 
-The penalty did not change the sanity check in any meaningful way. These three pairs say almost nothing. The result is weak, and it should be reported as weak.
+- **20 test diseases, 147 held-out (drug, disease) pairs.**
+
+| Metric | Path baseline | Random baseline |
+|---|---:|---:|
+| Hits@10 | **0.034** | **0.007** |
+| MRR | **0.0158** | **0.0035** |
+
+This is a **small, controlled evaluation**, not a validated benchmark: 20 diseases and 147 pairs. Within that small sample, the path baseline beats the random-order baseline by about **5x on Hits@10** and about **4.5x on MRR**. That is a real, reproducible signal that quality-ranked paths carry more information than an arbitrary order over the same candidates. It is not large, and **absolute performance remains weak**: Hits@10 of 0.034 means the true drug lands in the top 10 for roughly 1 in 30 held-out pairs.
+
+This baseline, and this evaluation harness, exist as a **comparison point for TransE and R-GCN**, planned for later milestones (see Roadmap). Whatever those models score, it should be read against this baseline and against the random-order baseline on the same split and the same metrics.
+
+**These results are not clinical evidence.** They measure whether a heuristic path score can recover a known treatment after it is hidden from the graph. They say nothing about whether any ranked drug would work in a patient, and must not be read as if they did.
+
+A controlled benchmark, run before this number, found that an early, unfixed version of the per-disease ranking call built two nested graph views where one would do, which made the search pay the cost of filtering every edge twice. Fixing that (folding the filter into one view, verified on a fast and a slow disease to give byte-identical rankings, 2.8x to 3.1x faster) is what makes a 20-disease run take minutes rather than tens of minutes to over an hour; it did not change any rank, score, or path.
 
 ## Commands
 
@@ -228,22 +286,23 @@ python -m repurposemap rank-drugs --source primekg \
   --disease "pulmonary arterial hypertension" --top-k 10
 python -m repurposemap rank-drugs --source primekg --disease-id 38436 --top-k 10
 
-# held-out indication sanity check
-python -m repurposemap evaluate-baseline --source primekg --max-pairs 3 --seed 0
+# disease-based evaluation, with a random-order baseline for comparison
+python -m repurposemap evaluate-baseline --source primekg --test-diseases 20 --seed 42
 ```
 
 Useful options:
 
 - `explain-paths`: `--max-path-length` (default 4), `--max-results` (raw and ranked paths shown, default 5), `--candidate-paths` (default 200), `--time-limit`.
 - `rank-drugs`: `--max-path-length` (default 3), `--paths-per-drug` (default 50), `--max-candidates` (default 2000), `--time-limit-per-drug` (default 5 seconds), `--max-edge-checks-per-drug` (default 1,000,000).
-- `evaluate-baseline`: the same limits as `rank-drugs`, plus `--max-pairs` (default 5) and `--seed` (default 0).
+- `evaluate-baseline`: `--test-diseases` (cap on test diseases, default 20), `--test-fraction` (share of diseases held out before that cap, default 0.1), `--seed` (default 0), plus the same path-ranking limits as `rank-drugs` except `--max-candidates` defaults to 500 here, to keep a multi-disease run fast.
 
 ## Limitations
 
 - **Connectivity is not proof of efficacy.** A path that exists in the graph, however well scored, is a hypothesis.
 - **The path score is heuristic.** It is not validated against any gold standard, and the weights were chosen by reasoning, not fitted.
 - **The baseline is not a trained model.** No machine learning exists in this milestone.
-- **The evaluation is tiny.** Three pairs cannot support any claim about performance.
+- **The evaluation is still small.** 20 test diseases, 147 held-out pairs (about 1.5% of PrimeKG's diseases with a known indication) cannot support any claim of clinical or predictive performance, even with a disease-based split and a random baseline beaten by 4.5x to 5x. It rules out the most obvious form of leakage and shows the baseline does better than chance on this sample; it does not validate the baseline.
+- **A drug beyond the candidate cap looks unranked**, which is not the same as the baseline ranking it poorly. `max_candidates` defaults to 500 for evaluation (versus 2,000 for `rank-drugs`), and `DrugRanking.candidate_cap_hit` / `TreatmentOutcome.candidate_cap_hit` say when that happened.
 - **Promiscuous drugs are penalised by a fixed amount.** The penalty removes the worst of the generic compounds from the top, but a drug with many targets can still rank high if its path sum is large.
 - **Low-target drugs can rank on path count.** Drugs with two to four targets can have several short valid paths, so they rank well for reasons that are not mechanistic.
 - **The score saturates** at 4.5 with K = 3, so many drugs tie.
@@ -259,6 +318,6 @@ Useful options:
 pytest
 ```
 
-174 tests run in about 1.5 seconds. They use the synthetic sample, the 15-row fixture in `tests/fixtures/`, and tiny graphs in the PrimeKG schema built in `tests/graph_builders.py`. None of them need the full PrimeKG file. The scoring tests cover relation scoring, hub tiers, length and ordering, the breakdown structure, and synthetic compatibility through a custom policy. The ranking tests cover score formula, determinism, candidate cap, leakage prevention, Hits@10, and reciprocal rank. The CLI tests cover the three new commands.
+215 tests run in about 1.5 seconds. They use the synthetic sample, the 15-row fixture in `tests/fixtures/`, and tiny graphs in the PrimeKG schema built in `tests/graph_builders.py`. None of them need the full PrimeKG file. The scoring tests cover relation scoring, hub tiers, length and ordering, the breakdown structure, and synthetic compatibility through a custom policy. The ranking tests cover score formula, determinism, candidate cap, leakage prevention, Hits@10, reciprocal rank, and the backward-search edge-check budget. `tests/test_disease_evaluation.py` covers indication extraction, the disease-based split (determinism, the test-fraction and cap, disjointness, validation), the training graph, every leakage check (including one that fails on purpose), the metrics (filtered rank, Hits@K, MRR), the random baseline, an end-to-end run with a disease that has two true drugs and one that cannot be ranked at all, and that a disease's search-completeness fields (candidate cap, per-drug truncation, backward-search truncation) are exposed on its outcome. The CLI tests cover all three scoring commands.
 
 If `python -m repurposemap` cannot find the package on macOS, see the troubleshooting section in the main README.

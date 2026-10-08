@@ -26,8 +26,14 @@ Formula. For a drug ``d`` and a disease ``D``:
 
 Candidates are the drug nodes within ``max_path_length`` hops of the disease
 along allowed edges. A backward search finds them, so the search never enumerates
-every path in the graph. If there are more candidates than ``max_candidates``,
-the nearest ones (fewest hops) are kept, ties by ID, and the cut is reported.
+every path in the graph. The backward search itself is bounded by
+``max_backward_edge_checks``: some diseases sit in a very densely connected part
+of PrimeKG, where an unbounded backward search can take minutes. When the
+budget runs out, the search keeps whatever it found, which is biased toward the
+nearest candidates because of the order the search visits nodes in, and
+``DrugRanking.backward_search_truncated`` is set. If there are more candidates
+than ``max_candidates``, the nearest ones (fewest hops) are kept, ties by ID,
+and the cut is reported.
 
 Direct drug-disease edges are hidden from the search through ``hidden_pairs``,
 so a known indication is never counted as its own evidence.
@@ -36,7 +42,7 @@ so a known indication is never counted as its own evidence.
 from __future__ import annotations
 
 from collections import deque
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 
 import networkx as nx
@@ -52,6 +58,10 @@ SCORED_PATHS_PER_DRUG = 3
 DEFAULT_MAX_CANDIDATES = 2000
 DEFAULT_TIME_LIMIT_PER_DRUG_S = 5.0
 DEFAULT_MAX_EDGE_CHECKS_PER_DRUG = 1_000_000
+# Budget for the one backward search that finds candidates, not for any one drug's
+# path search. Without this, a densely connected disease can make that search take
+# minutes: it has no other limit, unlike every per-drug search below.
+DEFAULT_MAX_BACKWARD_EDGE_CHECKS = 500_000
 
 
 @dataclass(frozen=True)
@@ -80,6 +90,7 @@ class DrugRanking:
     candidate_cap_hit: bool
     n_without_path: int
     n_truncated_searches: int
+    backward_search_truncated: bool
 
 
 def rank_drugs(
@@ -93,13 +104,22 @@ def rank_drugs(
     max_candidates: int = DEFAULT_MAX_CANDIDATES,
     time_limit_per_drug_s: float = DEFAULT_TIME_LIMIT_PER_DRUG_S,
     max_edge_checks_per_drug: int = DEFAULT_MAX_EDGE_CHECKS_PER_DRUG,
+    max_backward_edge_checks: int = DEFAULT_MAX_BACKWARD_EDGE_CHECKS,
     hidden_pairs: Iterable[tuple[str, str]] = (),
+    extra_edge_filter: Callable[[str, str, tuple[str, str]], bool] | None = None,
 ) -> DrugRanking:
     """Rank the drugs that reach ``disease_id`` by quality-scored short paths.
 
     ``neighbour_counts`` comes from ``allowed_neighbour_counts`` for the same graph
     and policy. ``hidden_pairs`` are (source, target) node IDs whose edges are
     hidden, typically both directions of a held-out indication.
+
+    ``extra_edge_filter``, if given, is an additional predicate an edge must
+    pass. Pass a caller's own exclusion rule here, composed into the one filter
+    view this function already builds, rather than wrapping ``graph`` in a
+    second ``subgraph_view`` before calling this function: stacking views makes
+    every edge access during the search pay for every layer, which dominates
+    runtime long before any per-drug or per-disease budget does.
 
     Raises:
         ValueError: the disease is not in the graph or is not a disease node, or a
@@ -111,6 +131,7 @@ def rank_drugs(
         ("paths_per_drug", paths_per_drug),
         ("max_candidates", max_candidates),
         ("max_edge_checks_per_drug", max_edge_checks_per_drug),
+        ("max_backward_edge_checks", max_backward_edge_checks),
     ):
         if value < 1:
             raise ValueError(f"{name} must be at least 1, got {value}")
@@ -121,8 +142,8 @@ def rank_drugs(
     if graph.nodes[disease_id]["node_type"] != "disease":
         raise ValueError(f"entity {disease_id!r} is not a disease node")
 
-    view = policy_view(graph, policy, hidden_pairs)
-    reach = _backward_distances(view, disease_id, max_path_length)
+    view = policy_view(graph, policy, hidden_pairs, extra_filter=extra_edge_filter)
+    reach, backward_truncated = _backward_distances(view, disease_id, max_path_length, max_backward_edge_checks)
     # Nearest drugs first, so that when the cap applies it keeps the closest candidates.
     drug_ids = sorted(
         (node for node in reach if reach[node] >= 1 and _is_drug(graph, node)),
@@ -178,6 +199,7 @@ def rank_drugs(
         candidate_cap_hit=cap_hit,
         n_without_path=without_path,
         n_truncated_searches=truncated,
+        backward_search_truncated=backward_truncated,
     )
 
 
@@ -185,16 +207,31 @@ def _is_drug(graph: nx.MultiDiGraph, node: str) -> bool:
     return graph.nodes[node]["node_type"] == "drug"
 
 
-def _backward_distances(view: nx.MultiDiGraph, target: str, depth: int) -> dict[str, int]:
-    """Hop distance from every node to ``target`` along allowed edges, up to ``depth``."""
+def _backward_distances(
+    view: nx.MultiDiGraph, target: str, depth: int, max_edge_checks: int
+) -> tuple[dict[str, int], bool]:
+    """Hop distance from every node to ``target`` along allowed edges, up to ``depth``.
+
+    Stops early once ``max_edge_checks`` predecessor edges have been examined, so
+    one densely connected disease cannot make this take minutes. Returns the
+    distances found so far and whether the budget ran out before the search
+    finished. Nodes are visited nearest-first, so a truncated result is biased
+    toward the nearest candidates, not an arbitrary subset.
+    """
     distance = {target: 0}
     queue: deque[str] = deque([target])
+    checks = 0
+    truncated = False
     while queue:
         node = queue.popleft()
         if distance[node] == depth:
             continue
         for predecessor in view.pred[node]:
+            if checks >= max_edge_checks:
+                truncated = True
+                return distance, truncated
+            checks += 1
             if predecessor not in distance:
                 distance[predecessor] = distance[node] + 1
                 queue.append(predecessor)
-    return distance
+    return distance, truncated

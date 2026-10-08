@@ -299,3 +299,31 @@ def test_promiscuity_penalty_can_reorder_drugs():
 
     ranking = rank(graph)
     assert [c.drug_id for c in ranking.ranked][0] == "CLEAN"
+
+
+# Backward-search edge-check budget (bounds a densely connected disease)
+
+def test_backward_search_budget_bounds_a_densely_connected_disease():
+    # 30 independent drug -> protein -> disease chains. The drugs sit two hops back,
+    # so a budget that runs out while still examining the disease's direct
+    # predecessors (the proteins) must find zero candidates.
+    n = 30
+    types = {"D": "disease", **{f"A{i:02d}": "drug" for i in range(n)}, **{f"P{i:02d}": "gene/protein" for i in range(n)}}
+    edges = []
+    for i in range(n):
+        edges.append((*TARGET, f"A{i:02d}", f"P{i:02d}"))
+        edges.append((*GENE_DISEASE, f"P{i:02d}", "D"))
+    graph = primekg_style_graph(types, edges)
+
+    starved = rank(graph, max_backward_edge_checks=10)
+    assert starved.backward_search_truncated
+    assert starved.n_candidates == 0
+
+    full = rank(graph, max_backward_edge_checks=100_000)
+    assert not full.backward_search_truncated
+    assert full.n_candidates == n
+
+
+def test_backward_search_budget_is_rejected_below_one():
+    with pytest.raises(ValueError, match="max_backward_edge_checks"):
+        rank(build_graph(), max_backward_edge_checks=0)
