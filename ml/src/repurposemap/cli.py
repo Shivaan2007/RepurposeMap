@@ -40,6 +40,7 @@ from repurposemap.evaluation import (
     DiseaseEvaluationResult,
     EvaluationConfig,
     evaluate_disease_split,
+    run_with_checkpoint,
 )
 from repurposemap.graph import (
     DEFAULT_MAX_PATH_LENGTH,
@@ -190,6 +191,14 @@ def build_parser() -> argparse.ArgumentParser:
         max_candidates_default=DEFAULT_EVAL_MAX_CANDIDATES,
         time_limit_default=DEFAULT_EVAL_TIME_LIMIT_PER_DRUG_S,
         max_edge_checks_default=DEFAULT_EVAL_MAX_EDGE_CHECKS_PER_DRUG,
+    )
+    evaluate.add_argument(
+        "--checkpoint", type=Path, default=None,
+        help=(
+            "save each disease's result to this file as it finishes, and skip diseases "
+            "already recorded there; use for a run large enough that losing it to an "
+            "interruption would be expensive (default: off, nothing saved)"
+        ),
     )
     _add_source_arguments(evaluate)
     return parser
@@ -372,8 +381,21 @@ def _run_evaluate(args: argparse.Namespace, graph: nx.MultiDiGraph) -> str:
         max_edge_checks_per_drug=args.max_edge_checks_per_drug,
         max_backward_edge_checks=args.max_backward_edge_checks,
     )
-    result = evaluate_disease_split(graph, config)
+    if args.checkpoint is None:
+        result = evaluate_disease_split(graph, config)
+    else:
+        result = run_with_checkpoint(graph, config, args.checkpoint, on_disease_done=_print_disease_progress)
     return render_evaluation(result)
+
+
+def _print_disease_progress(disease_id: str, outcomes: list) -> None:
+    best_rank = min((o.path_rank for o in outcomes if o.path_rank is not None), default=None)
+    where = f"best rank {best_rank}" if best_rank is not None else "no true drug ranked"
+    print(
+        f"  [checkpoint] {outcomes[0].disease_name!r} ({disease_id}): "
+        f"{len(outcomes)} true drug(s), {outcomes[0].n_candidates} candidates, {where}",
+        flush=True,
+    )
 
 
 def resolve_endpoint(

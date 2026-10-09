@@ -26,7 +26,8 @@ not be read as evaluating, whether any ranked drug would actually work.
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass
+from collections.abc import Callable
+from dataclasses import dataclass, field
 
 import networkx as nx
 
@@ -127,21 +128,30 @@ class DiseaseEvaluationResult:
         return sum(o.backward_search_truncated for o in self._one_outcome_per_disease())
 
 
-def evaluate_disease_split(
-    graph: nx.MultiDiGraph,
-    config: EvaluationConfig,
-    *,
-    policy: RelationPolicy | None = None,
-) -> DiseaseEvaluationResult:
-    """Run the full disease-based evaluation pipeline and return its result.
+@dataclass(frozen=True)
+class EvaluationContext:
+    """Setup shared by every disease in one evaluation run.
+
+    Built once by ``prepare_evaluation``. ``repurposemap.evaluation.checkpoint``
+    reuses this so a checkpointed, resumable run does not repeat the split,
+    the leakage check, or the one-time filter/neighbour-count construction.
+    """
+
+    split: DiseaseSplit
+    exclude_test_indications: Callable[[str, str, tuple[str, str]], bool]
+    neighbour_counts: NeighbourCounts
+    by_disease: dict[str, list[IndicationRecord]] = field(repr=False)
+
+
+def prepare_evaluation(
+    graph: nx.MultiDiGraph, config: EvaluationConfig, policy: RelationPolicy
+) -> EvaluationContext:
+    """Everything needed before ranking any disease: split, leakage check, filters.
 
     Raises:
         ValueError: the graph has no indication edges, the split is invalid, or
             a leakage check fails.
     """
-    policy = policy or RelationPolicy()
-    started = time.monotonic()
-
     indications = extract_indications(graph)
     if not indications:
         raise ValueError("the graph has no drug-indication-disease edges to evaluate")
@@ -162,45 +172,91 @@ def evaluate_disease_split(
     for record in split.test_indications:
         by_disease.setdefault(record.disease_id, []).append(record)
 
+    return EvaluationContext(
+        split=split, exclude_test_indications=exclude_test_indications,
+        neighbour_counts=neighbour_counts, by_disease=by_disease,
+    )
+
+
+def rank_one_disease(
+    graph: nx.MultiDiGraph,
+    disease_id: str,
+    records: list[IndicationRecord],
+    *,
+    policy: RelationPolicy,
+    config: EvaluationConfig,
+    context: EvaluationContext,
+) -> list[TreatmentOutcome]:
+    """Rank candidates for one disease and score every held-out drug of it.
+
+    This is the one piece of work a checkpointed run can redo in isolation
+    after an interruption, without repeating ``prepare_evaluation``.
+    """
+    true_ids = tuple(record.drug_id for record in records)
+    ranking = rank_drugs(
+        graph,
+        disease_id,
+        neighbour_counts=context.neighbour_counts,
+        policy=policy,
+        max_path_length=config.max_path_length,
+        paths_per_drug=config.paths_per_drug,
+        max_candidates=config.max_candidates,
+        time_limit_per_drug_s=config.time_limit_per_drug_s,
+        max_edge_checks_per_drug=config.max_edge_checks_per_drug,
+        max_backward_edge_checks=config.max_backward_edge_checks,
+        extra_edge_filter=context.exclude_test_indications,
+    )
+    ranked_ids = [candidate.drug_id for candidate in ranking.ranked]
+    random_ids = random_ranking(ranked_ids, seed=config.seed, disease_id=disease_id)
+
+    outcomes = []
+    for record in records:
+        other_true = [drug_id for drug_id in true_ids if drug_id != record.drug_id]
+        outcomes.append(
+            TreatmentOutcome(
+                disease_id=disease_id,
+                disease_name=record.disease_name,
+                drug_id=record.drug_id,
+                drug_name=record.drug_name,
+                path_rank=filtered_rank(record.drug_id, other_true, ranked_ids),
+                random_rank=filtered_rank(record.drug_id, other_true, random_ids),
+                n_candidates=len(ranked_ids),
+                n_truncated_searches=ranking.n_truncated_searches,
+                candidate_cap_hit=ranking.candidate_cap_hit,
+                backward_search_truncated=ranking.backward_search_truncated,
+            )
+        )
+    return outcomes
+
+
+def evaluate_disease_split(
+    graph: nx.MultiDiGraph,
+    config: EvaluationConfig,
+    *,
+    policy: RelationPolicy | None = None,
+) -> DiseaseEvaluationResult:
+    """Run the full disease-based evaluation pipeline and return its result.
+
+    For a run large enough that an interruption would be costly, use
+    ``repurposemap.evaluation.checkpoint.run_with_checkpoint`` instead: it
+    calls the same ``prepare_evaluation`` and ``rank_one_disease`` this
+    function does, just with each disease's result saved as it completes.
+
+    Raises:
+        ValueError: the graph has no indication edges, the split is invalid, or
+            a leakage check fails.
+    """
+    policy = policy or RelationPolicy()
+    started = time.monotonic()
+    context = prepare_evaluation(graph, config, policy)
+
     outcomes: list[TreatmentOutcome] = []
-    for disease_id in split.test_disease_ids:
-        records = by_disease.get(disease_id, [])
+    for disease_id in context.split.test_disease_ids:
+        records = context.by_disease.get(disease_id, [])
         if not records:
             continue
-        true_ids = tuple(record.drug_id for record in records)
-        ranking = rank_drugs(
-            graph,
-            disease_id,
-            neighbour_counts=neighbour_counts,
-            policy=policy,
-            max_path_length=config.max_path_length,
-            paths_per_drug=config.paths_per_drug,
-            max_candidates=config.max_candidates,
-            time_limit_per_drug_s=config.time_limit_per_drug_s,
-            max_edge_checks_per_drug=config.max_edge_checks_per_drug,
-            max_backward_edge_checks=config.max_backward_edge_checks,
-            extra_edge_filter=exclude_test_indications,
-        )
-        ranked_ids = [candidate.drug_id for candidate in ranking.ranked]
-        random_ids = random_ranking(ranked_ids, seed=config.seed, disease_id=disease_id)
-
-        for record in records:
-            other_true = [drug_id for drug_id in true_ids if drug_id != record.drug_id]
-            outcomes.append(
-                TreatmentOutcome(
-                    disease_id=disease_id,
-                    disease_name=record.disease_name,
-                    drug_id=record.drug_id,
-                    drug_name=record.drug_name,
-                    path_rank=filtered_rank(record.drug_id, other_true, ranked_ids),
-                    random_rank=filtered_rank(record.drug_id, other_true, random_ids),
-                    n_candidates=len(ranked_ids),
-                    n_truncated_searches=ranking.n_truncated_searches,
-                    candidate_cap_hit=ranking.candidate_cap_hit,
-                    backward_search_truncated=ranking.backward_search_truncated,
-                )
-            )
+        outcomes.extend(rank_one_disease(graph, disease_id, records, policy=policy, config=config, context=context))
 
     return DiseaseEvaluationResult(
-        config=config, split=split, outcomes=tuple(outcomes), runtime_s=time.monotonic() - started
+        config=config, split=context.split, outcomes=tuple(outcomes), runtime_s=time.monotonic() - started
     )

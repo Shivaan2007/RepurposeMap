@@ -294,7 +294,20 @@ Useful options:
 
 - `explain-paths`: `--max-path-length` (default 4), `--max-results` (raw and ranked paths shown, default 5), `--candidate-paths` (default 200), `--time-limit`.
 - `rank-drugs`: `--max-path-length` (default 3), `--paths-per-drug` (default 50), `--max-candidates` (default 2000), `--time-limit-per-drug` (default 5 seconds), `--max-edge-checks-per-drug` (default 1,000,000).
-- `evaluate-baseline`: `--test-diseases` (cap on test diseases, default 20), `--test-fraction` (share of diseases held out before that cap, default 0.1), `--seed` (default 0), plus the same path-ranking limits as `rank-drugs` except `--max-candidates` defaults to 500 here, to keep a multi-disease run fast.
+- `evaluate-baseline`: `--test-diseases` (cap on test diseases, default 20), `--test-fraction` (share of diseases held out before that cap, default 0.1), `--seed` (default 0), plus the same path-ranking limits as `rank-drugs` except `--max-candidates` defaults to 500 here, to keep a multi-disease run fast. `--checkpoint PATH` (optional).
+
+### Resuming a large evaluation with `--checkpoint`
+
+A run large enough to be worth interrupting (dozens of diseases or more, at the per-disease cost described above) can be made resumable:
+
+```bash
+python -m repurposemap evaluate-baseline --source primekg \
+  --test-diseases 100 --seed 42 --checkpoint path/to/run.jsonl
+```
+
+Each disease's result is appended to `path/to/run.jsonl` as one flushed JSON line (that disease's every outcome together, so a single disease's record cannot be left half-written by an interruption) and printed to stdout as it finishes, so a backgrounded run shows live progress instead of nothing until the end. Running the exact same command again with the same path and the same graph and configuration skips every disease already recorded and only ranks the rest; the final result is identical to an uninterrupted run with the same inputs. Without `--checkpoint`, behaviour is unchanged from before this existed: nothing is saved, and only the final summary is printed.
+
+The checkpoint file does not record which graph or configuration produced it. Use one file per evaluation run; reusing a path across a different graph or config silently reuses stale results. A checkpoint file is local output, not something to commit.
 
 ## Limitations
 

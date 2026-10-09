@@ -19,9 +19,13 @@ from repurposemap.evaluation.baseline import (
 )
 from repurposemap.evaluation.disease_eval import (
     DiseaseEvaluationResult,
+    EvaluationContext,
     TreatmentOutcome,
     evaluate_disease_split,
+    prepare_evaluation,
+    rank_one_disease,
 )
+from repurposemap.evaluation.checkpoint import read_checkpoint, run_with_checkpoint
 from repurposemap.evaluation.indications import IndicationRecord, extract_indications
 from repurposemap.evaluation.leakage import (
     assert_no_leakage,
@@ -54,6 +58,7 @@ __all__ = [
     "DEFAULT_EVAL_PAIRS",
     "DEFAULT_EVAL_SEED",
     "DiseaseEvaluationResult",
+    "EvaluationContext",
     "DiseaseSplit",
     "EvaluationConfig",
     "EvaluationResult",
@@ -65,6 +70,10 @@ __all__ = [
     "build_training_graph",
     "evaluate_baseline",
     "evaluate_disease_split",
+    "read_checkpoint",
+    "run_with_checkpoint",
+    "prepare_evaluation",
+    "rank_one_disease",
     "extract_indications",
     "filtered_rank",
     "find_disease_set_overlap",
