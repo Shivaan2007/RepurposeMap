@@ -27,18 +27,20 @@ repurposemap.evaluation. PrimeKG parsing lives in repurposemap.adapters.
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
 import networkx as nx
 
-from repurposemap.adapters import DEFAULT_PRIMEKG_CSV, load_primekg
+from repurposemap.adapters import DEFAULT_PRIMEKG_CSV, compute_file_fingerprint, load_primekg
 from repurposemap.evaluation import (
     DEFAULT_EVAL_MAX_CANDIDATES,
     DEFAULT_EVAL_MAX_EDGE_CHECKS_PER_DRUG,
     DEFAULT_EVAL_TIME_LIMIT_PER_DRUG_S,
     DiseaseEvaluationResult,
     EvaluationConfig,
+    build_artifact,
     evaluate_disease_split,
     run_with_checkpoint,
 )
@@ -198,6 +200,13 @@ def build_parser() -> argparse.ArgumentParser:
             "save each disease's result to this file as it finishes, and skip diseases "
             "already recorded there; use for a run large enough that losing it to an "
             "interruption would be expensive (default: off, nothing saved)"
+        ),
+    )
+    evaluate.add_argument(
+        "--artifact", type=Path, default=None,
+        help=(
+            "write a compact JSON result artifact (provenance, config, all three "
+            "baselines' metrics, counts, runtime) to this path (default: off)"
         ),
     )
     _add_source_arguments(evaluate)
@@ -385,7 +394,20 @@ def _run_evaluate(args: argparse.Namespace, graph: nx.MultiDiGraph) -> str:
         result = evaluate_disease_split(graph, config)
     else:
         result = run_with_checkpoint(graph, config, args.checkpoint, on_disease_done=_print_disease_progress)
+
+    if args.artifact is not None:
+        _write_artifact(args, graph, result)
     return render_evaluation(result)
+
+
+def _write_artifact(args: argparse.Namespace, graph: nx.MultiDiGraph, result: DiseaseEvaluationResult) -> None:
+    csv_path = args.csv if args.csv is not None else DEFAULT_PRIMEKG_CSV
+    fingerprint = compute_file_fingerprint(csv_path)
+    popularity_universe_size = sum(1 for _, data in graph.nodes(data=True) if data.get("node_type") == "drug")
+    artifact = build_artifact(result, fingerprint, popularity_universe_size=popularity_universe_size)
+    args.artifact.parent.mkdir(parents=True, exist_ok=True)
+    args.artifact.write_text(json.dumps(artifact.to_dict(), indent=2) + "\n", encoding="utf-8")
+    print(f"Artifact written to {args.artifact}", flush=True)
 
 
 def _print_disease_progress(disease_id: str, outcomes: list) -> None:
@@ -570,24 +592,30 @@ def render_evaluation(result: DiseaseEvaluationResult) -> str:
         f"Diseases with candidate cap reached: {result.n_diseases_with_candidate_cap_hit}   "
         f"with a truncated per-drug search: {result.n_diseases_with_truncated_searches}   "
         f"with the candidate-finding search truncated: {result.n_diseases_with_backward_search_truncated}",
+        "Random baseline: candidate-conditioned (shuffles the path baseline's own candidates only). "
+        "Popularity baseline: ranks the complete drug universe, independent of the path search.",
         "",
     ]
     for outcome in result.outcomes:
         where = f"rank {outcome.path_rank}" if outcome.path_rank is not None else "not ranked"
         random_where = f"rank {outcome.random_rank}" if outcome.random_rank is not None else "not ranked"
+        popularity_where = f"rank {outcome.popularity_rank}" if outcome.popularity_rank is not None else "not ranked"
         lines.append(
             f"  {outcome.drug_name} -> {outcome.disease_name}: {where} of {outcome.n_candidates} candidates "
-            f"(random baseline: {random_where})"
+            f"(random: {random_where}, popularity: {popularity_where})"
         )
     lines.append("")
     for k in result.config.top_ks:
-        lines.append(f"Hits@{k}: {result.hits_at(k):.3f}  (random baseline: {result.random_hits_at(k):.3f})")
-    lines.append(f"MRR: {result.mrr:.3f}  (random baseline: {result.random_mrr:.3f})")
+        lines.append(
+            f"Hits@{k}: {result.hits_at(k):.3f}  "
+            f"(random: {result.random_hits_at(k):.3f}, popularity: {result.popularity_hits_at(k):.3f})"
+        )
+    lines.append(f"MRR: {result.mrr:.3f}  (random: {result.random_mrr:.3f}, popularity: {result.popularity_mrr:.3f})")
     lines.append(f"Runtime: {result.runtime_s:.1f}s")
     lines.append("")
     lines.append(
         "A handful of test diseases cannot support a claim of predictive performance. "
-        "Compare against the random baseline above before reading anything into these numbers."
+        "Compare against the random and popularity baselines above before reading anything into these numbers."
     )
     return "\n".join(lines)
 

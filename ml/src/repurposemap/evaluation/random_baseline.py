@@ -1,9 +1,16 @@
-"""Random-order baseline, for comparison with the path-quality ranking.
+"""Candidate-conditioned random baseline, for comparison with the path-quality ranking.
 
-It shuffles the *same* candidate set the path baseline found for a disease, so
-the comparison is fair: both baselines are scored over the same drugs, judged
-by the same metrics. A path ranking that cannot beat this is not doing
-anything useful.
+Labeled deliberately: this baseline is **candidate-conditioned**. It shuffles
+the *same* candidate set the path baseline found for a disease (`rank_drugs`'
+output), not the complete drug universe. It answers "how much of the path
+baseline's apparent signal is just from finding the right candidates at all,"
+not "how would a baseline with no knowledge of the graph do." A path ranking
+that cannot beat this is not doing anything useful over its own candidate
+discovery.
+
+For a baseline that ranks the complete drug universe, independent of the
+path baseline's candidate discovery, see
+`repurposemap.evaluation.popularity_baseline`.
 
 The shuffle is deterministic: it is seeded from the evaluation seed and the
 disease ID, so the same call always gives the same order, and different

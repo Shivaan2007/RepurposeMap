@@ -18,6 +18,14 @@ interruption happened is simply absent and gets ranked again on resume.
 This file does not check that a checkpoint matches the graph or config it is
 being resumed with. Use one checkpoint path per evaluation run; reusing a
 path across a different graph or config silently reuses stale results.
+
+Schema compatibility: ``TreatmentOutcome.popularity_rank`` defaults to
+``None``, so a checkpoint written before that field existed still deserializes
+correctly with ``TreatmentOutcome(**item)`` — a line with no
+``"popularity_rank"`` key simply falls back to the default. Such a file stays
+readable, not resumable-for-popularity: its diseases would need to be ranked
+again (at a new checkpoint path) to get real popularity data, since the old
+line never recorded the candidate universe needed to add it retroactively.
 """
 
 from __future__ import annotations
@@ -51,6 +59,7 @@ def _outcome_to_dict(outcome: TreatmentOutcome) -> dict:
         "n_truncated_searches": outcome.n_truncated_searches,
         "candidate_cap_hit": outcome.candidate_cap_hit,
         "backward_search_truncated": outcome.backward_search_truncated,
+        "popularity_rank": outcome.popularity_rank,
     }
 
 

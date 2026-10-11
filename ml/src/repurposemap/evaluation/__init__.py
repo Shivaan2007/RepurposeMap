@@ -25,7 +25,14 @@ from repurposemap.evaluation.disease_eval import (
     prepare_evaluation,
     rank_one_disease,
 )
+from repurposemap.evaluation.artifact import (
+    ARTIFACT_SCHEMA_VERSION,
+    BenchmarkArtifact,
+    build_artifact,
+    get_git_commit,
+)
 from repurposemap.evaluation.checkpoint import read_checkpoint, run_with_checkpoint
+from repurposemap.evaluation.popularity_baseline import compute_popularity_scores, popularity_ranking
 from repurposemap.evaluation.indications import IndicationRecord, extract_indications
 from repurposemap.evaluation.leakage import (
     assert_no_leakage,
@@ -52,6 +59,12 @@ from repurposemap.evaluation.split import (
 from repurposemap.evaluation.training_graph import build_training_graph
 
 __all__ = [
+    "ARTIFACT_SCHEMA_VERSION",
+    "BenchmarkArtifact",
+    "build_artifact",
+    "get_git_commit",
+    "compute_popularity_scores",
+    "popularity_ranking",
     "DEFAULT_EVAL_MAX_CANDIDATES",
     "DEFAULT_EVAL_MAX_EDGE_CHECKS_PER_DRUG",
     "DEFAULT_EVAL_TIME_LIMIT_PER_DRUG_S",

@@ -16,6 +16,8 @@ not a default.
 
 from __future__ import annotations
 
+import hashlib
+from dataclasses import dataclass
 from pathlib import Path
 
 import networkx as nx
@@ -41,6 +43,59 @@ DEFAULT_PRIMEKG_CSV = Path("data") / "raw" / "primekg" / "kg.csv"
 
 # Rows read per chunk. Chunks keep the peak memory of the text parse low.
 CHUNK_ROWS = 1_000_000
+
+# Bytes read per chunk when hashing. Independent of CHUNK_ROWS: this is a plain
+# byte stream, not CSV parsing.
+HASH_CHUNK_BYTES = 8 * 1024 * 1024
+
+
+@dataclass(frozen=True)
+class PrimeKGFingerprint:
+    """Dataset provenance for one PrimeKG file, attached to benchmark results.
+
+    ``sha256`` and ``size_bytes`` are computed read-only from the file itself
+    (see ``compute_file_fingerprint``) and are stable: hashing the same file
+    twice gives the same digest. ``retrieved_date`` and ``dataverse_doi`` are
+    recorded by hand (see ml/README.md's data section) because PrimeKG's
+    distribution does not embed them in the file.
+
+    ``release_version`` and ``snapshot_build_date`` are ``None`` because
+    neither is available anywhere local to this repository. This was already
+    attempted once (see ml/README.md): the Harvard Dataverse page at
+    ``dataverse_doi`` could not be reached from this environment when the
+    file was retrieved. That page is the source to check to fill these in;
+    do not infer either from the local file's filesystem timestamp, which
+    reflects when a copy last changed on this disk, not when the dataset was
+    built or released.
+    """
+
+    sha256: str
+    size_bytes: int
+    retrieved_date: str = "2026-10-05"
+    dataverse_doi: str = "doi:10.7910/DVN/IXA7BM"
+    release_version: str | None = None
+    snapshot_build_date: str | None = None
+
+
+def compute_file_fingerprint(path: str | Path) -> PrimeKGFingerprint:
+    """Hash ``path`` and record its size. Read-only; never modifies the file.
+
+    Not called by ``load_primekg``: hashing a file this size costs real
+    seconds, and every other command (``stats``, ``search``, ``paths``,
+    ``rank-drugs``) must not pay that cost on every load. Call this
+    explicitly, once, when building a benchmark result artifact.
+
+    Raises:
+        FileNotFoundError: the file does not exist.
+    """
+    file_path = Path(path)
+    if not file_path.is_file():
+        raise FileNotFoundError(f"PrimeKG CSV not found: {file_path}")
+    digest = hashlib.sha256()
+    with file_path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(HASH_CHUNK_BYTES), b""):
+            digest.update(chunk)
+    return PrimeKGFingerprint(sha256=digest.hexdigest(), size_bytes=file_path.stat().st_size)
 
 
 def load_primekg(csv_path: str | Path) -> nx.MultiDiGraph:

@@ -30,13 +30,23 @@ def find_remaining_test_indications(graph: nx.MultiDiGraph, split: DiseaseSplit)
 
 
 def find_remaining_test_pairs(graph: nx.MultiDiGraph, split: DiseaseSplit) -> list[str]:
-    """List every held-out (drug, disease) test pair still connected by an indication edge."""
+    """List every held-out (drug, disease) test pair still connected by an indication edge.
+
+    Checked in **both** directions: PrimeKG stores an indication edge
+    drug -> disease and a separate disease -> drug edge for the same known
+    treatment, and either one left in a training graph is a leak.
+    """
     violations = []
     for record in split.test_indications:
-        if graph.has_edge(record.drug_id, record.disease_id):
-            attrs = graph.get_edge_data(record.drug_id, record.disease_id)
+        for source, target in ((record.drug_id, record.disease_id), (record.disease_id, record.drug_id)):
+            if not graph.has_edge(source, target):
+                continue
+            attrs = graph.get_edge_data(source, target)
             if any(a.get("relation") == INDICATION_RELATION for a in attrs.values()):
-                violations.append(f"test pair {record.drug_name!r} -> {record.disease_name!r} still has an indication edge")
+                direction = "drug -> disease" if source == record.drug_id else "disease -> drug"
+                violations.append(
+                    f"test pair {record.drug_name!r} -> {record.disease_name!r} still has an indication edge ({direction})"
+                )
     return violations
 
 

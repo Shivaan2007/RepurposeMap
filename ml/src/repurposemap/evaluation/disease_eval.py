@@ -34,6 +34,7 @@ import networkx as nx
 from repurposemap.evaluation.indications import IndicationRecord, extract_indications
 from repurposemap.evaluation.leakage import assert_no_leakage
 from repurposemap.evaluation.metrics import hits_at_k, mean_reciprocal_rank, filtered_rank
+from repurposemap.evaluation.popularity_baseline import compute_popularity_scores, popularity_ranking
 from repurposemap.evaluation.random_baseline import random_ranking
 from repurposemap.evaluation.split import DiseaseSplit, EvaluationConfig, split_by_disease
 from repurposemap.evaluation.training_graph import build_training_graph, test_disease_indication_filter
@@ -64,6 +65,7 @@ class TreatmentOutcome:
     n_truncated_searches: int
     candidate_cap_hit: bool
     backward_search_truncated: bool
+    popularity_rank: int | None = None
 
 
 @dataclass(frozen=True)
@@ -105,6 +107,13 @@ class DiseaseEvaluationResult:
     def random_mrr(self) -> float:
         return mean_reciprocal_rank([o.random_rank for o in self.outcomes])
 
+    def popularity_hits_at(self, k: int) -> float:
+        return hits_at_k([o.popularity_rank for o in self.outcomes], k)
+
+    @property
+    def popularity_mrr(self) -> float:
+        return mean_reciprocal_rank([o.popularity_rank for o in self.outcomes])
+
     def _one_outcome_per_disease(self) -> list[TreatmentOutcome]:
         """One outcome per test disease, since the search-completeness fields repeat."""
         seen: dict[str, TreatmentOutcome] = {}
@@ -134,19 +143,27 @@ class EvaluationContext:
 
     Built once by ``prepare_evaluation``. ``repurposemap.evaluation.checkpoint``
     reuses this so a checkpointed, resumable run does not repeat the split,
-    the leakage check, or the one-time filter/neighbour-count construction.
+    the leakage check, or the one-time filter/neighbour-count/popularity
+    construction.
+
+    ``popularity_order`` is the complete drug universe (every ``drug`` node),
+    ranked once by raw degree on ``training_graph`` and reused unchanged for
+    every disease — it does not depend on, and is not filtered by, anything
+    the path search finds. See ``repurposemap.evaluation.popularity_baseline``.
     """
 
     split: DiseaseSplit
+    training_graph: nx.MultiDiGraph
     exclude_test_indications: Callable[[str, str, tuple[str, str]], bool]
     neighbour_counts: NeighbourCounts
+    popularity_order: tuple[str, ...]
     by_disease: dict[str, list[IndicationRecord]] = field(repr=False)
 
 
 def prepare_evaluation(
     graph: nx.MultiDiGraph, config: EvaluationConfig, policy: RelationPolicy
 ) -> EvaluationContext:
-    """Everything needed before ranking any disease: split, leakage check, filters.
+    """Everything needed before ranking any disease: split, leakage check, filters, popularity.
 
     Raises:
         ValueError: the graph has no indication edges, the split is invalid, or
@@ -158,9 +175,9 @@ def prepare_evaluation(
     split = split_by_disease(
         indications, seed=config.seed, test_fraction=config.test_fraction, max_test_diseases=config.max_test_diseases
     )
-    # Built once, purely to verify there is no leakage before ranking starts.
-    # The per-disease ranking below does not use this view; see the module
-    # docstring and repurposemap.evaluation.training_graph for why.
+    # Verifies there is no leakage before ranking starts, and is reused below
+    # for popularity: both need the same leakage-safe view, so it is built
+    # once rather than through two separately composed filter paths.
     training_graph = build_training_graph(graph, split.test_disease_ids)
     assert_no_leakage(training_graph, split)
 
@@ -168,13 +185,18 @@ def prepare_evaluation(
     # folded into rank_drugs' own single filter layer via extra_edge_filter.
     exclude_test_indications = test_disease_indication_filter(graph, split.test_disease_ids)
     neighbour_counts = NeighbourCounts(graph, policy, extra_filter=exclude_test_indications)
+
+    all_drug_ids = sorted(node for node, data in graph.nodes(data=True) if data.get("node_type") == "drug")
+    popularity_scores = compute_popularity_scores(training_graph, all_drug_ids)
+    popularity_order = tuple(popularity_ranking(popularity_scores, all_drug_ids))
+
     by_disease: dict[str, list[IndicationRecord]] = {}
     for record in split.test_indications:
         by_disease.setdefault(record.disease_id, []).append(record)
 
     return EvaluationContext(
-        split=split, exclude_test_indications=exclude_test_indications,
-        neighbour_counts=neighbour_counts, by_disease=by_disease,
+        split=split, training_graph=training_graph, exclude_test_indications=exclude_test_indications,
+        neighbour_counts=neighbour_counts, popularity_order=popularity_order, by_disease=by_disease,
     )
 
 
@@ -224,6 +246,10 @@ def rank_one_disease(
                 n_truncated_searches=ranking.n_truncated_searches,
                 candidate_cap_hit=ranking.candidate_cap_hit,
                 backward_search_truncated=ranking.backward_search_truncated,
+                # The complete drug universe, precomputed once in prepare_evaluation —
+                # independent of ranked_ids, so a disease with zero path candidates
+                # still gets a real popularity rank.
+                popularity_rank=filtered_rank(record.drug_id, other_true, context.popularity_order),
             )
         )
     return outcomes

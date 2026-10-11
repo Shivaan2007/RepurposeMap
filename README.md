@@ -11,13 +11,13 @@ RepurposeMap is **not** a treatment recommendation system. It does not:
 - give dosing or clinical advice
 - treat a path in the graph as evidence that a drug works. Connectivity in a knowledge graph is not evidence of treatment efficacy.
 
-## Current status: Milestone 3, "Proper disease-based evaluation"
+## Current status: evaluation hardening before TransE
 
 Milestone 1 (exploring the graph) is complete. It covers real PrimeKG integration, canonical node IDs, statistics, entity search, bounded path finding and the CLI.
 
 Milestone 2 added the relation policy, hub and drug-promiscuity penalties, the path-quality score, and the first drug-ranking baseline.
 
-Milestone 3 adds:
+Milestone 3 added disease-based evaluation:
 
 - **Disease-based evaluation.** Known indications are split by *disease ID*, not by edge: every treatment of a held-out disease is removed, all at once, into one training graph. See "why not split by edge" in [ml/README.md](ml/README.md).
 - **Explicit leakage checks** that fail loudly if a held-out treatment edge, or a train/test overlap, is found.
@@ -25,12 +25,20 @@ Milestone 3 adds:
 - **Random-order baseline**, over the same candidates the path baseline found, for a fair comparison.
 - **Updated `evaluate-baseline` CLI command**, now disease-based: `--test-diseases`, `--test-fraction`, `--seed`.
 
-On a controlled 20-disease, 147-pair benchmark, the path baseline scores Hits@10 = 0.034 and MRR = 0.0158, against Hits@10 = 0.007 and MRR = 0.0035 for a random-order baseline over the same candidates — about 5x and 4.5x better than random, respectively. Absolute performance is still weak. This is a small, controlled evaluation, not a validated benchmark, and these numbers are not clinical evidence; the baseline and the harness exist as a comparison point for TransE and R-GCN. Details in [ml/README.md](ml/README.md).
+A follow-up milestone hardened this evaluation before building TransE on top of it:
+
+- **Reverse-edge leakage protection.** The leakage check now catches a held-out indication edge in *either* direction (`drug -> disease` or `disease -> drug`), not just the forward one.
+- **Popularity baseline.** A second non-learning baseline that ranks all 7,957 PrimeKG drug nodes by raw graph degree, computed once from the leakage-safe training graph, fully independent of the path baseline's own candidate search.
+- **The existing random baseline is now labeled explicitly as candidate-conditioned** — it shuffles only the path baseline's own discovered candidates, not the full drug universe, which the popularity baseline above now covers.
+- **Dataset provenance and a reproducible result artifact.** Every benchmark run can record a PrimeKG file SHA-256, retrieval date, DOI, the exact seed and configuration, and the git commit it ran from.
+
+On a controlled 100-disease, 498-pair benchmark (seed 42), the path baseline scores Hits@10 = 0.086 and MRR = 0.033, against Hits@10 = 0.006 and MRR = 0.0048 for the candidate-conditioned random baseline, and Hits@10 = 0.014 and MRR = 0.0062 for the full-universe popularity baseline — the path baseline is the strongest of the three on every metric. Absolute performance is still weak. This is a small, controlled evaluation, not a validated benchmark, and these numbers are not clinical evidence; the baseline and the harness exist as a comparison point for TransE and R-GCN. Details, plus the smaller 20-disease sanity check, in [ml/README.md](ml/README.md).
 
 Not implemented yet:
 
-- **No machine learning.** The ranking is a non-ML baseline. The evaluation covers a few dozen diseases, and it does not support any claim of predictive performance.
+- **No machine learning.** The ranking is a non-ML baseline. The evaluation covers a hundred or so diseases, and it does not support any claim of predictive performance.
 - No TransE, R-GCN, or other trained model.
+- No AUPRC (deferred until a candidate-universe convention is decided alongside TransE's own).
 - No evidence lookup (PubMed, ClinicalTrials.gov) and no drug safety information.
 - No web API (FastAPI) and no frontend (React).
 
@@ -42,7 +50,9 @@ Not implemented yet:
 - **Source:** Harvard Dataverse, https://doi.org/10.7910/DVN/IXA7BM (persistent identifier `doi:10.7910/DVN/IXA7BM`).
 - **File used:** `kg.csv`, the edge file. It holds 8,100,498 edges over 129,375 nodes.
 - **Retrieved:** 5 October 2026.
+- **SHA-256 (of `kg.csv`, 981,751,236 bytes):** `0a5a010fcd88dcec572a573d98c26c1c244a11567092b6161d3ded611cfb5c69`. Computed read-only (verified not to modify the file or its mtime); see `repurposemap.adapters.primekg.compute_file_fingerprint`. Recorded here, and in each benchmark result artifact, so a result can be tied to the exact bytes it was computed from.
 - **Release version:** not yet recorded. The Dataverse page could not be read from this environment when the file was retrieved, so the version and its date must be checked and added here.
+- **Snapshot/build date:** not yet recorded, for the same reason as release version above. Not to be confused with, or substituted by, the local filesystem retrieval date above — that is when this copy was downloaded, not when PrimeKG itself was built.
 - **Dataset terms:** not yet verified. The PrimeKG GitHub README says the code is MIT licensed, but dataset use is governed by separate terms. It also says each of the 20 integrated resources has its own license. Check those terms before redistributing any PrimeKG data.
 - **Citation:** Chandak P, Huang K, Zitnik M. Building a knowledge graph to enable precision medicine. *Scientific Data* 10, 67 (2023). https://doi.org/10.1038/s41597-023-01960-3
 

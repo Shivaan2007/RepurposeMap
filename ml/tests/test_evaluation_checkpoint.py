@@ -117,3 +117,62 @@ def test_run_with_checkpoint_rejects_a_graph_without_indications():
     graph = primekg_style_graph({"A": "drug", "D": "disease"}, [("drug_protein", "target", "A", "D")])
     with pytest.raises(ValueError):
         run_with_checkpoint(graph, EvaluationConfig(), "unused-path.jsonl")
+
+
+def test_old_checkpoint_records_without_popularity_rank_still_deserialize(tmp_path):
+    # Simulates a checkpoint line written before popularity_rank existed: no such key.
+    path = tmp_path / "old_schema.jsonl"
+    old_record = {
+        "disease_id": "D1",
+        "outcomes": [
+            {
+                "disease_id": "D1",
+                "disease_name": "D1",
+                "drug_id": "A1",
+                "drug_name": "A1",
+                "path_rank": 1,
+                "random_rank": 2,
+                "n_candidates": 3,
+                "n_truncated_searches": 0,
+                "candidate_cap_hit": False,
+                "backward_search_truncated": False,
+                # no "popularity_rank" key: this is what an old file looks like.
+            }
+        ],
+    }
+    path.write_text(json.dumps(old_record) + "\n")
+
+    by_disease = read_checkpoint(path)
+    outcome = by_disease["D1"][0]
+    assert outcome.path_rank == 1
+    assert outcome.popularity_rank is None  # falls back to the dataclass default, not an error
+
+
+def test_resuming_an_old_schema_checkpoint_fills_in_popularity_for_new_diseases_only(tmp_path):
+    # An "old" checkpoint with one disease already done (no popularity_rank) is still
+    # readable, and resuming it ranks the remaining diseases with full popularity data
+    # without erroring on the old record's missing field.
+    path = tmp_path / "mixed_schema.jsonl"
+    graph, config = eval_graph(), _config()
+
+    full = run_with_checkpoint(graph, config, path)
+    lines = path.read_text().splitlines()
+    first_disease_id = json.loads(lines[0])["disease_id"]
+
+    # Rewrite the checkpoint so disease #1's record looks like the pre-popularity schema.
+    old_style = json.loads(lines[0])
+    for outcome in old_style["outcomes"]:
+        del outcome["popularity_rank"]
+    path.write_text(json.dumps(old_style) + "\n" + "\n".join(lines[1:]) + "\n")
+
+    resumed = run_with_checkpoint(graph, config, path)
+    by_drug = {o.drug_id: o for o in resumed.outcomes}
+    # The disease read back from the old-style line keeps popularity_rank=None (not recomputed).
+    old_disease_drugs = [o for o in resumed.outcomes if o.disease_id == first_disease_id]
+    assert all(o.popularity_rank is None for o in old_disease_drugs)
+    # Every other (freshly-ranked-or-already-new-style) disease still has real popularity data.
+    assert all(
+        o.popularity_rank is not None or o.n_candidates == 0
+        for o in resumed.outcomes
+        if o.disease_id != first_disease_id
+    )

@@ -91,7 +91,9 @@ def test_evaluate_baseline_prints_disease_based_header_and_metrics(primekg_csv: 
     assert "Train diseases: 0   Test diseases: 3" in out
     assert "Held-out (test) indication edges: 3" in out
     assert "Hits@1:" in out and "Hits@3:" in out and "Hits@10:" in out
-    assert "MRR:" in out and "random baseline" in out
+    assert "MRR:" in out
+    assert "candidate-conditioned" in out  # random baseline, labeled explicitly
+    assert "ranks the complete drug universe" in out  # popularity baseline, labeled explicitly
     assert "Runtime:" in out
 
 

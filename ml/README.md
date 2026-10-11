@@ -190,7 +190,7 @@ Only its `indication` edges are gone. Its disease-gene associations, phenotypes,
 `repurposemap.evaluation.leakage.assert_no_leakage` runs after the training graph is built and before any ranking. It fails loudly (raises `ValueError`, listing every violation) if:
 
 1. Any indication edge in the training graph touches a test disease.
-2. Any held-out `(drug, disease)` test pair is still connected by an indication edge.
+2. Any held-out `(drug, disease)` test pair is still connected by an indication edge, **checked in both directions** (`find_remaining_test_pairs`). PrimeKG stores an indication edge `drug -> disease` and a separate `disease -> drug` edge for the same known treatment, and either direction left in a training graph is a leak; checking only the forward direction would miss the reverse one. `tests/test_leakage.py` builds a graph with a held-out pair's indication edge in both directions and asserts the check catches it either way.
 3. The train and test disease sets overlap.
 
 A fourth risk, that the ranking code itself inspects a held-out edge, is handled structurally rather than checked at run time: the ranking only ever sees the training graph (the edges are gone, not hidden behind a per-call argument), and the relation policy excludes the `indication` relation everywhere regardless.
@@ -203,9 +203,15 @@ Computed over every held-out `(drug, disease)` pair, not over diseases: a diseas
 - **Hits@K** (K = 1, 3, 10): the share of held-out pairs whose drug's filtered rank is at most K. 1.0 means every true drug was in the top K; 0.0 means none were.
 - **MRR (mean reciprocal rank):** the mean of `1/rank` over every held-out pair, with 0 for a pair that is not ranked at all. It rewards ranking the true drug first much more than ranking it tenth, and it is never dominated by one disease with many candidates the way a disease-averaged metric could be.
 
-### Random baseline
+### Random baseline (candidate-conditioned)
 
-Each test disease also gets a **random-order baseline**: the same candidate drugs the path baseline found for that disease, shuffled with a seed derived from `(seed, disease_id)`. Same candidates, same metrics, different order. This is the real question the evaluation asks: not "can the baseline rank the true drug highly", but "does the baseline do any better than shuffling the same list". A result that does not beat random is not evidence the baseline captures anything.
+Each test disease also gets a **random-order baseline**: the same candidate drugs the path baseline found for that disease, shuffled with a seed derived from `(seed, disease_id)`. Same candidates, same metrics, different order. This baseline is **candidate-conditioned**, not a baseline over the full drug universe: it answers "does the path baseline do any better than shuffling the same list it already found," not "how would a baseline with no graph knowledge do over every drug." A disease where the path search finds zero candidates contributes nothing to this baseline either — see the popularity baseline below for the baseline that does not have this limitation. A result that does not beat this baseline is not evidence the baseline captures anything.
+
+### Popularity baseline (independent of path candidates)
+
+A separate **popularity baseline** ranks every drug node in PrimeKG (7,957 of them) by raw total graph degree — every relation type, both directions, parallel edges counted — computed once per evaluation run from the leakage-safe training graph (the same graph used for the leakage checks above, with every test disease's indication edges removed in both directions). This ranking is fixed for the whole run and does not depend on, or come from, `rank-drugs`' candidate search in any way: a disease for which the path baseline finds zero candidates still gets a real popularity rank for every one of its true drugs. This makes popularity a meaningfully different contrast than the candidate-conditioned random baseline above — it measures "would a mechanistic path reasoner do any better than just always guessing the most-connected drugs," independent of what the path search happened to reach.
+
+This is **raw graph-degree popularity**, not literature popularity, prescription frequency, or clinical usage. A drug with many `drug_drug` interaction edges or side-effect edges ranks "popular" here even though the path score deliberately excludes those edge types as evidence — that is an intended contrast with the path baseline's own reasoning, not a stronger version of it.
 
 ### Configuration
 
@@ -250,22 +256,51 @@ Before the penalty, copper, zinc and zinc acetate were in the top ten. Copper an
 
 ### Disease-based evaluation: a controlled benchmark
 
-Run with `evaluate-baseline --source primekg --test-diseases 20 --seed 42`, the current defaults (500 candidates, 5 second and 1,000,000-edge-check per-drug budget), on a single process with nothing else competing for the machine:
+#### 100-disease evaluation (current controlled benchmark)
+
+Run with `evaluate-baseline --source primekg --test-diseases 100 --seed 42`, the current defaults (500 candidates, 5 second and 1,000,000-edge-check per-drug budget), on a single process with nothing else competing for the machine. Runtime: 3,439.5s (~57.3 minutes).
+
+- **100 test diseases, 498 held-out (drug, disease) pairs.**
+
+| Metric | Path baseline | Random baseline (candidate-conditioned) | Popularity baseline (full drug universe) |
+|---|---:|---:|---:|
+| Hits@1 | **0.0100** | 0.0000 | 0.0000 |
+| Hits@3 | **0.0402** | 0.0020 | 0.0040 |
+| Hits@10 | **0.0863** | 0.0060 | 0.0141 |
+| MRR | **0.0333** | 0.0048 | 0.0062 |
+
+The path baseline is the strongest of the three on every metric: about **14x random's Hits@10** and **~6.1x popularity's Hits@10**, **~6.9x random's MRR** and **~5.4x popularity's MRR**. Popularity in turn beats candidate-conditioned random by roughly 2.3x to 2.9x across metrics — a sane ordering (raw graph-degree alone carries a little signal; a mechanistic path search carries more), but **absolute performance remains weak**: Hits@10 of 0.086 means the true drug lands in the top 10 for roughly 1 in 12 held-out pairs.
+
+The popularity baseline ranks all **7,957** PrimeKG drug nodes, computed once from the leakage-safe training graph, independent of which candidates the path search happens to find for any given disease (see "Popularity baseline" above).
+
+**Dataset provenance for this run:** PrimeKG `kg.csv`, SHA-256 `0a5a010fcd88dcec572a573d98c26c1c244a11567092b6161d3ded611cfb5c69`, 981,751,236 bytes, retrieved 5 October 2026, Harvard Dataverse `doi:10.7910/DVN/IXA7BM`. Release version and snapshot/build date are **not known** — the Dataverse page could not be read from this environment, and no local source records them. These are left unset rather than guessed.
+
+**Reverse-edge leakage protection:** the leakage check verifies no held-out pair is still connected by an indication edge in *either* direction (`drug -> disease` or `disease -> drug`); see "Leakage checks" above.
+
+**Seed:** 42, the same seed and split configuration as the 20-disease sanity check below, so the two are comparable in methodology, not in sample size.
+
+#### 20-disease evaluation (smaller sanity check)
+
+Run with `evaluate-baseline --source primekg --test-diseases 20 --seed 42`, the same defaults:
 
 - **20 test diseases, 147 held-out (drug, disease) pairs.**
 
-| Metric | Path baseline | Random baseline |
+| Metric | Path baseline | Random baseline (candidate-conditioned) |
 |---|---:|---:|
 | Hits@10 | **0.034** | **0.007** |
 | MRR | **0.0158** | **0.0035** |
 
-This is a **small, controlled evaluation**, not a validated benchmark: 20 diseases and 147 pairs. Within that small sample, the path baseline beats the random-order baseline by about **5x on Hits@10** and about **4.5x on MRR**. That is a real, reproducible signal that quality-ranked paths carry more information than an arbitrary order over the same candidates. It is not large, and **absolute performance remains weak**: Hits@10 of 0.034 means the true drug lands in the top 10 for roughly 1 in 30 held-out pairs.
+This smaller run predates the popularity baseline and only has path/random numbers. Within its small sample, the path baseline beats the candidate-conditioned random baseline by about **5x on Hits@10** and about **4.5x on MRR**, consistent with the larger 100-disease result above.
 
-This baseline, and this evaluation harness, exist as a **comparison point for TransE and R-GCN**, planned for later milestones (see Roadmap). Whatever those models score, it should be read against this baseline and against the random-order baseline on the same split and the same metrics.
+#### What these numbers do and do not show
 
-**These results are not clinical evidence.** They measure whether a heuristic path score can recover a known treatment after it is hidden from the graph. They say nothing about whether any ranked drug would work in a patient, and must not be read as if they did.
+Both of the above are **small, controlled evaluations**, not a validated benchmark. 100 diseases and 498 pairs is still a small slice of PrimeKG's diseases with a known indication, and cannot support a claim of clinical or predictive performance. That the path baseline beats both non-learning baselines on the same split is a real, reproducible signal that quality-ranked paths carry more information than either an arbitrary order over the same candidates or raw graph-degree popularity over the full drug universe — it is not evidence that any ranked drug would work in a patient.
 
-A controlled benchmark, run before this number, found that an early, unfixed version of the per-disease ranking call built two nested graph views where one would do, which made the search pay the cost of filtering every edge twice. Fixing that (folding the filter into one view, verified on a fast and a slow disease to give byte-identical rankings, 2.8x to 3.1x faster) is what makes a 20-disease run take minutes rather than tens of minutes to over an hour; it did not change any rank, score, or path.
+This baseline, and this evaluation harness, exist as a **comparison point for TransE and R-GCN**, planned for later milestones (see Roadmap). Whatever those models score, it should be read against the path, random, and popularity baselines above, on the same split and the same metrics.
+
+**These results are research evaluation, not clinical evidence.** The path baseline is a heuristic, hand-weighted path score, not a validated biomedical model, and none of these numbers should be read as a claim of clinical usefulness. The popularity baseline reflects raw graph-degree in PrimeKG, not real-world drug popularity, literature frequency, or prescription volume.
+
+A controlled benchmark, run before the 20-disease number above, found that an early, unfixed version of the per-disease ranking call built two nested graph views where one would do, which made the search pay the cost of filtering every edge twice. Fixing that (folding the filter into one view, verified on a fast and a slow disease to give byte-identical rankings, 2.8x to 3.1x faster) is what makes a 20-disease run take minutes rather than tens of minutes to over an hour; it did not change any rank, score, or path.
 
 ## Commands
 
@@ -294,7 +329,7 @@ Useful options:
 
 - `explain-paths`: `--max-path-length` (default 4), `--max-results` (raw and ranked paths shown, default 5), `--candidate-paths` (default 200), `--time-limit`.
 - `rank-drugs`: `--max-path-length` (default 3), `--paths-per-drug` (default 50), `--max-candidates` (default 2000), `--time-limit-per-drug` (default 5 seconds), `--max-edge-checks-per-drug` (default 1,000,000).
-- `evaluate-baseline`: `--test-diseases` (cap on test diseases, default 20), `--test-fraction` (share of diseases held out before that cap, default 0.1), `--seed` (default 0), plus the same path-ranking limits as `rank-drugs` except `--max-candidates` defaults to 500 here, to keep a multi-disease run fast. `--checkpoint PATH` (optional).
+- `evaluate-baseline`: `--test-diseases` (cap on test diseases, default 20), `--test-fraction` (share of diseases held out before that cap, default 0.1), `--seed` (default 0), plus the same path-ranking limits as `rank-drugs` except `--max-candidates` defaults to 500 here, to keep a multi-disease run fast. `--checkpoint PATH` (optional). `--artifact PATH` (optional): writes a compact, versioned JSON summary of the run (dataset provenance, git commit, full config, all three baselines' metrics, candidate-cap/truncation counts, runtime) for later reuse or comparison — see `repurposemap.evaluation.artifact`. Unlike `--checkpoint`, this does not hold the large per-disease outcome data, only the run's final summary.
 
 ### Resuming a large evaluation with `--checkpoint`
 
@@ -331,6 +366,6 @@ The checkpoint file does not record which graph or configuration produced it. Us
 pytest
 ```
 
-215 tests run in about 1.5 seconds. They use the synthetic sample, the 15-row fixture in `tests/fixtures/`, and tiny graphs in the PrimeKG schema built in `tests/graph_builders.py`. None of them need the full PrimeKG file. The scoring tests cover relation scoring, hub tiers, length and ordering, the breakdown structure, and synthetic compatibility through a custom policy. The ranking tests cover score formula, determinism, candidate cap, leakage prevention, Hits@10, reciprocal rank, and the backward-search edge-check budget. `tests/test_disease_evaluation.py` covers indication extraction, the disease-based split (determinism, the test-fraction and cap, disjointness, validation), the training graph, every leakage check (including one that fails on purpose), the metrics (filtered rank, Hits@K, MRR), the random baseline, an end-to-end run with a disease that has two true drugs and one that cannot be ranked at all, and that a disease's search-completeness fields (candidate cap, per-drug truncation, backward-search truncation) are exposed on its outcome. The CLI tests cover all three scoring commands.
+244 tests run in about 2 seconds. They use the synthetic sample, the 15-row fixture in `tests/fixtures/`, and tiny graphs in the PrimeKG schema built in `tests/graph_builders.py`. None of them need the full PrimeKG file. The scoring tests cover relation scoring, hub tiers, length and ordering, the breakdown structure, and synthetic compatibility through a custom policy. The ranking tests cover score formula, determinism, candidate cap, leakage prevention, Hits@10, reciprocal rank, and the backward-search edge-check budget. `tests/test_disease_evaluation.py` covers indication extraction, the disease-based split (determinism, the test-fraction and cap, disjointness, validation), the training graph, every leakage check (including one that fails on purpose), the metrics (filtered rank, Hits@K, MRR), the random baseline, an end-to-end run with a disease that has two true drugs and one that cannot be ranked at all, and that a disease's search-completeness fields (candidate cap, per-drug truncation, backward-search truncation) are exposed on its outcome. `tests/test_leakage.py` covers reverse-direction indication-edge leakage specifically. `tests/test_popularity_baseline.py` covers the popularity baseline's independence from path candidates, its use of the leakage-safe training graph, and deterministic tie-breaking. `tests/test_primekg_provenance.py` covers the SHA-256 file fingerprint on a tiny synthetic file (never the real ~980 MB `kg.csv`). `tests/test_evaluation_checkpoint.py` covers old checkpoint records (written before `popularity_rank` existed) still deserializing correctly. The CLI tests cover all three scoring commands.
 
 If `python -m repurposemap` cannot find the package on macOS, see the troubleshooting section in the main README.
