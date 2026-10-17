@@ -260,9 +260,12 @@ def test_filtered_rank_none_when_absent():
     assert filtered_rank("missing", [], ["a", "b"]) is None
 
 
-def test_average_precision_is_an_unimplemented_placeholder():
-    with pytest.raises(NotImplementedError):
-        average_precision(1, 1)
+def test_average_precision_is_implemented_now_that_a_scored_model_exists():
+    # Real AUPRC coverage lives in test_auprc.py; this just confirms the
+    # old rank-only placeholder (which always raised NotImplementedError)
+    # is gone -- the function now takes (scores, labels) and returns a
+    # real number.
+    assert average_precision([1.0, 0.0], [1, 0]) == pytest.approx(1.0)
 
 
 # Random baseline

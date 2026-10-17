@@ -41,9 +41,12 @@ from repurposemap.evaluation.leakage import (
     find_remaining_test_pairs,
 )
 from repurposemap.evaluation.metrics import (
+    average_precision,
     filtered_rank,
     hits_at_k,
+    macro_auprc,
     mean_reciprocal_rank,
+    micro_auprc,
     reciprocal_rank,
 )
 from repurposemap.evaluation.random_baseline import random_ranking
@@ -57,6 +60,17 @@ from repurposemap.evaluation.split import (
     validate_split,
 )
 from repurposemap.evaluation.training_graph import build_training_graph
+from repurposemap.evaluation.transe_baseline import (
+    VALIDATION_SEED_OFFSET,
+    TransEEvaluationResult,
+    TransEOutcome,
+    ValidationSplit,
+    build_tuning_graph,
+    evaluate_transe_on_diseases,
+    indications_for_diseases,
+    split_validation_from_training,
+    validate_validation_split,
+)
 
 __all__ = [
     "ARTIFACT_SCHEMA_VERSION",
@@ -95,10 +109,22 @@ __all__ = [
     "hits_at_k",
     "indication_pairs",
     "mean_reciprocal_rank",
+    "average_precision",
+    "macro_auprc",
+    "micro_auprc",
     "random_ranking",
     "rank_of",
     "reciprocal_rank",
     "select_pairs",
     "split_by_disease",
     "validate_split",
+    "VALIDATION_SEED_OFFSET",
+    "ValidationSplit",
+    "TransEOutcome",
+    "TransEEvaluationResult",
+    "split_validation_from_training",
+    "validate_validation_split",
+    "build_tuning_graph",
+    "indications_for_diseases",
+    "evaluate_transe_on_diseases",
 ]
