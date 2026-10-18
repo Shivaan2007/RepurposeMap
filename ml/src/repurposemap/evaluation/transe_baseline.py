@@ -265,3 +265,65 @@ def evaluate_transe_on_diseases(
         micro_auprc=micro_auprc(all_scores, all_labels),
         runtime_s=time.monotonic() - started,
     )
+
+
+# --------------------------------------------------------------------------
+# Hyperparameter-search selection rule (Stage D §5) -- fixed before any
+# config is trained, never adjusted after seeing results.
+# --------------------------------------------------------------------------
+
+MRR_TIE_THRESHOLD = 0.0005
+
+SELECTION_RULE_DESCRIPTION = (
+    "1) highest validation MRR; "
+    f"2) if the absolute MRR difference is <= {MRR_TIE_THRESHOLD}, highest macro AP; "
+    "3) if still tied, smaller embedding_dim."
+)
+
+
+@dataclass(frozen=True)
+class SearchCandidateResult:
+    """One hyperparameter config's validation outcome, for the selection rule."""
+
+    name: str
+    embedding_dim: int
+    val_mrr: float
+    val_macro_auprc: float
+
+
+def select_best_candidate(candidates: Sequence[SearchCandidateResult]) -> int:
+    """The index into ``candidates`` the predefined rule picks.
+
+    Rule (fixed in the approved plan, before any config was trained):
+    highest validation MRR; a near-tie (absolute difference <=
+    ``MRR_TIE_THRESHOLD``) is broken by the highest macro AP; a remaining
+    tie is broken by the smaller ``embedding_dim``. Popularity, path, and
+    locked-test performance play no role -- this function's signature
+    accepts none of them.
+
+    Raises:
+        ValueError: ``candidates`` is empty.
+    """
+    if not candidates:
+        raise ValueError("select_best_candidate requires at least one candidate")
+
+    best_mrr = max(c.val_mrr for c in candidates)
+    near_best = [i for i, c in enumerate(candidates) if abs(c.val_mrr - best_mrr) <= MRR_TIE_THRESHOLD]
+    if len(near_best) == 1:
+        return near_best[0]
+
+    best_ap = max(candidates[i].val_macro_auprc for i in near_best)
+    near_best_ap = [i for i in near_best if candidates[i].val_macro_auprc == best_ap]
+    if len(near_best_ap) == 1:
+        return near_best_ap[0]
+
+    return min(near_best_ap, key=lambda i: candidates[i].embedding_dim)
+
+
+# NOTE: the locked-test evaluation gate (``assert_eligible_for_locked_test_evaluation``)
+# lives in ``repurposemap.embeddings.export``, not here -- it needs
+# ``recompute_manifest_fingerprint``/``LockedTestManifest``, both defined
+# there, and ``export.py`` already depends on this module (for
+# ``ValidationSplit`` etc.), so keeping the gate here too would make the
+# two modules import each other at module level (a real circular import,
+# not just an awkward one).

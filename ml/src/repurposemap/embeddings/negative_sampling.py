@@ -53,14 +53,32 @@ class TypePools:
     type_of_index: tuple[str, ...]
 
 
-def build_type_pools(graph: nx.MultiDiGraph, entity_index: EntityIndex) -> TypePools:
-    """Partition every entity by its ``node_type``, in index order."""
-    type_of_index = tuple(graph.nodes[node_id].get("node_type", "") for node_id in entity_index.index_to_id)
+def _pools_from_type_sequence(type_of_index: tuple[str, ...]) -> dict[str, tuple[int, ...]]:
+    """Shared grouping logic for both ``TypePools`` constructors below."""
     pools: dict[str, list[int]] = {}
     for index, node_type in enumerate(type_of_index):
         pools.setdefault(node_type, []).append(index)
-    pools_by_type = {node_type: tuple(indices) for node_type, indices in sorted(pools.items())}
-    return TypePools(pools_by_type=pools_by_type, type_of_index=type_of_index)
+    return {node_type: tuple(indices) for node_type, indices in sorted(pools.items())}
+
+
+def build_type_pools(graph: nx.MultiDiGraph, entity_index: EntityIndex) -> TypePools:
+    """Partition every entity by its ``node_type``, in index order, from a graph."""
+    type_of_index = tuple(graph.nodes[node_id].get("node_type", "") for node_id in entity_index.index_to_id)
+    return TypePools(pools_by_type=_pools_from_type_sequence(type_of_index), type_of_index=type_of_index)
+
+
+def build_type_pools_from_codes(entity_node_type_codes, node_type_names: list[str]) -> TypePools:
+    """The same ``TypePools`` representation, reconstructed with no graph.
+
+    A second constructor, not a competing implementation: this and
+    ``build_type_pools`` both populate the identical dataclass, from the
+    same underlying grouping logic (``_pools_from_type_sequence``). Used by
+    GPU-side training, which only has ``entity_node_type_codes`` (a small
+    int8 array, one code per entity) and ``node_type_names`` (what each
+    code means) from the export package -- never a NetworkX graph.
+    """
+    type_of_index = tuple(node_type_names[int(code)] for code in entity_node_type_codes)
+    return TypePools(pools_by_type=_pools_from_type_sequence(type_of_index), type_of_index=type_of_index)
 
 
 class TypeAwareNegativeSampler:
@@ -97,6 +115,15 @@ class TypeAwareNegativeSampler:
         self._rng = random.Random(seed)
         self.n_type_aware_fallbacks = 0
         self.n_unresolved_collisions = 0
+
+    @property
+    def random_state(self):
+        """``random.Random.getstate()`` -- for checkpointing this sampler's RNG."""
+        return self._rng.getstate()
+
+    @random_state.setter
+    def random_state(self, state) -> None:
+        self._rng.setstate(state)
 
     def _is_positive(self, h: int, r: int, t: int) -> bool:
         return self._positive_store.contains(h, r, t)
