@@ -91,6 +91,39 @@ def test_search_trains_all_three_configs_and_selects_exactly_one(loaded_export, 
     assert json.loads(log_path.read_text()) == log
 
 
+def test_search_preserves_a_complete_checkpoint_per_config(loaded_export, tmp_path):
+    checkpoint_dir = tmp_path / "search_checkpoints"
+    log = run_validation_search(
+        loaded_export, search_configs=_tiny_search_configs(), epochs=3, validate_every=1, checkpoint_dir=checkpoint_dir
+    )
+
+    assert len(log["runs"]) == 3
+    for run in log["runs"]:
+        name = run["name"]
+        expected_path = checkpoint_dir / f"{name}.pt"
+        assert run["checkpoint_path"] == str(expected_path)
+        assert expected_path.is_file(), f"no checkpoint written for {name}"
+
+        checkpoint = load_checkpoint(expected_path)
+        # Full state, not just the logged metric history.
+        assert "state_dict" in checkpoint
+        assert "optimizer_state_dict" in checkpoint
+        assert "rng_state" in checkpoint
+        assert checkpoint["is_final_training"] is False
+        # Each config's own checkpoint holds its own epoch count/history,
+        # not another config's.
+        assert checkpoint["config"]["embedding_dim"] == dict(_tiny_search_configs())[name].embedding_dim
+
+
+def test_search_without_checkpoint_dir_behaves_exactly_as_before(loaded_export, tmp_path):
+    # Backward compatibility: omitting checkpoint_dir must not write any
+    # checkpoint file anywhere, or change the returned log's shape.
+    log = run_validation_search(loaded_export, search_configs=_tiny_search_configs(), epochs=2, validate_every=1)
+    for run in log["runs"]:
+        assert run["checkpoint_path"] is None
+    assert list(tmp_path.rglob("*.pt")) == []  # no checkpoint written anywhere
+
+
 def test_search_never_touches_locked_test_data(loaded_export, tmp_path):
     # The loaded_export fixture never had a locked-test manifest loaded at
     # all -- confirms the search runs fine regardless.

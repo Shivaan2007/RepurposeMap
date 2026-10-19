@@ -456,12 +456,18 @@ def run_validation_search(
     epochs: int = 10,
     validate_every: int = 2,
     output_log_path: str | Path | None = None,
+    checkpoint_dir: str | Path | None = None,
 ) -> dict:
     """Train each of the (exactly 3) predefined configs on ``tuning_triples``,
     evaluate each on validation diseases only, and apply the fixed
     selection rule. Returns -- and, if ``output_log_path`` is given, writes
     -- one flat JSON experiment log with every config's full history, the
     rule's text, and which index it picked.
+
+    ``checkpoint_dir``, if given, is created and each config's checkpoint is
+    written to ``checkpoint_dir / f"{name}.pt"`` (via ``train_gpu``'s own
+    ``checkpoint_every``-driven saving, unchanged) -- so every config's full
+    model state/RNG state is preserved, not just its logged metric history.
 
     Never touches locked-test data: ``loaded_export`` has none to touch.
     """
@@ -472,16 +478,20 @@ def run_validation_search(
     n_relations = len(loaded_export.relation_index)
     positive_store = build_positive_store(tuning_triples, n_relations, n_entities)
 
+    if checkpoint_dir is not None:
+        Path(checkpoint_dir).mkdir(parents=True, exist_ok=True)
+
     runs: list[dict] = []
     candidates: list[SearchCandidateResult] = []
     for name, base_config in search_configs:
         config = replace(base_config, epochs=epochs, validate_every=validate_every)
+        checkpoint_path = Path(checkpoint_dir) / f"{name}.pt" if checkpoint_dir is not None else None
         started = time.monotonic()
         result = train_gpu(
             tuning_triples, n_entities, n_relations, loaded_export.type_pools, positive_store, config,
             entity_index=loaded_export.entity_index, indication_relation_idx=loaded_export.indication_relation_idx,
             val_disease_ids=loaded_export.val_disease_ids, val_indications=loaded_export.val_indications,
-            drug_ids=loaded_export.drug_ids,
+            drug_ids=loaded_export.drug_ids, checkpoint_path=checkpoint_path,
         )
         runtime_s = time.monotonic() - started
 
@@ -503,6 +513,7 @@ def run_validation_search(
                 "runtime_s": runtime_s,
                 "stopped_early": result.stopped_early,
                 "best_val_epoch": best_record.epoch if best_record else None,
+                "checkpoint_path": str(checkpoint_path) if checkpoint_path is not None else None,
             }
         )
 
