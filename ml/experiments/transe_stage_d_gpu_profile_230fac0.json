@@ -1,0 +1,61 @@
+{
+  "stage": "TransE Stage D GPU profile",
+  "purpose": "plumbing/performance validation only; not a benchmark",
+  "generated_at": "2026-10-18T00:00:00Z",
+  "provenance": {
+    "source_commit": "230fac05eeaab78bcc49b6855fedf11620eeffba",
+    "source_archive_sha256": "48658e454c59cccd41d83c0c6cc09add8a8c116a5d8a7ebae5a3fa76a9b8f0cf",
+    "primekg_export": {
+      "n_entities": 129375,
+      "n_relations": 33,
+      "full_tuning_triples": 8097798,
+      "drugs": 7957
+    }
+  },
+  "environment": {
+    "platform": "Kaggle kernel",
+    "gpu": "Tesla T4",
+    "gpu_memory_gib": 14.6,
+    "torch_version": "2.11.0+cu128",
+    "cuda_available": true,
+    "internet_enabled": false
+  },
+  "profile_run": {
+    "subset_size": 500000,
+    "embedding_dim": 64,
+    "batch_size": 1024,
+    "negatives_per_positive": 4,
+    "epochs": 1,
+    "elapsed_s": 17.942095335999994,
+    "examples_per_sec": 27867.42521631645,
+    "batches_per_sec": 27.214282437809032,
+    "estimated_full_epoch_s": 290.58292745534015,
+    "train_loss": 0.9986874954832112
+  },
+  "sampler_stats": {
+    "n_requested_negatives": 2000000,
+    "n_initial_collisions": 16619,
+    "n_retry_rounds": 4241,
+    "n_retry_candidates_drawn": 2017143,
+    "n_scalar_fallbacks": 0,
+    "n_unresolved": 0
+  },
+  "cuda_memory": {
+    "allocated_mb": 128.033203125,
+    "reserved_mb": 204.0,
+    "peak_allocated_mb": 195.86767578125,
+    "peak_reserved_mb": 204.0
+  },
+  "safety_and_protocol": {
+    "export_dataset_contents": [
+      "metadata.json",
+      "triples.npz",
+      "validation_indications.json"
+    ],
+    "locked_test_manifest_present": false,
+    "test_indications_present_in_metadata": false,
+    "locked_test_evaluation_performed": false,
+    "three_config_search_performed": false,
+    "final_training_performed": false
+  }
+}
