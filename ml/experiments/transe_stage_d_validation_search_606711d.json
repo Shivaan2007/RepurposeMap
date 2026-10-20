@@ -1,0 +1,73 @@
+{
+  "stage": "TransE Stage D 3-config validation search",
+  "purpose": "hyperparameter selection on validation diseases only; not a final/locked-test result",
+  "generated_at": "2026-10-20T01:00:00Z",
+  "provenance": {
+    "source_commit": "606711d384f834f1fb28b93a57c7dd211145884d",
+    "export_fingerprint": "8e41f866f9fb90b0017b9056c1eb69b585004e01e65e6c6e4d17b9dbf16cb1aa",
+    "locked_test_manifest_fingerprint": "20d71fb7ea3b36bf95b46ff16e5d13a5233b68250cf4779a16aabff0dad3a372",
+    "primekg_sha256": "0a5a010fcd88dcec572a573d98c26c1c244a11567092b6161d3ded611cfb5c69",
+    "split_seed": 42,
+    "val_fraction": 0.1,
+    "test_fraction": 0.1,
+    "max_test_diseases": 100
+  },
+  "environment": {
+    "platform": "Kaggle kernel",
+    "gpu_detected": "Tesla T4 (cuda available: true)",
+    "device_actually_used": "cpu",
+    "device_anomaly_note": "CUDA was available but every search run used device=cpu -- run_validation_search() never forwarded a device override to its per-config GPUTrainingConfig (default device='cpu'), so the search ran ~6-7x slower than the measured GPU profile would predict. This is an infrastructure/plumbing gap, not a methodology or correctness issue: identical math, slower wall-clock only. Fixed for final training (see repo commit that threads --device through to transe_train_gpu.train_final); the already-completed search itself was left untouched per the scientific-integrity instruction not to rerun or alter it.",
+    "internet_enabled": false
+  },
+  "search": {
+    "rule": "1) highest validation MRR; 2) if the absolute MRR difference is <= 0.0005, highest macro AP; 3) if still tied, smaller embedding_dim.",
+    "configs": [
+      {"name": "search-dim64", "embedding_dim": 64, "distance": "l2", "margin": 1.0, "learning_rate": 0.001, "negatives_per_positive": 4, "epochs": 10},
+      {"name": "search-dim128", "embedding_dim": 128, "distance": "l2", "margin": 1.0, "learning_rate": 0.001, "negatives_per_positive": 4, "epochs": 10},
+      {"name": "search-l1", "embedding_dim": 64, "distance": "l1", "margin": 1.0, "learning_rate": 0.001, "negatives_per_positive": 4, "epochs": 10}
+    ],
+    "hyperparameters_verified_against_committed_configs": true,
+    "all_configs_ran_full_10_epoch_budget": true,
+    "triples_used": "tuning_triples only (8,097,798 triples; validation and locked-test diseases' indications both absent)",
+    "nan_or_inf_detected": false,
+    "results": [
+      {
+        "name": "search-dim64", "embedding_dim": 64, "distance": "l2", "best_epoch": 3,
+        "hits_at_1": 0.0035211267605633804, "hits_at_3": 0.009389671361502348, "hits_at_10": 0.018779342723004695,
+        "mrr": 0.012913136590281609, "macro_auprc": 0.03136409511861958, "micro_auprc": 0.003024328946060735,
+        "runtime_s": 7443.276767628,
+        "sampler_stats_at_best_epoch": {"n_requested_negatives": 129564768, "n_initial_collisions": 17219363, "n_retry_rounds": 632674, "n_retry_candidates_drawn": 157388068, "n_scalar_fallbacks": 777821, "n_unresolved": 0}
+      },
+      {
+        "name": "search-dim128", "embedding_dim": 128, "distance": "l2", "best_epoch": 3,
+        "hits_at_1": 0.0035211267605633804, "hits_at_3": 0.012910798122065728, "hits_at_10": 0.028169014084507043,
+        "mrr": 0.014806720571966917, "macro_auprc": 0.03315417247760258, "micro_auprc": 0.0031486299731799242,
+        "runtime_s": 19934.211879568997,
+        "sampler_stats_at_best_epoch": {"n_requested_negatives": 129564768, "n_initial_collisions": 17219363, "n_retry_rounds": 632674, "n_retry_candidates_drawn": 157388068, "n_scalar_fallbacks": 777821, "n_unresolved": 0}
+      },
+      {
+        "name": "search-l1", "embedding_dim": 64, "distance": "l1", "best_epoch": 9,
+        "hits_at_1": 0.002347417840375587, "hits_at_3": 0.008215962441314555, "hits_at_10": 0.015258215962441314,
+        "mrr": 0.012695101986872653, "macro_auprc": 0.017539458355498392, "micro_auprc": 0.005410963292260479,
+        "runtime_s": 8237.543786190985,
+        "sampler_stats_at_best_epoch": {"n_requested_negatives": 323911920, "n_initial_collisions": 43056330, "n_retry_rounds": 1581682, "n_retry_candidates_drawn": 393476900, "n_scalar_fallbacks": 1943971, "n_unresolved": 0}
+      }
+    ],
+    "winner": {
+      "name": "search-dim128",
+      "selection_reason": "highest validation MRR (0.014807 vs. 0.012913 for search-dim64; difference of 0.001894 exceeds the 0.0005 tie-break threshold, so no tie-break was needed)",
+      "best_val_epoch": 3,
+      "final_training_epochs": 4,
+      "cross_checked_independently": "two independent re-derivations from the raw per-epoch history (one ad hoc, one via the previously-built search_result_lib.py/analyze_search_results.py tooling) both reproduce search-dim128 as the winner and agree with the kernel's own recorded selected_name/selected_index"
+    }
+  },
+  "safety_and_protocol": {
+    "export_dataset_contents": ["metadata.json", "triples.npz", "validation_indications.json"],
+    "locked_test_manifest_present": false,
+    "test_indications_present_in_metadata": false,
+    "locked_test_evaluation_performed": false,
+    "three_config_search_performed": true,
+    "final_training_performed": false,
+    "kernel_log_confirmation": "\"Safety check PASSED: dataset contains exactly the required safe files, no locked_test_manifest.json, and no test_indications in metadata.json.\" / \"Done. Validation search only -- no final training, no locked-test evaluation was run. No internet was used.\""
+  }
+}
