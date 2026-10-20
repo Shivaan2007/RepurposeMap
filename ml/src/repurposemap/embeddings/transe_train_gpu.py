@@ -546,6 +546,7 @@ def train_final(
     primekg_fingerprint: dict | None = None,
     git_commit: str | None = None,
     git_dirty: bool | None = None,
+    device: str | None = None,
 ) -> dict:
     """Train exactly once on ``final_triples`` (validation diseases' indications
     restored) with the already-selected config, and save a fully
@@ -555,8 +556,17 @@ def train_final(
     plateau *before* this is called -- there is no validation signal
     during final training (validation diseases are now training data), so
     no early stopping is used here, by design.
+
+    ``device``, if given, overrides ``selected_config.device`` (which
+    defaults to ``"cpu"``) -- the selected config's hyperparameters
+    (embedding_dim/distance/margin/lr/negatives_per_positive) are
+    untouched either way; this only controls which device the identical
+    computation runs on.
     """
-    final_config = replace(selected_config, epochs=epochs, validate_every=None, early_stopping_patience=None)
+    device_override = {"device": device} if device is not None else {}
+    final_config = replace(
+        selected_config, epochs=epochs, validate_every=None, early_stopping_patience=None, **device_override,
+    )
     final_triples = loaded_export.final_triples
     n_entities = len(loaded_export.entity_index)
     n_relations = len(loaded_export.relation_index)

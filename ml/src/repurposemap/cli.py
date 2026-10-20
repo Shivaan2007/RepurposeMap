@@ -467,7 +467,7 @@ def _run_transe_train(args: argparse.Namespace) -> str:
         git_commit, git_dirty = get_git_commit()
         checkpoint = train_final(
             loaded, selected_config=selected_config, epochs=epochs, search_log=search_log,
-            checkpoint_path=args.output, git_commit=git_commit, git_dirty=git_dirty,
+            checkpoint_path=args.output, git_commit=git_commit, git_dirty=git_dirty, device=args.device,
         )
         return "\n".join(
             [
