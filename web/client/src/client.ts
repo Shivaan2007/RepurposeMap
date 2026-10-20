@@ -4,7 +4,12 @@
  * plus the types in ./types.ts.
  */
 
-import type { DiseaseQuery, HealthResponse, RankingResponse, SystemInfoResponse } from "./types.js";
+import type { components } from "./types.js";
+
+type DiseaseQuery = components["schemas"]["DiseaseQuery"];
+type HealthResponse = components["schemas"]["HealthResponse"];
+type RankingResponse = components["schemas"]["RankingResponse"];
+type SystemInfoResponse = components["schemas"]["SystemInfoResponse"];
 
 export class RepurposeMapApiError extends Error {
   constructor(
