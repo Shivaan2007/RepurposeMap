@@ -1,17 +1,67 @@
 # RepurposeMap
 
-RepurposeMap is an explainable drug-repurposing research tool. It explores biomedical knowledge graphs to surface candidate drug-disease links, along with the biological paths that connect them. Every output is a **research hypothesis that requires expert review**.
+RepurposeMap is an explainable drug-repurposing research system. It:
+
+- ranks existing drugs as candidates for a disease over a biomedical knowledge graph (PrimeKG)
+- explains why a candidate is suggested using the biological graph paths that connect it to the disease
+- is designed to later attach literature, trial and safety evidence to each candidate (not implemented yet)
+- is **research decision-support only, not clinical treatment advice**
+
+Every output is a **research hypothesis that requires expert review**.
 
 ## Important: research use only
 
 RepurposeMap is **not** a treatment recommendation system. It does not:
 
 - recommend drugs to patients
-- claim that any drug treats any disease
 - give dosing or clinical advice
+- claim that any drug treats any disease, or that any ranked candidate is clinically efficacious
 - treat a path in the graph as evidence that a drug works. Connectivity in a knowledge graph is not evidence of treatment efficacy.
+- treat future evidence/safety lookups (PubMed, ClinicalTrials.gov, DailyMed, openFDA) as anything beyond research context for a human reviewer
 
-## Current status: evaluation hardening before TransE
+## Architecture
+
+```mermaid
+flowchart LR
+    A[PrimeKG] --> B[Graph ingestion / validation]
+    B --> C[Path baseline / popularity baseline / TransE]
+    C --> D[Disease-based evaluation]
+    D --> E[FastAPI + Pydantic]
+    E --> F[OpenAPI schema]
+    F --> G[Generated TypeScript client]
+    G --> H[Future React research workspace]
+```
+
+See [API.md](API.md) for the FastAPI / OpenAPI / TypeScript boundary in detail.
+
+## Project status
+
+**Completed**
+
+- PrimeKG ingestion (real dataset adapter, canonical node IDs, provenance fingerprinting)
+- Graph exploration (statistics, entity search, bounded path finding, CLI)
+- Path-quality baseline (relation policy, hub and drug-promiscuity penalties, drug ranking)
+- Popularity baseline (full 7,957-drug-universe ranking by graph degree)
+- Leakage-safe, disease-based evaluation harness (split, training-graph construction, leakage checks, metrics)
+- TransE foundation (model, training loop, triples export, CLI commands)
+- TransE Stage D GPU profiling (plumbing/throughput validation on a Kaggle T4; not a trained checkpoint or a benchmark result)
+- Typed API foundation (FastAPI + Pydantic, OpenAPI export, generated TypeScript client)
+
+**In progress**
+
+- 3-config TransE validation search, to select hyperparameters before final training
+
+**Planned**
+
+- Final TransE training on the full training graph
+- Locked-test evaluation of the final TransE checkpoint (run exactly once)
+- R-GCN, if the TransE result justifies the added complexity
+- Evidence and safety lookups (PubMed, ClinicalTrials.gov, DailyMed, openFDA)
+- React research workspace
+
+Do not treat anything in "in progress" or "planned" as complete or benchmarked.
+
+## Milestone history
 
 Milestone 1 (exploring the graph) is complete. It covers real PrimeKG integration, canonical node IDs, statistics, entity search, bounded path finding and the CLI.
 
@@ -34,13 +84,36 @@ A follow-up milestone hardened this evaluation before building TransE on top of 
 
 On a controlled 100-disease, 498-pair benchmark (seed 42), the path baseline scores Hits@10 = 0.086 and MRR = 0.033, against Hits@10 = 0.006 and MRR = 0.0048 for the candidate-conditioned random baseline, and Hits@10 = 0.014 and MRR = 0.0062 for the full-universe popularity baseline — the path baseline is the strongest of the three on every metric. Absolute performance is still weak. This is a small, controlled evaluation, not a validated benchmark, and these numbers are not clinical evidence; the baseline and the harness exist as a comparison point for TransE and R-GCN. Details, plus the smaller 20-disease sanity check, in [ml/README.md](ml/README.md).
 
-Not implemented yet:
+Not implemented yet, as of this writing:
 
-- **No machine learning.** The ranking is a non-ML baseline. The evaluation covers a hundred or so diseases, and it does not support any claim of predictive performance.
-- No TransE, R-GCN, or other trained model.
-- No AUPRC (deferred until a candidate-universe convention is decided alongside TransE's own).
-- No evidence lookup (PubMed, ClinicalTrials.gov) and no drug safety information.
-- No web API (FastAPI) and no frontend (React).
+- **No final trained model.** TransE's foundation (model, training loop, GPU profiling) exists, but the 3-config validation search is still running, final training has not happened, and the locked test has not been evaluated. R-GCN has not been started.
+- No evidence lookup (PubMed, ClinicalTrials.gov, DailyMed, openFDA) and no drug safety information.
+- No frontend (React). The typed API foundation (FastAPI, OpenAPI, generated TypeScript client) is in place; see "Project status" above and [API.md](API.md).
+
+## Evaluation protocol
+
+The split is **by disease**, not by edge: every indication edge of a held-out disease is removed from training in both directions (`drug -> disease` and `disease -> drug`), all at once. See "Why not split by edge" in [ml/README.md](ml/README.md).
+
+- **100 locked test diseases**, holding out **498 indication pairs**, fixed once by `repurposemap.embeddings.export` and recorded in a local-only `locked_test_manifest.json` (never uploaded to Kaggle, never used for tuning).
+- A separate **validation** split (distinct from the locked test) is what the in-progress 3-config search uses for model selection.
+- The locked test is evaluated **exactly once**, after final training — `assert_eligible_for_locked_test_evaluation` refuses the run unless the checkpoint is marked `is_final_training`, the manifest's export fingerprint matches the checkpoint's, and the manifest's recomputed content fingerprint matches what the checkpoint recorded as expected.
+- Locked-test labels are kept out of the Kaggle training environment entirely; only `triples.npz`, `metadata.json` and `validation_indications.json` are uploaded.
+- No test-driven retuning: hyperparameters are chosen on validation metrics, never on the locked test.
+
+Metrics, computed per held-out `(drug, disease)` pair with filtered ranking (`repurposemap.evaluation.metrics`):
+
+- Hits@1, Hits@3, Hits@10
+- MRR (mean reciprocal rank)
+- Macro Average Precision (mean of each disease's own AP over its candidate universe)
+- Micro Average Precision (pooled over all pairs)
+
+**AP means true, non-interpolated Average Precision** (`AP = (1/n_positives) * sum(precision@k for every k where label_k == 1)`), per `repurposemap.evaluation.metrics.average_precision`. Earlier, informal trapezoidal PR-AUC numbers from this project are **not** AP and must not be presented as such.
+
+### Baseline fairness
+
+- The **path baseline** ranks only the bounded candidate set it discovers per disease (at most `max_candidates`, nearest-first).
+- The **popularity** and **TransE** baselines rank the full 7,957-drug PrimeKG universe.
+- All three share the same held-out pairs and metric formulas, but they are **not a perfectly apples-to-apples candidate-ranking task** — the path baseline's candidate pool is a strict subset of the other two's. Any "N times better" comparison between them should carry this caveat; see "Random baseline (candidate-conditioned)" and "Popularity baseline" in [ml/README.md](ml/README.md) for how each ranking is constructed.
 
 ## Data
 
@@ -193,29 +266,72 @@ Tests do not need either fix. `pyproject.toml` sets `pythonpath = ["ml/src"]` fo
 RepurposeMap/
 ├── pyproject.toml          # package metadata, dependencies, pytest settings
 ├── README.md
+├── API.md                  # FastAPI / OpenAPI / TypeScript client boundary
+├── openapi.json             # exported OpenAPI schema (generated, committed)
 ├── data/
 │   ├── raw/                # real datasets such as PrimeKG (gitignored)
 │   └── sample/             # synthetic demo data (committed)
+├── web/client/              # generated TypeScript client + hand-written wrapper
 └── ml/
-    ├── README.md           # graph exploration details
+    ├── README.md           # graph exploration, scoring, and evaluation details
+    ├── experiments/         # versioned JSON result/profile artifacts
+    ├── kaggle/               # Kaggle-side TransE training runner
+    ├── scripts/              # export_openapi.py and other one-off scripts
     ├── src/repurposemap/   # Python package
     │   ├── cli.py          # command-line interface
     │   ├── adapters/       # source-specific parsing (PrimeKG)
     │   ├── graph/          # generic loader, stats, search, bounded paths
     │   ├── scoring/        # relation policy, hub penalty, path-quality score
     │   ├── ranking/        # drug-ranking baseline
-    │   └── evaluation/     # held-out indication harness
+    │   ├── evaluation/     # held-out indication harness, metrics, TransE evaluation
+    │   ├── embeddings/      # TransE model, training, export, locked-test manifest
+    │   └── api/             # FastAPI app, Pydantic schemas, routes
     └── tests/              # pytest suite, fixtures and small test graphs
 ```
+
+## Reproducibility
+
+Run from the repository root (see "Setup" above for the virtualenv).
+
+```bash
+# tests
+python -m pytest
+
+# graph exploration
+python -m repurposemap stats --source primekg
+python -m repurposemap search --source primekg --query "sildenafil"
+
+# path baseline evaluation (disease-based, with random/popularity baselines)
+python -m repurposemap evaluate-baseline --source primekg --test-diseases 100 --seed 42 \
+  --artifact ml/experiments/my_run.json
+
+# TransE Stage D export (triples + validation-only package; see ml/README.md and
+# ml/src/repurposemap/embeddings/export.py for the locked-test manifest split)
+python -m repurposemap transe-export --help
+
+# API startup
+pip install -e ".[api]"
+uvicorn repurposemap.api.app:app --reload
+
+# OpenAPI export
+PYTHONPATH=ml/src python ml/scripts/export_openapi.py
+
+# TypeScript client generation
+cd web/client && npm install && npm run generate && npm run typecheck
+```
+
+Experiment artifacts (dataset provenance, git commit, config, metrics, runtime) live in `ml/experiments/`, written via `evaluate-baseline --artifact PATH` or the TransE Stage D profiling script. They are versioned JSON, not raw data or checkpoints.
+
+## Scientific scope
+
+RepurposeMap generates research hypotheses for expert review. It does not prescribe drugs, recommend doses, or claim clinical efficacy for any candidate. Planned evidence and safety lookups (PubMed, ClinicalTrials.gov, DailyMed, openFDA) will surface research context for a reviewer, not a clinical verdict.
 
 ## Roadmap
 
 These are planned, not implemented:
 
-1. A larger disease-based evaluation, beyond the small, fast run used for sanity checking.
-2. TransE knowledge-graph embedding baseline, scored with the same evaluation harness.
-3. Relational graph neural network for drug-disease link prediction.
-4. Explanations built from biological paths.
-5. Supporting evidence from PubMed and ClinicalTrials.gov.
-6. Drug safety information.
-7. FastAPI backend and React + TypeScript + Tailwind frontend.
+1. Final TransE training and a one-time locked-test evaluation, after the in-progress 3-config validation search.
+2. Relational graph neural network for drug-disease link prediction, if justified by the TransE result.
+3. Supporting evidence from PubMed, ClinicalTrials.gov, DailyMed and openFDA.
+4. Drug safety information.
+5. React research workspace, built against the generated TypeScript client in `web/client/`.
