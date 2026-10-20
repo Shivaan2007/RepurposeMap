@@ -1,0 +1,544 @@
+{
+  "components": {
+    "schemas": {
+      "CandidateDrug": {
+        "description": "One ranked candidate drug for a ``DiseaseQuery``.",
+        "properties": {
+          "drug_id": {
+            "title": "Drug Id",
+            "type": "string"
+          },
+          "drug_name": {
+            "title": "Drug Name",
+            "type": "string"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceSummary"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "explanation_paths": {
+            "items": {
+              "$ref": "#/components/schemas/ExplanationPath"
+            },
+            "title": "Explanation Paths",
+            "type": "array"
+          },
+          "safety_flags": {
+            "items": {
+              "$ref": "#/components/schemas/SafetyFlag"
+            },
+            "title": "Safety Flags",
+            "type": "array"
+          },
+          "scores": {
+            "items": {
+              "$ref": "#/components/schemas/CandidateScore"
+            },
+            "title": "Scores",
+            "type": "array"
+          }
+        },
+        "required": [
+          "drug_id",
+          "drug_name"
+        ],
+        "title": "CandidateDrug",
+        "type": "object"
+      },
+      "CandidateScore": {
+        "description": "One scoring method's verdict on a candidate -- a disease-based\nevaluation may report several (path quality, popularity, a future\nTransE score), never collapsed into one undifferentiated number.",
+        "properties": {
+          "method": {
+            "description": "e.g. 'path_quality', 'popularity', 'transe'",
+            "title": "Method",
+            "type": "string"
+          },
+          "rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rank"
+          },
+          "value": {
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "method"
+        ],
+        "title": "CandidateScore",
+        "type": "object"
+      },
+      "DiseaseQuery": {
+        "description": "A request to rank candidate drugs for one disease. Exactly one of\n``disease_name``/``disease_id`` should be given -- the same\nname-or-canonical-ID convention already used by the CLI's\n``rank-drugs`` command.",
+        "properties": {
+          "disease_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Disease Id"
+          },
+          "disease_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Disease Name"
+          },
+          "top_k": {
+            "default": 10,
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Top K",
+            "type": "integer"
+          }
+        },
+        "title": "DiseaseQuery",
+        "type": "object"
+      },
+      "EvidenceSummary": {
+        "description": "One piece of graph evidence linking a candidate drug toward a\ndisease -- a relation type and the node types it connects, not a path\nin full (see ``ExplanationPath`` for that).",
+        "properties": {
+          "display_relation": {
+            "title": "Display Relation",
+            "type": "string"
+          },
+          "relation": {
+            "title": "Relation",
+            "type": "string"
+          },
+          "source_node_type": {
+            "title": "Source Node Type",
+            "type": "string"
+          },
+          "target_node_type": {
+            "title": "Target Node Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "relation",
+          "display_relation",
+          "source_node_type",
+          "target_node_type"
+        ],
+        "title": "EvidenceSummary",
+        "type": "object"
+      },
+      "ExplanationPath": {
+        "description": "A full mechanistic path from drug to disease, as the CLI's\n``explain-paths``/``rank-drugs`` commands already compute -- a\nhypothesis to review, not evidence of efficacy.",
+        "properties": {
+          "path_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path Score"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/ExplanationStep"
+            },
+            "title": "Steps",
+            "type": "array"
+          }
+        },
+        "required": [
+          "steps"
+        ],
+        "title": "ExplanationPath",
+        "type": "object"
+      },
+      "ExplanationStep": {
+        "description": "One hop of an explanation path, mirroring\n``repurposemap.scoring.path_quality``'s own path representation.",
+        "properties": {
+          "relation": {
+            "title": "Relation",
+            "type": "string"
+          },
+          "source_id": {
+            "title": "Source Id",
+            "type": "string"
+          },
+          "source_name": {
+            "title": "Source Name",
+            "type": "string"
+          },
+          "target_id": {
+            "title": "Target Id",
+            "type": "string"
+          },
+          "target_name": {
+            "title": "Target Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_id",
+          "source_name",
+          "relation",
+          "target_id",
+          "target_name"
+        ],
+        "title": "ExplanationStep",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HealthResponse": {
+        "description": "What ``GET /health`` returns. Deliberately static -- no graph load,\nno model check, just \"is the process up and which API version is this\".",
+        "properties": {
+          "api_version": {
+            "title": "Api Version",
+            "type": "string"
+          },
+          "service": {
+            "title": "Service",
+            "type": "string"
+          },
+          "status": {
+            "const": "ok",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "service",
+          "status",
+          "api_version"
+        ],
+        "title": "HealthResponse",
+        "type": "object"
+      },
+      "ModelStatus": {
+        "description": "Whether a real ranking model is configured. ``available=False`` is\nthe honest default until a specific, eligible model is explicitly\nsupplied -- never guessed, never silently assumed.",
+        "properties": {
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "model_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "e.g. 'path-quality', 'transe' -- None until a model is configured",
+            "title": "Model Type"
+          },
+          "ready_for_inference": {
+            "title": "Ready For Inference",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "available",
+          "ready_for_inference"
+        ],
+        "title": "ModelStatus",
+        "type": "object"
+      },
+      "Provenance": {
+        "description": "Dataset/source provenance -- only fields knowable without touching\nthe raw file (see ``repurposemap.adapters.primekg.PrimeKGFingerprint``,\nwhose ``sha256``/``size_bytes`` require reading the file and are\ndeliberately NOT surfaced here).",
+        "properties": {
+          "retrieved_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retrieved Date"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "title": "Provenance",
+        "type": "object"
+      },
+      "RankingResponse": {
+        "description": "The future candidate-ranking response shape. ``model_status`` must\nbe ``\"not_available\"`` -- never silently substituted with a mock or\nrandom ranking -- until a real, eligible model is explicitly wired in.",
+        "properties": {
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/CandidateDrug"
+            },
+            "title": "Candidates",
+            "type": "array"
+          },
+          "disclaimer": {
+            "default": "Research hypothesis ranking. Not a treatment recommendation.",
+            "title": "Disclaimer",
+            "type": "string"
+          },
+          "disease_query": {
+            "$ref": "#/components/schemas/DiseaseQuery"
+          },
+          "model_status": {
+            "enum": [
+              "not_available",
+              "ready"
+            ],
+            "title": "Model Status",
+            "type": "string"
+          },
+          "provenance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Provenance"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "disease_query",
+          "model_status"
+        ],
+        "title": "RankingResponse",
+        "type": "object"
+      },
+      "SafetyFlag": {
+        "description": "A caution attached to a candidate -- e.g. a known contraindication\nor interaction. Structural placeholder: no safety-data source is wired\nup yet, so this is never populated with invented content.",
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "info",
+              "caution",
+              "exclude"
+            ],
+            "title": "Severity",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "severity",
+          "description"
+        ],
+        "title": "SafetyFlag",
+        "type": "object"
+      },
+      "SystemInfoResponse": {
+        "description": "What ``GET /api/v1/system/info`` returns.",
+        "properties": {
+          "api_version": {
+            "title": "Api Version",
+            "type": "string"
+          },
+          "application": {
+            "title": "Application",
+            "type": "string"
+          },
+          "data_provenance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Provenance"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "model": {
+            "$ref": "#/components/schemas/ModelStatus"
+          }
+        },
+        "required": [
+          "application",
+          "api_version",
+          "model"
+        ],
+        "title": "SystemInfoResponse",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Explainable drug-repurposing research API. Every ranking output is a research hypothesis for expert review, never a treatment recommendation.",
+    "title": "RepurposeMap API",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/rank": {
+      "post": {
+        "operationId": "rank_candidates_api_v1_rank_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DiseaseQuery"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RankingResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rank Candidates"
+      }
+    },
+    "/api/v1/system/info": {
+      "get": {
+        "operationId": "get_system_info_api_v1_system_info_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemInfoResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get System Info"
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "get_health_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Health"
+      }
+    }
+  }
+}

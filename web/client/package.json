@@ -1,0 +1,16 @@
+{
+  "name": "@repurposemap/api-client",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Typed TypeScript client for the RepurposeMap FastAPI service, generated from its OpenAPI schema.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "generate": "openapi-typescript ../../openapi.json -o src/types.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.4.0",
+    "typescript": "^5.6.0"
+  }
+}
