@@ -134,7 +134,9 @@ def test_transe_subcommands_are_registered_and_graph_free_set_is_exact():
     parser = build_parser()
     subparsers_action = next(a for a in parser._actions if isinstance(a, argparse._SubParsersAction))  # noqa: SLF001
     command_names = set(subparsers_action.choices)
-    for name in ("transe-export", "transe-train", "transe-evaluate"):
+    for name in ("transe-export", "transe-train", "transe-evaluate", "rgcn-train", "rgcn-evaluate"):
         assert name in command_names
-    assert set(GRAPH_FREE_COMMANDS) == {"transe-train", "transe-evaluate"}
+    assert set(GRAPH_FREE_COMMANDS) == {"transe-train", "transe-evaluate", "rgcn-train", "rgcn-evaluate"}
     assert "transe-export" not in GRAPH_FREE_COMMANDS
+    # R-GCN reuses TransE's export; there is deliberately no rgcn-export command.
+    assert "rgcn-export" not in command_names

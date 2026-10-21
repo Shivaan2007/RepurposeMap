@@ -45,6 +45,19 @@ from repurposemap.embeddings.export import (
     write_locked_test_manifest,
 )
 from repurposemap.embeddings.positive_store import build_positive_store
+from repurposemap.embeddings.rgcn_model import RGCN
+from repurposemap.embeddings.rgcn_train_gpu import (
+    SEARCH_CONFIGS as RGCN_SEARCH_CONFIGS,
+)
+from repurposemap.embeddings.rgcn_train_gpu import (
+    build_message_passing_edges,
+)
+from repurposemap.embeddings.rgcn_train_gpu import (
+    train_final as rgcn_train_final,
+)
+from repurposemap.embeddings.rgcn_train_gpu import (
+    train_gpu as rgcn_train_gpu,
+)
 from repurposemap.embeddings.transe_model import TransE
 from repurposemap.embeddings.transe_train_gpu import (
     SEARCH_CONFIGS,
@@ -109,10 +122,12 @@ DEFAULT_EVAL_SEED = 0
 DEFAULT_TEST_DISEASES = 20
 DEFAULT_TEST_FRACTION = 0.1
 SCORING_COMMANDS = ("explain-paths", "rank-drugs", "evaluate-baseline", "transe-export")
-# transe-train/transe-evaluate consume only a local export package (see
-# repurposemap.embeddings.export) -- they must never trigger a PrimeKG/
-# NetworkX graph load, unlike every command above.
-GRAPH_FREE_COMMANDS = ("transe-train", "transe-evaluate")
+# transe-train/transe-evaluate/rgcn-train/rgcn-evaluate all consume only a
+# local export package (see repurposemap.embeddings.export) -- they must
+# never trigger a PrimeKG/NetworkX graph load, unlike every command above.
+# R-GCN reuses the exact same export package as TransE, so there is no
+# separate rgcn-export command.
+GRAPH_FREE_COMMANDS = ("transe-train", "transe-evaluate", "rgcn-train", "rgcn-evaluate")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -276,6 +291,36 @@ def build_parser() -> argparse.ArgumentParser:
         help="required for --split locked-test: the LOCAL-ONLY locked_test_manifest.json",
     )
     transe_evaluate.add_argument("--artifact", type=Path, default=None)
+
+    rgcn_train = subparsers.add_parser(
+        "rgcn-train",
+        help="train R-GCN from the same export package TransE uses -- never loads PrimeKG/NetworkX",
+    )
+    rgcn_train.add_argument("--export-dir", type=Path, required=True)
+    rgcn_train.add_argument(
+        "--config-name", choices=["rgcn-base", "rgcn-wide", "rgcn-moreBases", "final"], required=True,
+    )
+    rgcn_train.add_argument("--epochs", type=int, default=None, help="override the config's default epoch count")
+    rgcn_train.add_argument("--validate-every", type=int, default=2)
+    rgcn_train.add_argument("--device", default="cpu")
+    rgcn_train.add_argument("--output", type=Path, required=True, help="checkpoint path to write")
+    rgcn_train.add_argument(
+        "--search-log", type=Path, default=None,
+        help="required for --config-name final: the JSON log recording the 3-config search's result",
+    )
+
+    rgcn_evaluate = subparsers.add_parser(
+        "rgcn-evaluate",
+        help="evaluate an R-GCN checkpoint -- validation by default; locked-test only with --manifest and a final checkpoint",
+    )
+    rgcn_evaluate.add_argument("--export-dir", type=Path, required=True)
+    rgcn_evaluate.add_argument("--checkpoint", type=Path, required=True)
+    rgcn_evaluate.add_argument("--split", choices=["validation", "locked-test"], default="validation")
+    rgcn_evaluate.add_argument(
+        "--manifest", type=Path, default=None,
+        help="required for --split locked-test: the LOCAL-ONLY locked_test_manifest.json",
+    )
+    rgcn_evaluate.add_argument("--artifact", type=Path, default=None)
 
     return parser
 
@@ -443,6 +488,10 @@ def _run_graph_free_command(args: argparse.Namespace) -> str:
         return _run_transe_train(args)
     if args.command == "transe-evaluate":
         return _run_transe_evaluate(args)
+    if args.command == "rgcn-train":
+        return _run_rgcn_train(args)
+    if args.command == "rgcn-evaluate":
+        return _run_rgcn_evaluate(args)
     raise ValueError(f"unknown graph-free command: {args.command}")
 
 
@@ -540,6 +589,151 @@ def _run_transe_evaluate(args: argparse.Namespace) -> str:
         tail = torch.full_like(drug_indices, disease_idx)
         with torch.no_grad():
             return model.score(drug_indices, rel, tail).numpy()
+
+    if args.split == "validation":
+        result = evaluate_transe_on_diseases(score_fn, loaded.val_disease_ids, loaded.val_indications, loaded.drug_ids)
+    else:
+        if args.manifest is None:
+            raise ValueError("--split locked-test requires --manifest PATH (the local-only locked_test_manifest.json)")
+        manifest = load_locked_test_manifest(args.manifest)
+        assert_eligible_for_locked_test_evaluation(checkpoint, manifest)
+        result = evaluate_transe_on_diseases(score_fn, manifest.test_disease_ids, manifest.test_indications, loaded.drug_ids)
+
+    lines = [
+        f"split: {args.split}",
+        f"n_pairs: {len(result.outcomes)}",
+        f"Hits@1: {result.hits_at(1):.4f}",
+        f"Hits@3: {result.hits_at(3):.4f}",
+        f"Hits@10: {result.hits_at(10):.4f}",
+        f"MRR: {result.mrr:.4f}",
+        f"macro AP: {result.macro_auprc:.6f}",
+        f"micro AP: {result.micro_auprc:.6f}",
+    ]
+    if args.artifact is not None:
+        args.artifact.write_text(
+            json.dumps(
+                {
+                    "split": args.split,
+                    "n_pairs": len(result.outcomes),
+                    "hits_at_1": result.hits_at(1),
+                    "hits_at_3": result.hits_at(3),
+                    "hits_at_10": result.hits_at(10),
+                    "mrr": result.mrr,
+                    "macro_auprc": result.macro_auprc,
+                    "micro_auprc": result.micro_auprc,
+                },
+                indent=2,
+            )
+        )
+        lines.append(f"artifact written to {args.artifact}")
+    return "\n".join(lines)
+
+
+def _run_rgcn_train(args: argparse.Namespace) -> str:
+    loaded = load_export(args.export_dir)
+    config_map = dict(RGCN_SEARCH_CONFIGS)
+
+    if args.config_name == "final":
+        if args.search_log is None:
+            raise ValueError("--config-name final requires --search-log (the recorded 3-config search result)")
+        search_log = json.loads(args.search_log.read_text())
+        selected_config = config_map[search_log["selected_name"]]
+
+        if args.epochs is not None:
+            epochs = args.epochs
+        else:
+            selected_run = next(r for r in search_log["runs"] if r["name"] == search_log["selected_name"])
+            if selected_run["best_val_epoch"] is None:
+                raise ValueError("search log has no recorded best_val_epoch for the selected config; pass --epochs explicitly")
+            epochs = selected_run["best_val_epoch"] + 1  # best_val_epoch is 0-indexed
+
+        git_commit, git_dirty = get_git_commit()
+        checkpoint = rgcn_train_final(
+            loaded, selected_config=selected_config, epochs=epochs, search_log=search_log,
+            checkpoint_path=args.output, git_commit=git_commit, git_dirty=git_dirty, device=args.device,
+        )
+        return "\n".join(
+            [
+                f"Final checkpoint written to {args.output}",
+                "is_final_training: true",
+                f"selected_config: {search_log['selected_name']}",
+                f"epochs: {epochs}",
+                f"export_fingerprint: {checkpoint['export_fingerprint']}",
+            ]
+        )
+
+    if args.config_name not in config_map:
+        raise ValueError(f"unknown --config-name {args.config_name!r}")
+    base_config = config_map[args.config_name]
+    epochs = args.epochs if args.epochs is not None else base_config.epochs
+    config = replace(base_config, epochs=epochs, device=args.device, validate_every=args.validate_every)
+
+    n_entities = len(loaded.entity_index)
+    n_relations = len(loaded.relation_index)
+    tuning_triples = loaded.tuning_triples
+    positive_store = build_positive_store(tuning_triples, n_relations, n_entities)
+
+    result = rgcn_train_gpu(
+        tuning_triples, n_entities, n_relations, loaded.type_pools, positive_store, config,
+        entity_index=loaded.entity_index, indication_relation_idx=loaded.indication_relation_idx,
+        val_disease_ids=loaded.val_disease_ids, val_indications=loaded.val_indications, drug_ids=loaded.drug_ids,
+        checkpoint_path=args.output,
+    )
+    log_path = args.output.with_suffix(".log.json")
+    log_path.write_text(
+        json.dumps(
+            {
+                "name": args.config_name,
+                "config": config.to_dict(),
+                "history": [r.to_dict() for r in result.history],
+                "stopped_early": result.stopped_early,
+            },
+            indent=2,
+        )
+    )
+    return "\n".join(
+        [
+            f"Checkpoint written to {args.output}",
+            f"Run log written to {log_path}",
+            f"final_epoch: {result.final_epoch}",
+            f"stopped_early: {result.stopped_early}",
+        ]
+    )
+
+
+def _run_rgcn_evaluate(args: argparse.Namespace) -> str:
+    loaded = load_export(args.export_dir)
+    # Local evaluation always runs on CPU regardless of what device the
+    # checkpoint was trained on -- same rule as _run_transe_evaluate.
+    checkpoint = load_checkpoint(args.checkpoint, map_location="cpu")
+
+    n_entities = len(loaded.entity_index)
+    n_relations = len(loaded.relation_index)
+    model = RGCN(
+        n_entities, n_relations,
+        hidden_dim=checkpoint["config"]["hidden_dim"], num_bases=checkpoint["config"]["num_bases"],
+        num_layers=checkpoint["config"]["num_layers"],
+    )
+    model.load_state_dict(checkpoint["state_dict"])
+    model.eval()
+
+    # The expensive full-graph message-passing forward pass runs exactly
+    # once here, against final_triples (the same triples the checkpoint
+    # was trained on) -- never once per disease inside score_fn below.
+    edge_h_np, edge_r_np, edge_t_np = build_message_passing_edges(loaded.final_triples, n_relations)
+    with torch.no_grad():
+        entity_embeddings = model.encode(
+            torch.as_tensor(edge_h_np, dtype=torch.long), torch.as_tensor(edge_r_np, dtype=torch.long),
+            torch.as_tensor(edge_t_np, dtype=torch.long), n_entities,
+        )
+
+    def score_fn(disease_id, drug_ids):
+        disease_idx = loaded.entity_index.id_to_index[disease_id]
+        drug_indices = torch.as_tensor([loaded.entity_index.id_to_index[d] for d in drug_ids], dtype=torch.long)
+        rel = torch.full_like(drug_indices, loaded.indication_relation_idx)
+        tail = torch.full_like(drug_indices, disease_idx)
+        with torch.no_grad():
+            return model.score(entity_embeddings, drug_indices, rel, tail).numpy()
 
     if args.split == "validation":
         result = evaluate_transe_on_diseases(score_fn, loaded.val_disease_ids, loaded.val_indications, loaded.drug_ids)

@@ -45,6 +45,7 @@ See [API.md](API.md) for the FastAPI / OpenAPI / TypeScript boundary in detail.
 - Leakage-safe, disease-based evaluation harness (split, training-graph construction, leakage checks, metrics)
 - TransE foundation (model, training loop, triples export, CLI commands)
 - TransE Stage D GPU profiling (plumbing/throughput validation on a Kaggle T4; not a trained checkpoint or a benchmark result)
+- R-GCN foundation (model, leakage-safe message-passing construction, training/checkpoint infrastructure, CLI commands, synthetic tests) -- reuses TransE's export package and evaluation harness unchanged; real PrimeKG GPU profiling/search/training/locked-test evaluation not yet performed
 - Typed API foundation (FastAPI + Pydantic, OpenAPI export, generated TypeScript client)
 - Experiment/model provenance layer (`repurposemap.provenance`): reads `ml/experiments/*.json` and reports honest model-eligibility status through `GET /api/v1/system/info`, without loading PrimeKG or a checkpoint
 - React research workspace (`web/app`): disease-query UI over the generated TypeScript client, with system-status, candidate, evidence, explanation-path and safety panels -- shows the honest "no model available" state today, never a fake ranking
@@ -85,7 +86,7 @@ On a controlled 100-disease, 498-pair benchmark (seed 42), the path baseline sco
 
 Not implemented yet, as of this writing:
 
-- **No R-GCN or other relational GNN.** TransE has now completed final training and its one-time locked-test evaluation (see "Final TransE result (locked test)" below); R-GCN has not been started.
+- **No trained or evaluated R-GCN.** Its foundation (model, training loop, CLI commands) now exists, implemented and tested only against tiny synthetic data; no real PrimeKG GPU profiling, validation search, final training, or locked-test evaluation has been run yet.
 - No live evidence lookup (PubMed, ClinicalTrials.gov, DailyMed, openFDA) and no real drug safety information -- only the typed domain contracts and adapter interfaces exist (`repurposemap.evidence`).
 - The React frontend (`web/app`) exists and queries the real API, but since no model is available yet it only ever shows the honest unavailable/empty state -- see "Project status" above and [API.md](API.md).
 
