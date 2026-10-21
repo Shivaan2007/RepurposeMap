@@ -520,7 +520,11 @@ def _run_transe_train(args: argparse.Namespace) -> str:
 
 def _run_transe_evaluate(args: argparse.Namespace) -> str:
     loaded = load_export(args.export_dir)
-    checkpoint = load_checkpoint(args.checkpoint)
+    # Local evaluation always runs on CPU regardless of what device the
+    # checkpoint was trained on (checkpoint["config"]["device"] is left
+    # exactly as recorded -- it is never read to pick an evaluation
+    # device, here or anywhere else in this function).
+    checkpoint = load_checkpoint(args.checkpoint, map_location="cpu")
 
     model = TransE(
         len(loaded.entity_index), len(loaded.relation_index),

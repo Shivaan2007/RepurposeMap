@@ -5,6 +5,8 @@ Requires torch; skipped (not failed) in an environment without it installed.
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pytest
 
 torch = pytest.importorskip("torch")
@@ -13,6 +15,7 @@ import numpy as np  # noqa: E402
 
 from repurposemap.embeddings.negative_sampling import TypePools  # noqa: E402
 from repurposemap.embeddings.positive_store import build_positive_store  # noqa: E402
+from repurposemap.embeddings.transe_model import TransE  # noqa: E402
 from repurposemap.embeddings.transe_train_gpu import (  # noqa: E402
     GPUTrainingConfig,
     SEARCH_CONFIGS,
@@ -101,6 +104,75 @@ def test_checkpoint_save_and_load_round_trips(tmp_path):
     assert reloaded["epoch"] == checkpoint["epoch"]
     assert reloaded["config"] == checkpoint["config"]
     assert reloaded["is_final_training"] is False
+
+
+def test_load_checkpoint_accepts_explicit_map_location(tmp_path):
+    triples, tp, store = _toy_triples_and_pools()
+    config = GPUTrainingConfig(embedding_dim=4, epochs=1, batch_size=6, negatives_per_positive=1, seed=5)
+    result = train_gpu(triples, 12, 1, tp, store, config)
+    checkpoint = build_checkpoint(
+        model=result.model, optimizer=result.optimizer, epoch=result.final_epoch, history=result.history,
+        config=config, shuffle_generator=result.shuffle_generator, sampler=result.sampler,
+    )
+    path = tmp_path / "ckpt.pt"
+    save_checkpoint(checkpoint, path)
+
+    reloaded = load_checkpoint(path, map_location="cpu")
+
+    assert reloaded["epoch"] == checkpoint["epoch"]
+    assert reloaded["config"] == checkpoint["config"]
+    for tensor in reloaded["state_dict"].values():
+        assert tensor.device.type == "cpu"
+
+
+def test_load_checkpoint_default_map_location_unchanged(tmp_path):
+    # Omitting map_location must behave exactly as before this parameter
+    # existed -- no behavior change for existing callers.
+    triples, tp, store = _toy_triples_and_pools()
+    config = GPUTrainingConfig(embedding_dim=4, epochs=1, batch_size=6, negatives_per_positive=1, seed=5)
+    result = train_gpu(triples, 12, 1, tp, store, config)
+    checkpoint = build_checkpoint(
+        model=result.model, optimizer=result.optimizer, epoch=result.final_epoch, history=result.history,
+        config=config, shuffle_generator=result.shuffle_generator, sampler=result.sampler,
+    )
+    path = tmp_path / "ckpt.pt"
+    save_checkpoint(checkpoint, path)
+
+    reloaded_default = load_checkpoint(path)
+    reloaded_explicit_none = load_checkpoint(path, map_location=None)
+
+    assert reloaded_default["config"] == reloaded_explicit_none["config"] == checkpoint["config"]
+
+
+def test_cpu_map_location_loads_a_checkpoint_whose_config_claims_cuda(tmp_path):
+    # Simulates the real failure: a checkpoint trained on CUDA (so its
+    # config.device says "cuda") being loaded on a CPU-only machine.
+    # map_location="cpu" must load it without raising, the config's
+    # recorded training device must be left exactly as-is (never read to
+    # pick an evaluation device), and the reloaded tensors must actually
+    # be on CPU.
+    triples, tp, store = _toy_triples_and_pools()
+    config = GPUTrainingConfig(embedding_dim=4, epochs=1, batch_size=6, negatives_per_positive=1, seed=5, device="cuda")
+    result = train_gpu(triples, 12, 1, tp, store, replace(config, device="cpu"))  # this test machine has no CUDA build
+    checkpoint = build_checkpoint(
+        model=result.model, optimizer=result.optimizer, epoch=result.final_epoch, history=result.history,
+        config=config,  # the RECORDED config still says "cuda" -- only the actual run used "cpu"
+        shuffle_generator=result.shuffle_generator, sampler=result.sampler, is_final_training=True,
+    )
+    path = tmp_path / "ckpt.pt"
+    save_checkpoint(checkpoint, path)
+
+    reloaded = load_checkpoint(path, map_location="cpu")
+
+    assert reloaded["config"]["device"] == "cuda"  # unmutated
+    assert reloaded["is_final_training"] is True  # unmutated
+    for tensor in reloaded["state_dict"].values():
+        assert tensor.device.type == "cpu"
+
+    model = TransE(12, 1, embedding_dim=reloaded["config"]["embedding_dim"], distance=reloaded["config"]["distance"])
+    model.load_state_dict(reloaded["state_dict"])
+    for p in model.parameters():
+        assert p.device.type == "cpu"
 
 
 def test_non_finite_loss_raises_rather_than_training_through_it(monkeypatch):

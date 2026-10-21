@@ -275,3 +275,25 @@ def test_train_final_with_explicit_device_still_never_touches_locked_test_data(l
 
     manifest = load_locked_test_manifest(manifest_path)
     assert_eligible_for_locked_test_evaluation(checkpoint, manifest)  # must not raise
+
+
+def test_locked_test_eligibility_gate_identical_after_cpu_map_location_reload(loaded_export_with_manifest, tmp_path):
+    # The eligibility gate reads is_final_training/export_fingerprint/
+    # locked_test_manifest_fingerprint -- none of which the map_location
+    # fix touches. Confirms a checkpoint saved then reloaded with
+    # map_location="cpu" passes the gate identically to the in-memory one.
+    loaded_export, manifest_path = loaded_export_with_manifest
+    log = run_validation_search(loaded_export, search_configs=_tiny_search_configs(), epochs=1, validate_every=1)
+    selected_config = dict(_tiny_search_configs())[log["selected_name"]]
+    checkpoint_path = tmp_path / "final.pt"
+    in_memory_checkpoint = train_final(
+        loaded_export, selected_config=selected_config, epochs=1, search_log=log, checkpoint_path=checkpoint_path,
+    )
+
+    reloaded_checkpoint = load_checkpoint(checkpoint_path, map_location="cpu")
+
+    manifest = load_locked_test_manifest(manifest_path)
+    assert_eligible_for_locked_test_evaluation(reloaded_checkpoint, manifest)  # must not raise
+    assert reloaded_checkpoint["is_final_training"] == in_memory_checkpoint["is_final_training"]
+    assert reloaded_checkpoint["export_fingerprint"] == in_memory_checkpoint["export_fingerprint"]
+    assert reloaded_checkpoint["locked_test_manifest_fingerprint"] == in_memory_checkpoint["locked_test_manifest_fingerprint"]

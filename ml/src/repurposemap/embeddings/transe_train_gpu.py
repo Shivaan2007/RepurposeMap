@@ -209,8 +209,19 @@ def save_checkpoint(checkpoint: dict, path: str | Path) -> None:
     torch.save(checkpoint, path)
 
 
-def load_checkpoint(path: str | Path) -> dict:
-    return torch.load(path, weights_only=False)
+def load_checkpoint(path: str | Path, *, map_location: str | torch.device | None = None) -> dict:
+    """Load a checkpoint dict exactly as saved -- no mutation of its
+    contents (``config["device"]`` still records whatever device it was
+    trained on either way).
+
+    ``map_location``, if given, is forwarded to ``torch.load`` unchanged
+    (e.g. ``"cpu"`` to load a GPU-trained checkpoint's tensors on a
+    machine with no CUDA build). Omitted, behavior is unchanged from
+    before this parameter existed: ``torch.load`` deserializes tensors
+    onto their original device, which requires that device to exist on
+    the loading machine.
+    """
+    return torch.load(path, weights_only=False, map_location=map_location)
 
 
 def train_gpu(
