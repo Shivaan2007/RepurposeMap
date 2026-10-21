@@ -244,6 +244,39 @@
         "title": "HealthResponse",
         "type": "object"
       },
+      "ModelProvenanceInfo": {
+        "description": "What the experiment/model provenance layer\n(``repurposemap.provenance``) can safely report about model status --\nread from approved ``ml/experiments/*.json`` files only, never a\ncheckpoint tensor, never a locked-test label.",
+        "properties": {
+          "eligibility_reason": {
+            "description": "human-readable reason behind inference_eligible",
+            "title": "Eligibility Reason",
+            "type": "string"
+          },
+          "inference_eligible": {
+            "description": "whether an eligible final-training experiment record exists AND a checkpoint is explicitly configured",
+            "title": "Inference Eligible",
+            "type": "boolean"
+          },
+          "most_recent_completed_stage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "stage name of the most recently generated valid experiment record",
+            "title": "Most Recent Completed Stage"
+          }
+        },
+        "required": [
+          "inference_eligible",
+          "eligibility_reason"
+        ],
+        "title": "ModelProvenanceInfo",
+        "type": "object"
+      },
       "ModelStatus": {
         "description": "Whether a real ranking model is configured. ``available=False`` is\nthe honest default until a specific, eligible model is explicitly\nsupplied -- never guessed, never silently assumed.",
         "properties": {
@@ -407,6 +440,16 @@
           },
           "model": {
             "$ref": "#/components/schemas/ModelStatus"
+          },
+          "model_provenance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModelProvenanceInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [

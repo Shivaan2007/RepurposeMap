@@ -179,6 +179,30 @@ export interface components {
             status: "ok";
         };
         /**
+         * ModelProvenanceInfo
+         * @description What the experiment/model provenance layer
+         *     (``repurposemap.provenance``) can safely report about model status --
+         *     read from approved ``ml/experiments/*.json`` files only, never a
+         *     checkpoint tensor, never a locked-test label.
+         */
+        ModelProvenanceInfo: {
+            /**
+             * Eligibility Reason
+             * @description human-readable reason behind inference_eligible
+             */
+            eligibility_reason: string;
+            /**
+             * Inference Eligible
+             * @description whether an eligible final-training experiment record exists AND a checkpoint is explicitly configured
+             */
+            inference_eligible: boolean;
+            /**
+             * Most Recent Completed Stage
+             * @description stage name of the most recently generated valid experiment record
+             */
+            most_recent_completed_stage?: string | null;
+        };
+        /**
          * ModelStatus
          * @description Whether a real ranking model is configured. ``available=False`` is
          *     the honest default until a specific, eligible model is explicitly
@@ -260,6 +284,7 @@ export interface components {
             application: string;
             data_provenance?: components["schemas"]["Provenance"] | null;
             model: components["schemas"]["ModelStatus"];
+            model_provenance?: components["schemas"]["ModelProvenanceInfo"] | null;
         };
         /** ValidationError */
         ValidationError: {

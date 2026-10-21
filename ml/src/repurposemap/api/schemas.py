@@ -55,6 +55,17 @@ class Provenance(BaseModel):
     version: str | None = None
 
 
+class ModelProvenanceInfo(BaseModel):
+    """What the experiment/model provenance layer
+    (``repurposemap.provenance``) can safely report about model status --
+    read from approved ``ml/experiments/*.json`` files only, never a
+    checkpoint tensor, never a locked-test label."""
+
+    most_recent_completed_stage: str | None = Field(default=None, description="stage name of the most recently generated valid experiment record")
+    inference_eligible: bool = Field(description="whether an eligible final-training experiment record exists AND a checkpoint is explicitly configured")
+    eligibility_reason: str = Field(description="human-readable reason behind inference_eligible")
+
+
 class SystemInfoResponse(BaseModel):
     """What ``GET /api/v1/system/info`` returns."""
 
@@ -62,6 +73,7 @@ class SystemInfoResponse(BaseModel):
     api_version: str
     model: ModelStatus
     data_provenance: Provenance | None = None
+    model_provenance: ModelProvenanceInfo | None = None
 
 
 # --------------------------------------------------------------------------

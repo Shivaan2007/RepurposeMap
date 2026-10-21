@@ -44,3 +44,17 @@ def test_system_info_provenance_is_present_and_static():
     # file, which this endpoint must never do.
     assert "sha256" not in provenance
     assert "size_bytes" not in provenance
+
+
+def test_system_info_model_provenance_reflects_no_final_training_yet():
+    # Final training is currently running on Kaggle -- system/info must
+    # keep reporting inference as ineligible until it completes AND a
+    # checkpoint is explicitly configured.
+    client = TestClient(app)
+    body = client.get("/api/v1/system/info").json()
+
+    model_provenance = body["model_provenance"]
+    assert model_provenance is not None
+    assert model_provenance["inference_eligible"] is False
+    assert model_provenance["most_recent_completed_stage"] is not None
+    assert body["model"]["available"] is False

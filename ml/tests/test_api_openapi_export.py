@@ -24,8 +24,9 @@ EXPORT_SCRIPT = REPO_ROOT / "ml" / "scripts" / "export_openapi.py"
 
 EXPECTED_SCHEMAS = {
     "HealthResponse", "SystemInfoResponse", "ModelStatus", "Provenance",
-    "DiseaseQuery", "CandidateDrug", "CandidateScore", "EvidenceSummary",
-    "ExplanationPath", "ExplanationStep", "SafetyFlag", "RankingResponse",
+    "ModelProvenanceInfo", "DiseaseQuery", "CandidateDrug", "CandidateScore",
+    "EvidenceSummary", "ExplanationPath", "ExplanationStep", "SafetyFlag",
+    "RankingResponse",
 }
 
 
