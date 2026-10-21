@@ -66,3 +66,37 @@ availability honestly rather than guessing. Wiring in a real model means:
 Until then, `rank_candidates` stays a stub. It must keep returning
 `model_status: "not_available"` with an empty candidate list rather than a
 mock or random ranking.
+
+Model availability is reported honestly end-to-end: `GET
+/api/v1/system/info` calls `repurposemap.provenance.load_experiments()`
+to read `ml/experiments/*.json` (not PrimeKG, not a checkpoint) and
+reports `inference_eligible`/`model.available` as `False` until both an
+eligible final-training experiment record exists and a checkpoint path
+is explicitly configured in `repurposemap.provenance.service` -- see
+that module's own docstring.
+
+## Running the research workspace (web/app)
+
+```bash
+cd web/app
+npm install
+npm run dev     # proxies /api and /health to localhost:8000 (see vite.config.ts)
+```
+
+It imports `RepurposeMapClient` from the generated client in `web/client`
+(a `file:../client` dependency) rather than hand-writing fetch calls or
+API types. Regenerate `web/client/src/types.ts` first if you've changed
+`schemas.py` -- the workspace picks up the new types on its next
+`npm install`/build without any changes of its own.
+
+## Evidence/safety domain foundation (not wired into the API yet)
+
+`repurposemap.evidence` defines typed contracts (`EvidenceSource`,
+`EvidenceRecord`, `PubMedEvidence`, `ClinicalTrialEvidence`,
+`SafetyEvidence`, `EvidenceBundle`) and `Protocol`-based adapter
+interfaces for PubMed, ClinicalTrials.gov, DailyMed and openFDA. No
+adapter performs a live query yet -- `NotImplementedAdapter.search()`
+raises rather than returning an empty or fabricated result.
+`repurposemap.hypothesis.RepurposingHypothesis` shows how a model score,
+explanation paths, an evidence bundle, safety flags and provenance will
+assemble into one researcher-facing object once both exist.

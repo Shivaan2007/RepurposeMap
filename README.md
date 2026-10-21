@@ -46,18 +46,21 @@ See [API.md](API.md) for the FastAPI / OpenAPI / TypeScript boundary in detail.
 - TransE foundation (model, training loop, triples export, CLI commands)
 - TransE Stage D GPU profiling (plumbing/throughput validation on a Kaggle T4; not a trained checkpoint or a benchmark result)
 - Typed API foundation (FastAPI + Pydantic, OpenAPI export, generated TypeScript client)
+- Experiment/model provenance layer (`repurposemap.provenance`): reads `ml/experiments/*.json` and reports honest model-eligibility status through `GET /api/v1/system/info`, without loading PrimeKG or a checkpoint
+- React research workspace (`web/app`): disease-query UI over the generated TypeScript client, with system-status, candidate, evidence, explanation-path and safety panels -- shows the honest "no model available" state today, never a fake ranking
+- Evidence and safety domain foundation (`repurposemap.evidence`): typed contracts and adapter interfaces for future PubMed/ClinicalTrials.gov/DailyMed/openFDA lookups; no live adapter yet
+- `RepurposingHypothesis` domain object (`repurposemap.hypothesis`): shows how model score, explanation paths, evidence and safety will assemble once a real model and real adapters exist
 
 **In progress**
 
-- 3-config TransE validation search, to select hyperparameters before final training
+- 3-config TransE validation search, to select hyperparameters before final training (currently running final training on Kaggle)
 
 **Planned**
 
 - Final TransE training on the full training graph
 - Locked-test evaluation of the final TransE checkpoint (run exactly once)
 - R-GCN, if the TransE result justifies the added complexity
-- Evidence and safety lookups (PubMed, ClinicalTrials.gov, DailyMed, openFDA)
-- React research workspace
+- Real PubMed/ClinicalTrials.gov/DailyMed/openFDA adapters behind the evidence domain foundation above
 
 Do not treat anything in "in progress" or "planned" as complete or benchmarked.
 
@@ -86,9 +89,9 @@ On a controlled 100-disease, 498-pair benchmark (seed 42), the path baseline sco
 
 Not implemented yet, as of this writing:
 
-- **No final trained model.** TransE's foundation (model, training loop, GPU profiling) exists, but the 3-config validation search is still running, final training has not happened, and the locked test has not been evaluated. R-GCN has not been started.
-- No evidence lookup (PubMed, ClinicalTrials.gov, DailyMed, openFDA) and no drug safety information.
-- No frontend (React). The typed API foundation (FastAPI, OpenAPI, generated TypeScript client) is in place; see "Project status" above and [API.md](API.md).
+- **No final trained model.** TransE's foundation (model, training loop, GPU profiling) exists, and final training is now running on Kaggle, but it has not completed and the locked test has not been evaluated. R-GCN has not been started.
+- No live evidence lookup (PubMed, ClinicalTrials.gov, DailyMed, openFDA) and no real drug safety information -- only the typed domain contracts and adapter interfaces exist (`repurposemap.evidence`).
+- The React frontend (`web/app`) exists and queries the real API, but since no model is available yet it only ever shows the honest unavailable/empty state -- see "Project status" above and [API.md](API.md).
 
 ## Evaluation protocol
 
