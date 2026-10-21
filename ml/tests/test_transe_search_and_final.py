@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 
 import pytest
 
@@ -187,3 +188,90 @@ def test_final_checkpoint_passes_the_locked_test_eligibility_gate(loaded_export_
 
     manifest = load_locked_test_manifest(manifest_path)
     assert_eligible_for_locked_test_evaluation(checkpoint, manifest)  # must not raise -- real manifest, real checkpoint
+
+
+def test_train_final_forwards_explicit_device_to_the_gpu_trainer(loaded_export, tmp_path, monkeypatch):
+    # Reproduces the exact Kaggle failure mode this test guards against:
+    # train_final must accept `device=` and the GPU trainer actually
+    # invoked must see that device on its config, not the dataclass
+    # default ("cpu").
+    import repurposemap.embeddings.transe_train_gpu as module
+
+    # Run the search itself unpatched -- only the final-training call below
+    # is under test.
+    log = run_validation_search(loaded_export, search_configs=_tiny_search_configs(), epochs=1, validate_every=1)
+    selected_config = dict(_tiny_search_configs())[log["selected_name"]]
+    checkpoint_path = tmp_path / "final.pt"
+
+    # Records the device requested of train_gpu, then actually runs it on
+    # "cpu" regardless -- this machine has no CUDA build to exercise, and
+    # that is not what this test is checking. What matters is that
+    # train_final forwards whatever device string it is given through to
+    # train_gpu's config without raising (the exact Kaggle failure mode)
+    # and without silently dropping it.
+    seen_devices = []
+    original_train_gpu = module.train_gpu
+
+    def _spy(triples, n_entities, n_relations, type_pools, positive_store, config, **kwargs):
+        seen_devices.append(config.device)
+        cpu_config = replace(config, device="cpu")
+        return original_train_gpu(triples, n_entities, n_relations, type_pools, positive_store, cpu_config, **kwargs)
+
+    monkeypatch.setattr(module, "train_gpu", _spy)
+
+    checkpoint = train_final(
+        loaded_export, selected_config=selected_config, epochs=1, search_log=log,
+        checkpoint_path=checkpoint_path, device="cuda:0",
+    )
+
+    assert seen_devices == ["cuda:0"]
+    assert checkpoint["config"]["device"] == "cuda:0"
+    # Hyperparameters untouched by the device override.
+    assert checkpoint["config"]["embedding_dim"] == selected_config.embedding_dim
+    assert checkpoint["config"]["distance"] == selected_config.distance
+
+
+def test_train_final_default_device_matches_prior_behavior(loaded_export, tmp_path, monkeypatch):
+    # No `device=` passed -- must keep training on whatever
+    # selected_config.device already was (the dataclass default, "cpu"),
+    # unchanged from before the device parameter existed.
+    import repurposemap.embeddings.transe_train_gpu as module
+
+    # Run the search itself unpatched -- only the final-training call below
+    # is under test.
+    log = run_validation_search(loaded_export, search_configs=_tiny_search_configs(), epochs=1, validate_every=1)
+    selected_config = dict(_tiny_search_configs())[log["selected_name"]]
+    checkpoint_path = tmp_path / "final.pt"
+
+    seen_devices = []
+    original_train_gpu = module.train_gpu
+
+    def _spy(triples, n_entities, n_relations, type_pools, positive_store, config, **kwargs):
+        seen_devices.append(config.device)
+        return original_train_gpu(triples, n_entities, n_relations, type_pools, positive_store, config, **kwargs)
+
+    monkeypatch.setattr(module, "train_gpu", _spy)
+
+    train_final(
+        loaded_export, selected_config=selected_config, epochs=1, search_log=log,
+        checkpoint_path=checkpoint_path,
+    )
+
+    assert seen_devices == [selected_config.device] == ["cpu"]
+
+
+def test_train_final_with_explicit_device_still_never_touches_locked_test_data(loaded_export_with_manifest, tmp_path):
+    # Mirrors test_final_checkpoint_passes_the_locked_test_eligibility_gate,
+    # but with an explicit device override in play -- the device plumbing
+    # must not open any new path to locked-test data.
+    loaded_export, manifest_path = loaded_export_with_manifest
+    log = run_validation_search(loaded_export, search_configs=_tiny_search_configs(), epochs=1, validate_every=1)
+    selected_config = dict(_tiny_search_configs())[log["selected_name"]]
+    checkpoint_path = tmp_path / "final.pt"
+    checkpoint = train_final(
+        loaded_export, selected_config=selected_config, epochs=1, search_log=log,
+        checkpoint_path=checkpoint_path, device="cpu",
+    )
+
+    manifest = load_locked_test_manifest(manifest_path)
+    assert_eligible_for_locked_test_evaluation(checkpoint, manifest)  # must not raise
