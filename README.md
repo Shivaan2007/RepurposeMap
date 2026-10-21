@@ -50,19 +50,15 @@ See [API.md](API.md) for the FastAPI / OpenAPI / TypeScript boundary in detail.
 - React research workspace (`web/app`): disease-query UI over the generated TypeScript client, with system-status, candidate, evidence, explanation-path and safety panels -- shows the honest "no model available" state today, never a fake ranking
 - Evidence and safety domain foundation (`repurposemap.evidence`): typed contracts and adapter interfaces for future PubMed/ClinicalTrials.gov/DailyMed/openFDA lookups; no live adapter yet
 - `RepurposingHypothesis` domain object (`repurposemap.hypothesis`): shows how model score, explanation paths, evidence and safety will assemble once a real model and real adapters exist
-
-**In progress**
-
-- 3-config TransE validation search, to select hyperparameters before final training (currently running final training on Kaggle)
+- 3-config TransE validation search (Kaggle, GPU) — see [ml/experiments/transe_stage_d_validation_search_606711d.json](ml/experiments/transe_stage_d_validation_search_606711d.json)
+- Final TransE training (`search-dim128`, 4 epochs, Kaggle GPU) and the exactly-once locked-test evaluation — see "Final TransE result (locked test)" below and [ml/experiments/transe_stage_d_final_locked_test_c8997e9.json](ml/experiments/transe_stage_d_final_locked_test_c8997e9.json)
 
 **Planned**
 
-- Final TransE training on the full training graph
-- Locked-test evaluation of the final TransE checkpoint (run exactly once)
-- R-GCN, if the TransE result justifies the added complexity
+- R-GCN (relational GNN), evaluated using the same locked-test discipline (selected on training/validation only — the locked test used above has now been observed once and must not become an iterative tuning set for this or any future model)
 - Real PubMed/ClinicalTrials.gov/DailyMed/openFDA adapters behind the evidence domain foundation above
 
-Do not treat anything in "in progress" or "planned" as complete or benchmarked.
+Do not treat anything in "planned" as complete or benchmarked.
 
 ## Milestone history
 
@@ -89,7 +85,7 @@ On a controlled 100-disease, 498-pair benchmark (seed 42), the path baseline sco
 
 Not implemented yet, as of this writing:
 
-- **No final trained model.** TransE's foundation (model, training loop, GPU profiling) exists, and final training is now running on Kaggle, but it has not completed and the locked test has not been evaluated. R-GCN has not been started.
+- **No R-GCN or other relational GNN.** TransE has now completed final training and its one-time locked-test evaluation (see "Final TransE result (locked test)" below); R-GCN has not been started.
 - No live evidence lookup (PubMed, ClinicalTrials.gov, DailyMed, openFDA) and no real drug safety information -- only the typed domain contracts and adapter interfaces exist (`repurposemap.evidence`).
 - The React frontend (`web/app`) exists and queries the real API, but since no model is available yet it only ever shows the honest unavailable/empty state -- see "Project status" above and [API.md](API.md).
 
@@ -98,7 +94,7 @@ Not implemented yet, as of this writing:
 The split is **by disease**, not by edge: every indication edge of a held-out disease is removed from training in both directions (`drug -> disease` and `disease -> drug`), all at once. See "Why not split by edge" in [ml/README.md](ml/README.md).
 
 - **100 locked test diseases**, holding out **498 indication pairs**, fixed once by `repurposemap.embeddings.export` and recorded in a local-only `locked_test_manifest.json` (never uploaded to Kaggle, never used for tuning).
-- A separate **validation** split (distinct from the locked test) is what the in-progress 3-config search uses for model selection.
+- A separate **validation** split (distinct from the locked test) is what the 3-config search used for model selection.
 - The locked test is evaluated **exactly once**, after final training — `assert_eligible_for_locked_test_evaluation` refuses the run unless the checkpoint is marked `is_final_training`, the manifest's export fingerprint matches the checkpoint's, and the manifest's recomputed content fingerprint matches what the checkpoint recorded as expected.
 - Locked-test labels are kept out of the Kaggle training environment entirely; only `triples.npz`, `metadata.json` and `validation_indications.json` are uploaded.
 - No test-driven retuning: hyperparameters are chosen on validation metrics, never on the locked test.
@@ -117,6 +113,22 @@ Metrics, computed per held-out `(drug, disease)` pair with filtered ranking (`re
 - The **path baseline** ranks only the bounded candidate set it discovers per disease (at most `max_candidates`, nearest-first).
 - The **popularity** and **TransE** baselines rank the full 7,957-drug PrimeKG universe.
 - All three share the same held-out pairs and metric formulas, but they are **not a perfectly apples-to-apples candidate-ranking task** — the path baseline's candidate pool is a strict subset of the other two's. Any "N times better" comparison between them should carry this caveat; see "Random baseline (candidate-conditioned)" and "Popularity baseline" in [ml/README.md](ml/README.md) for how each ranking is constructed.
+
+## Final TransE result (locked test)
+
+TransE's final checkpoint (`search-dim128`, embedding_dim=128, L2 distance, margin=1.0, lr=1e-3, 4 negatives per positive, 4 final-training epochs, selected by the 3-config validation search) was evaluated against the 100 locked test diseases / 498 held-out pairs **exactly once**, per the protocol above. Full provenance and metrics: [ml/experiments/transe_stage_d_final_locked_test_c8997e9.json](ml/experiments/transe_stage_d_final_locked_test_c8997e9.json).
+
+| | Hits@1 | Hits@3 | Hits@10 | MRR |
+|---|---|---|---|---|
+| Path baseline (bounded candidates) | 0.01004 | 0.04016 | 0.08635 | 0.03329 |
+| Popularity baseline (full universe, *approximate*) | 0.0 | ~0.004 | ~0.014 | ~0.0062 |
+| **Final TransE (full universe)** | **0.0020** | **0.0040** | **0.0161** | **0.0100** |
+
+Popularity's values are marked approximate because this repo currently only has them recorded to that precision.
+
+**Candidate-universe caveat (same one as above, restated for this table):** the path baseline ranks a bounded, per-disease discovered candidate set (0–500 candidates); popularity and TransE both rank the full 7,957-drug universe for every disease. All three share the same held-out pairs and metric formulas, but this is not the same ranking task, so no "TransE is N times better/worse than path" claim should be made from this table alone.
+
+**Interpretation.** Final TransE did not outperform the existing path baseline on the locked test, and landed only modestly above — or broadly near — the simple non-learning baselines on several of these metrics. This does not mean the project has failed: it means a pure translational embedding model, evaluated on this split, is not yet a strong candidate-ranker on its own. It motivates testing a relation-aware graph neural network (R-GCN) next, since R-GCN can condition directly on PrimeKG's typed relational structure the way the path baseline already does, rather than compressing it into a single embedding geometry the way TransE does. This result does not establish clinical efficacy for any candidate, and should not be read as one.
 
 ## Data
 
@@ -333,8 +345,7 @@ RepurposeMap generates research hypotheses for expert review. It does not prescr
 
 These are planned, not implemented:
 
-1. Final TransE training and a one-time locked-test evaluation, after the in-progress 3-config validation search.
-2. Relational graph neural network for drug-disease link prediction, if justified by the TransE result.
-3. Supporting evidence from PubMed, ClinicalTrials.gov, DailyMed and openFDA.
-4. Drug safety information.
-5. React research workspace, built against the generated TypeScript client in `web/client/`.
+1. Relational graph neural network (R-GCN) for drug-disease link prediction, motivated by the final TransE result below — selected on training/validation only, never on the now-spent locked test.
+2. Supporting evidence from PubMed, ClinicalTrials.gov, DailyMed and openFDA.
+3. Drug safety information.
+4. React research workspace, built against the generated TypeScript client in `web/client/`.

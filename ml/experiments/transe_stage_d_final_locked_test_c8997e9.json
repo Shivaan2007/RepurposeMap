@@ -1,0 +1,94 @@
+{
+  "stage": "TransE Stage D final training + exactly-once locked-test evaluation",
+  "status": "final",
+  "purpose": "the final, one-time locked-test result for this TransE experiment -- not a tuning run, not re-runnable under this project's protocol",
+  "generated_at": "2026-10-21T00:00:00Z",
+  "provenance": {
+    "source_commit": "c8997e9f4fa66e0315f964be073038a876335360",
+    "source_commit_note": "the commit the final-training Kaggle kernel's embedded source archive was built from (includes the device-passthrough fix); the earlier 3-config search ran from 606711d384f834f1fb28b93a57c7dd211145884d -- see transe_stage_d_validation_search_606711d.json",
+    "final_checkpoint_local_path": "~/Desktop/RepurposeMap-StageD/final-train-output-v2/final_checkpoint.pt",
+    "export_fingerprint": "8e41f866f9fb90b0017b9056c1eb69b585004e01e65e6c6e4d17b9dbf16cb1aa",
+    "locked_test_manifest_fingerprint": "20d71fb7ea3b36bf95b46ff16e5d13a5233b68250cf4779a16aabff0dad3a372",
+    "primekg_fingerprint": {
+      "sha256": "0a5a010fcd88dcec572a573d98c26c1c244a11567092b6161d3ded611cfb5c69",
+      "size_bytes": 981751236,
+      "retrieved_date": "2026-10-05",
+      "dataverse_doi": "doi:10.7910/DVN/IXA7BM",
+      "release_version": null,
+      "snapshot_build_date": null
+    }
+  },
+  "selected_search_config": {
+    "name": "search-dim128",
+    "embedding_dim": 128,
+    "distance": "l2",
+    "margin": 1.0,
+    "learning_rate": 0.001,
+    "negatives_per_positive": 4,
+    "selection_reason": "highest validation MRR in the 3-config search (0.014807 vs. 0.012913 runner-up; difference exceeded the 0.0005 tie-break threshold) -- see transe_stage_d_validation_search_606711d.json"
+  },
+  "final_training": {
+    "is_final_training": true,
+    "triples_used": "final_triples (validation diseases' indications restored; only the 100 locked test diseases held out)",
+    "epochs": 4,
+    "device": "cuda (Tesla T4)",
+    "final_train_loss": 0.23390918458080773,
+    "no_validation_signal_during_final_training": true,
+    "no_early_stopping": true
+  },
+  "locked_test_evaluation": {
+    "locked_test_evaluation_performed": true,
+    "locked_test_evaluation_count": 1,
+    "no_post_test_retuning": true,
+    "split": "locked-test",
+    "n_pairs": 498,
+    "n_diseases": 100,
+    "candidate_universe": "full 7,957-drug PrimeKG universe",
+    "metrics": {
+      "hits_at_1": 0.0020,
+      "hits_at_3": 0.0040,
+      "hits_at_10": 0.0161,
+      "mrr": 0.0100,
+      "macro_auprc": 0.014061,
+      "micro_auprc": 0.003054
+    }
+  },
+  "baseline_comparison": {
+    "path_baseline": {
+      "held_out_diseases": 100,
+      "held_out_pairs": 498,
+      "candidate_universe": "bounded, per-disease discovered candidate set (0-500 candidates)",
+      "hits_at_1": 0.01004,
+      "hits_at_3": 0.040161,
+      "hits_at_10": 0.086345,
+      "mrr": 0.033294
+    },
+    "candidate_conditioned_random_baseline": {
+      "candidate_universe": "same bounded candidate set as the path baseline",
+      "hits_at_1": 0.0,
+      "hits_at_3": 0.002008,
+      "hits_at_10": 0.006024,
+      "mrr": 0.004839
+    },
+    "popularity_baseline": {
+      "candidate_universe": "full 7,957-drug PrimeKG universe",
+      "hits_at_1": 0.0,
+      "hits_at_3_approx": 0.004,
+      "hits_at_10_approx": 0.014,
+      "mrr_approx": 0.0062,
+      "value_precision_note": "popularity baseline values recorded here only to the approximate precision this repo currently has on file; marked _approx, not exact figures"
+    },
+    "fairness_caveat": "The path baseline ranks a bounded, per-disease discovered candidate set (0-500 candidates depending on the disease). Popularity and TransE both rank the complete, fixed 7,957-drug universe for every disease. All three share the same held-out pairs and the same filtered-rank/Hits@K/MRR formulas, but they are not the same task -- no \"N times better/worse\" comparison between path and {popularity, TransE} should be made without this caveat attached every time the numbers are shown together."
+  },
+  "interpretation": {
+    "summary": "Final TransE did not outperform the existing path baseline on the locked test, and scored only modestly above -- or broadly near -- the simple non-learning baselines on several ranking metrics (e.g. TransE MRR 0.0100 vs. popularity MRR_approx 0.0062 vs. path MRR 0.033294).",
+    "does_not_establish_clinical_efficacy": true,
+    "does_not_establish_project_failure": true,
+    "motivates": "testing a relation-aware GNN (e.g. R-GCN) next, since a pure translational embedding model may be under-using PrimeKG's relational structure that the path baseline (which reasons over typed multi-hop paths) and a relational GNN can both exploit more directly."
+  },
+  "protocol_notes": {
+    "locked_test_is_now_spent": true,
+    "locked_test_must_not_be_used_for_iterative_tuning": "This locked test has now been observed once, by design, and must not be reused as an iterative tuning or model-selection set for any future model (including R-GCN). A future model must be selected using training/validation splits only; any future final comparison against this TransE result must use a precommitted protocol and avoid any test-driven changes.",
+    "no_retraining_or_retuning_based_on_this_result": true
+  }
+}
