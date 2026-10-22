@@ -1,0 +1,90 @@
+{
+  "stage": "rgcn_gpu_feasibility_profile",
+  "purpose": "systems feasibility only, not a model benchmark -- no model-quality claim should be read from this file",
+  "generated_at": "2026-10-22T01:00:00Z",
+  "supersedes_hypothesis_in": "ml/experiments/rgcn_gpu_feasibility_profile_1364665.json",
+  "correction_note": "The prior profile (commit 1364665) hypothesized that peak memory scaled with mini-batch count because every batch's loss was being stacked and backpropagated in one call at epoch end. Commit 9b65b33 fixed that specific mechanism (true per-batch gradient accumulation, one optimizer.step() per epoch, each batch's own scoring subgraph freed immediately). This re-profile shows that fix changed NOTHING: peak CUDA memory at 100k/500k/1M triples is byte-for-byte identical to the prior profile, and a new, larger 4M-triple subset now hits a hard CUDA OOM. The batch-accumulation hypothesis was therefore incorrect. The real driver is the ONE-PER-EPOCH ENCODER FORWARD PASS itself: its per-relation message-passing loop (66 relation types x 2 layers) materializes and retains, for the eventual backward, edge-indexed intermediate tensors whose total size scales with message-passing edge count -- independent of how the downstream batch loop's backward is structured. The gradient-accumulation change was still a correct and worthwhile fix on its own terms (it is the right way to get one optimizer step per epoch without retaining every batch simultaneously), but it does not address this project's actual GPU feasibility blocker.",
+  "provenance": {
+    "source_commit": "9b65b33fb1e3e6f88e306b3dbf9fbcb1c85e6926",
+    "source_archive_sha256": "3abb37882f1b7752b309caf4239175efc1cf795ef15b4f4aaf6cb0b8ba801ba8",
+    "export_fingerprint": "8e41f866f9fb90b0017b9056c1eb69b585004e01e65e6c6e4d17b9dbf16cb1aa",
+    "primekg_fingerprint": {
+      "sha256": "0a5a010fcd88dcec572a573d98c26c1c244a11567092b6161d3ded611cfb5c69",
+      "size_bytes": 981751236,
+      "retrieved_date": "2026-10-05",
+      "dataverse_doi": "doi:10.7910/DVN/IXA7BM",
+      "release_version": null,
+      "snapshot_build_date": null
+    },
+    "n_entities": 129375,
+    "n_relations_real": 33,
+    "n_tuning_triples": 8097798,
+    "n_message_passing_edges_at_full_scale": 16195596
+  },
+  "environment": {
+    "platform": "Kaggle kernel",
+    "gpu": "Tesla T4",
+    "gpu_memory_mb": 14911.6875,
+    "torch_version": "2.11.0+cu128",
+    "cuda_available": true,
+    "internet_enabled": false
+  },
+  "config": {
+    "name": "rgcn-base",
+    "hidden_dim": 64,
+    "num_bases": 8,
+    "num_layers": 2,
+    "margin": 1.0,
+    "learning_rate": 0.001,
+    "batch_size": 1024,
+    "negatives_per_positive": 4,
+    "epochs_profiled": 1
+  },
+  "training_strategy_profiled": "one full encoder forward per epoch; TRUE per-batch gradient accumulation (backward once per batch, scaled by 1/n_batches, retain_graph=True, each batch's own scoring subgraph freed immediately); one optimizer step per epoch",
+  "subset_profiles": [
+    {
+      "n_triples": 100000,
+      "n_message_passing_edges": 200000,
+      "cuda_peak_allocated_mb": 887.7138671875,
+      "cuda_peak_reserved_mb": 950.0,
+      "identical_to_prior_profile_at_this_size": true
+    },
+    {
+      "n_triples": 500000,
+      "n_message_passing_edges": 1000000,
+      "cuda_peak_allocated_mb": 3762.69580078125,
+      "cuda_peak_reserved_mb": 3790.0,
+      "identical_to_prior_profile_at_this_size": true
+    },
+    {
+      "n_triples": 1000000,
+      "n_message_passing_edges": 2000000,
+      "cuda_peak_allocated_mb": 7323.37451171875,
+      "cuda_peak_reserved_mb": 7490.0,
+      "identical_to_prior_profile_at_this_size": true
+    },
+    {
+      "n_triples": 4000000,
+      "n_message_passing_edges": 8000000,
+      "oom": true,
+      "error": "CUDA out of memory. Tried to allocate 2.00 MiB. GPU 0 has a total capacity of 14.56 GiB of which 2.81 MiB is free. Including non-PyTorch memory, this process has 14.56 GiB memory in use. Of the allocated memory 14.11 GiB is allocated by PyTorch, and 319.05 MiB is reserved by PyTorch but unallocated."
+    }
+  ],
+  "full_graph_attempted": false,
+  "full_graph_result": null,
+  "feasibility_decision": {
+    "classification": "C_NOT_FEASIBLE",
+    "attempt_full": false,
+    "reason": "a controlled 4,000,000-triple subset (less than half the full 8,097,798-triple tuning set) already hit a hard CUDA OOM on a 14.6 GB T4 -- not an extrapolation this time, a real, measured failure well before full scale",
+    "root_cause_identified": "the per-epoch encoder forward pass's per-relation message-passing loop (RGCNEncoder/_BasisRelationLayer in rgcn_model.py), not the training loop's backward/optimizer-step mechanics -- confirmed by this profile showing identical peak memory to the pre-fix profile at every subset size the two runs share"
+  },
+  "safety_and_protocol": {
+    "export_dataset_contents": ["metadata.json", "triples.npz", "validation_indications.json"],
+    "locked_test_manifest_present": false,
+    "test_indications_present_in_metadata": false,
+    "validation_search_performed": false,
+    "final_training_performed": false,
+    "locked_test_evaluation_performed": false
+  },
+  "next_step_note": "Stopping here per protocol -- this is a genuine architectural question, not something to keep guessing at. The fix just committed (9b65b33) was correct and worth keeping regardless, but a further change to the encoder's own memory footprint (e.g. gradient checkpointing through the per-relation loop, chunked/streamed relation processing, neighbor sampling, subgraph mini-batching, or graph partitioning) is a separate, explicit methodological decision this profile does not make."
+}
