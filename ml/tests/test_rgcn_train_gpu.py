@@ -234,3 +234,35 @@ def test_negative_sampling_and_positive_store_never_see_inverse_relation_ids(mon
 
     config = RGCNGPUTrainingConfig(hidden_dim=4, num_bases=1, epochs=2, batch_size=6, negatives_per_positive=1, seed=1)
     train_gpu(triples, 12, 1, tp, store, config)
+
+
+def test_per_batch_gradient_accumulation_matches_single_mean_backward():
+    # Isolates the exact refactor this file's train_gpu relies on, away
+    # from the full R-GCN model: proves that N separate
+    # (loss_i / N).backward(retain_graph=True) calls on losses sharing one
+    # upstream tensor accumulate the identical gradient a single
+    # torch.stack(losses).mean().backward() call would have produced --
+    # the mathematical justification for switching away from "stack every
+    # batch's loss, one big backward" (see rgcn_gpu_feasibility_profile).
+    torch.manual_seed(0)
+    shared = torch.randn(5, requires_grad=True)
+    batch_weights = [torch.randn(5) for _ in range(4)]
+
+    def make_losses(x):
+        return [(x * w).sum() ** 2 for w in batch_weights]
+
+    # Method A: stack all losses, one mean backward.
+    x_a = shared.clone().detach().requires_grad_(True)
+    losses_a = make_losses(x_a)
+    torch.stack(losses_a).mean().backward()
+    grad_a = x_a.grad.clone()
+
+    # Method B: per-loss backward, each scaled by 1/N, retain_graph=True.
+    x_b = shared.clone().detach().requires_grad_(True)
+    losses_b = make_losses(x_b)
+    n = len(losses_b)
+    for loss in losses_b:
+        (loss / n).backward(retain_graph=True)
+    grad_b = x_b.grad.clone()
+
+    assert torch.allclose(grad_a, grad_b, atol=1e-6)

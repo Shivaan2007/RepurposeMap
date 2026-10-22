@@ -192,12 +192,29 @@ def train_gpu(
 
     So this loop runs the encoder **exactly once per epoch** (edges are
     static across epochs -- ``triples`` doesn't change mid-run), scores
-    every mini-batch against that single embeddings tensor, accumulates the
-    batch losses into one epoch-level objective, and takes exactly one
-    ``backward()``/``optimizer.step()`` per epoch. ``checkpoint_every`` and
+    every mini-batch against that single embeddings tensor, and takes
+    exactly one ``optimizer.step()`` per epoch. ``checkpoint_every`` and
     ``validate_every`` still operate at epoch granularity, same as TransE's
     trainer -- only the *inside* of an epoch changed shape, not the outer
     epoch-loop contract resume/checkpointing depend on.
+
+    **Gradient accumulation, not "stack every batch's loss then one big
+    backward."** An earlier version of this loop collected every batch's
+    loss into a list and called ``.backward()`` once on their mean at the
+    end of the epoch. Profiled against real PrimeKG-scale data (see
+    ``ml/experiments/rgcn_gpu_feasibility_profile_1364665.json``), that
+    design retained every mini-batch's forward computation graph
+    simultaneously until that single end-of-epoch backward -- peak memory
+    scaled with the number of batches, not just the encoder's edge count,
+    projecting to ~59 GB at full PrimeKG scale against a 14.6 GB T4. This
+    loop instead calls ``backward()`` once per batch (each scaled by
+    ``1 / n_batches`` so the accumulated gradient equals the same true
+    mean-loss gradient as before) with ``retain_graph=True``, so the one
+    shared ``entity_embeddings`` graph survives repeated backward calls,
+    but each batch's own small scoring subgraph is freed as soon as that
+    batch's loss variable goes out of scope rather than staying alive for
+    the whole epoch. Still exactly one ``optimizer.step()`` per epoch --
+    only the backward mechanics changed.
 
     ``triples`` is whichever array is "live" for the current phase --
     ``tuning_triples`` during the search, ``final_triples`` for final
@@ -295,9 +312,30 @@ def train_gpu(
         entity_embeddings = model.encode(edge_h, edge_r, edge_t, n_entities)
 
         permutation = torch.randperm(n, generator=shuffle_generator)
-        batch_losses: list[torch.Tensor] = []
+        n_batches_total = (n + batch_size - 1) // batch_size
+        batch_start_indices = list(range(0, n, batch_size))
 
-        for start in range(0, n, batch_size):
+        # True per-batch gradient accumulation, not "stack every batch's
+        # loss then one big backward": measured on real PrimeKG-scale data
+        # (see ml/experiments/rgcn_gpu_feasibility_profile_1364665.json),
+        # the latter retains every mini-batch's forward computation graph
+        # simultaneously until the single epoch-end backward, which is
+        # what actually drove peak memory to scale with batch count (not
+        # just encoder edge count) -- projected ~59 GB at full PrimeKG
+        # scale against a 14.6 GB T4. This loop instead calls
+        # ``backward()`` once per batch (scaled by 1/n_batches_total so
+        # the accumulated gradient equals the true mean-loss gradient,
+        # exactly as before), with ``retain_graph=True`` so the single
+        # shared ``entity_embeddings`` graph survives repeated backward
+        # calls -- but each batch's own small scoring subgraph is freed as
+        # soon as that batch's loss variable goes out of scope, instead of
+        # all of them staying alive for the whole epoch. Still exactly one
+        # ``optimizer.step()`` per epoch -- only the backward mechanics
+        # changed, not the epoch-level contract checkpointing/resume rely on.
+        optimizer.zero_grad()
+        batch_loss_values: list[float] = []
+
+        for start in batch_start_indices:
             idx = permutation[start : start + batch_size]
             batch_h, batch_r, batch_t = h_all[idx], r_all[idx], t_all[idx]
             batch_n = len(idx)
@@ -323,15 +361,15 @@ def train_gpu(
                 entity_embeddings, neg_h.reshape(-1), neg_r.reshape(-1), neg_t.reshape(-1)
             ).reshape(batch_n, config.negatives_per_positive)
 
-            batch_losses.append(margin_ranking_loss(pos_scores, neg_scores, config.margin, valid_mask=valid_mask))
+            batch_loss = margin_ranking_loss(pos_scores, neg_scores, config.margin, valid_mask=valid_mask)
+            if not torch.isfinite(batch_loss):
+                raise RuntimeError(f"non-finite loss detected at epoch {epoch}: {batch_loss.item()}")
 
-        epoch_loss = torch.stack(batch_losses).mean()
-        if not torch.isfinite(epoch_loss):
-            raise RuntimeError(f"non-finite loss detected at epoch {epoch}: {epoch_loss.item()}")
+            (batch_loss / n_batches_total).backward(retain_graph=True)
+            batch_loss_values.append(float(batch_loss.item()))
 
-        optimizer.zero_grad()
-        epoch_loss.backward()
         optimizer.step()
+        epoch_loss_value = sum(batch_loss_values) / max(len(batch_loss_values), 1)
 
         entity_weights = model.encoder.entity_embeddings.weight.detach()
         if not torch.isfinite(entity_weights).all():
@@ -365,7 +403,7 @@ def train_gpu(
         history.append(
             EpochRecord(
                 epoch=epoch,
-                train_loss=float(epoch_loss.item()),
+                train_loss=epoch_loss_value,
                 epoch_seconds=time.monotonic() - epoch_start,
                 sampler_stats=sampler.stats.to_dict(),
                 val_metrics=val_metrics,

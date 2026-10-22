@@ -23,11 +23,17 @@ Retaining the graph and stepping anyway would train against knowingly stale
 representations.
 
 So this loop does the opposite: run the encoder exactly once per epoch,
-score every mini-batch against that single embeddings tensor, accumulate
-the batch losses into one epoch-level objective, then exactly one
-``backward()``/``optimizer.step()`` per epoch -- one coherent autograd
-graph, discarded cleanly at the end of the epoch, never reused into the
-next one.
+score every mini-batch against that single embeddings tensor, and take
+exactly one ``optimizer.step()`` per epoch. The backward itself runs once
+per batch (each scaled by ``1 / n_batches`` so the accumulated gradient
+equals the same mean-loss gradient a single big backward would give) with
+``retain_graph=True``, so the one shared embeddings graph survives
+repeated backward calls while each batch's own small scoring subgraph is
+freed as soon as that batch's loss goes out of scope -- not "stack every
+batch's loss into a list, then one big backward at the end," which
+``rgcn_train_gpu.py``'s own profiling found retains every batch's graph
+simultaneously and does not scale (see
+``ml/experiments/rgcn_gpu_feasibility_profile_1364665.json``).
 """
 
 from __future__ import annotations
@@ -145,7 +151,9 @@ def train_toy(
         entity_embeddings = model.encode(edge_h, edge_r, edge_t, n_entities)
 
         permutation = torch.randperm(n, generator=generator)
-        batch_losses: list[torch.Tensor] = []
+        n_batches_total = (n + batch_size - 1) // batch_size
+        optimizer.zero_grad()
+        batch_loss_values: list[float] = []
 
         for start in range(0, n, batch_size):
             idx = permutation[start : start + batch_size]
@@ -175,14 +183,12 @@ def train_toy(
                 entity_embeddings, neg_h.reshape(-1), neg_r.reshape(-1), neg_t.reshape(-1)
             ).reshape(batch_n, config.negatives_per_positive)
 
-            batch_losses.append(margin_ranking_loss(pos_scores, neg_scores, config.margin, valid_mask=valid_mask))
+            batch_loss = margin_ranking_loss(pos_scores, neg_scores, config.margin, valid_mask=valid_mask)
+            (batch_loss / n_batches_total).backward(retain_graph=True)
+            batch_loss_values.append(float(batch_loss.item()))
 
-        epoch_loss = torch.stack(batch_losses).mean()
-        optimizer.zero_grad()
-        epoch_loss.backward()
         optimizer.step()
-
-        losses.append(float(epoch_loss.item()))
+        losses.append(sum(batch_loss_values) / max(len(batch_loss_values), 1))
 
     return RGCNTrainingResult(
         model=model,
