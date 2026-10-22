@@ -214,6 +214,29 @@ class RGCNEncoder(nn.Module):
                 features = torch.relu(features)
         return features
 
+    def forward_sampled(self, edge_h: torch.Tensor, edge_r: torch.Tensor, edge_t: torch.Tensor, local_to_global: torch.Tensor) -> torch.Tensor:
+        """Same per-layer message passing as ``forward``, but over a
+        SAMPLED subgraph (see ``repurposemap.embeddings.rgcn_sampling``):
+        layer-0 input is gathered from the global entity embedding table
+        at just the sampled nodes (``local_to_global[i]`` = global entity
+        id for local index ``i``), not the full table. ``edge_h``/
+        ``edge_r``/``edge_t`` must already be in local-subgraph indices
+        and the doubled message-passing relation space -- same contract
+        as ``forward``, just over fewer nodes. The per-layer
+        ``_BasisRelationLayer`` itself needed no change at all: it was
+        already generic over however many nodes it's given.
+        """
+        n_local_nodes = local_to_global.shape[0]
+        features = self.entity_embeddings(local_to_global)
+        for layer_index, layer in enumerate(self.layers):
+            if self.use_gradient_checkpointing and features.requires_grad and torch.is_grad_enabled():
+                features = checkpoint(layer, features, edge_h, edge_r, edge_t, n_local_nodes, use_reentrant=False)
+            else:
+                features = layer(features, edge_h, edge_r, edge_t, n_local_nodes)
+            if layer_index < self.num_layers - 1:
+                features = torch.relu(features)
+        return features
+
 
 class RGCN(nn.Module):
     """R-GCN encoder + DistMult decoder (Schlichtkrull et al., 2017's
@@ -241,8 +264,14 @@ class RGCN(nn.Module):
         self.relation_embeddings = nn.Embedding(n_relations, hidden_dim)
 
     def encode(self, edge_h: torch.Tensor, edge_r: torch.Tensor, edge_t: torch.Tensor, n_entities: int) -> torch.Tensor:
-        """Convenience wrapper over ``self.encoder(...)``."""
+        """Convenience wrapper over ``self.encoder(...)`` -- full-graph mode."""
         return self.encoder(edge_h, edge_r, edge_t, n_entities)
+
+    def encode_sampled(self, edge_h: torch.Tensor, edge_r: torch.Tensor, edge_t: torch.Tensor, local_to_global: torch.Tensor) -> torch.Tensor:
+        """Convenience wrapper over ``self.encoder.forward_sampled(...)`` --
+        sampled-subgraph mode. Returns embeddings for the sampled nodes
+        only, same global embedding table, gathered at `local_to_global`."""
+        return self.encoder.forward_sampled(edge_h, edge_r, edge_t, local_to_global)
 
     def score(self, entity_embeddings: torch.Tensor, h: torch.Tensor, r: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
         """DistMult: ``sum(h_emb * relation_emb * t_emb)``. Higher is more

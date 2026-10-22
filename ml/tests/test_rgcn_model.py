@@ -199,3 +199,67 @@ def test_gradient_checkpointing_matches_non_checkpointed_gradients():
 
     for p_a, p_b in zip(encoder_checkpointed.parameters(), encoder_plain.parameters(), strict=True):
         assert torch.allclose(p_a.grad, p_b.grad, atol=1e-5)
+
+
+def test_forward_sampled_matches_forward_when_subgraph_is_the_full_graph():
+    # Sanity equivalence: if the "sampled" subgraph happens to BE the full
+    # graph (local_to_global = identity order), forward_sampled must
+    # produce the identical output forward() would.
+    n_entities, n_relations = 6, 2
+    triples = np.array([[0, 0, 1], [1, 1, 2], [2, 0, 3], [3, 1, 4], [4, 0, 5]], dtype=np.int64)
+    edge_h, edge_r, edge_t = build_message_passing_edges(triples, n_relations)
+    edge_h_t = torch.as_tensor(edge_h, dtype=torch.long)
+    edge_r_t = torch.as_tensor(edge_r, dtype=torch.long)
+    edge_t_t = torch.as_tensor(edge_t, dtype=torch.long)
+
+    encoder = RGCNEncoder(n_entities, n_relations, hidden_dim=8, num_bases=2, num_layers=2, use_gradient_checkpointing=False)
+    full_output = encoder(edge_h_t, edge_r_t, edge_t_t, n_entities)
+
+    local_to_global = torch.arange(n_entities, dtype=torch.long)
+    sampled_output = encoder.forward_sampled(edge_h_t, edge_r_t, edge_t_t, local_to_global)
+
+    assert torch.allclose(full_output, sampled_output, atol=1e-6)
+
+
+def test_forward_sampled_gathers_only_the_sampled_rows():
+    # A 2-node subgraph sampled from a larger entity table must use
+    # exactly those 2 rows as its layer-0 input, not the full table.
+    n_entities, n_relations = 10, 1
+    encoder = RGCNEncoder(n_entities, n_relations, hidden_dim=4, num_bases=1, num_layers=1, use_gradient_checkpointing=False)
+
+    local_to_global = torch.tensor([3, 7], dtype=torch.long)
+    edge_h_t = torch.tensor([0], dtype=torch.long)
+    edge_r_t = torch.tensor([0], dtype=torch.long)
+    edge_t_t = torch.tensor([1], dtype=torch.long)
+
+    output = encoder.forward_sampled(edge_h_t, edge_r_t, edge_t_t, local_to_global)
+    assert output.shape == (2, 4)
+
+    # Mutate entity 3's global embedding and confirm it changes local row 0's result.
+    with torch.no_grad():
+        encoder.entity_embeddings.weight[3] += 100.0
+    output_after = encoder.forward_sampled(edge_h_t, edge_r_t, edge_t_t, local_to_global)
+    assert not torch.allclose(output, output_after)
+
+
+def test_encode_sampled_gradients_flow_into_the_global_embedding_table():
+    n_entities, n_relations = 10, 1
+    model = RGCN(n_entities, n_relations, hidden_dim=4, num_bases=1, num_layers=1)
+
+    local_to_global = torch.tensor([3, 7], dtype=torch.long)
+    edge_h_t = torch.tensor([0], dtype=torch.long)
+    edge_r_t = torch.tensor([0], dtype=torch.long)
+    edge_t_t = torch.tensor([1], dtype=torch.long)
+
+    entity_embeddings = model.encode_sampled(edge_h_t, edge_r_t, edge_t_t, local_to_global)
+    entity_embeddings.sum().backward()
+
+    full_grad = model.encoder.entity_embeddings.weight.grad
+    assert full_grad is not None
+    # Only the sampled global rows (3 and 7) should have received gradient.
+    touched = {3, 7}
+    for i in range(n_entities):
+        if i in touched:
+            assert not torch.allclose(full_grad[i], torch.zeros(4))
+        else:
+            assert torch.allclose(full_grad[i], torch.zeros(4))
