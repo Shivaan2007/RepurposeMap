@@ -1,0 +1,127 @@
+{
+  "stage": "rgcn_sampled_training_profile",
+  "purpose": "systems feasibility, not benchmark -- no model-quality claim should be read from this file",
+  "generated_at": "2026-10-22T10:54:00Z",
+  "provenance": {
+    "source_commit_tested": "e79d3e46f9d0894bc4c456cb61a8e26a201d741b",
+    "source_archive_sha256_tested": "d82c382925494094692010803a7237191a612fa3751801296c74f46a8af6e95b",
+    "export_fingerprint": "8e41f866f9fb90b0017b9056c1eb69b585004e01e65e6c6e4d17b9dbf16cb1aa",
+    "primekg_fingerprint": {
+      "sha256": "0a5a010fcd88dcec572a573d98c26c1c244a11567092b6161d3ded611cfb5c69",
+      "size_bytes": 981751236,
+      "retrieved_date": "2026-10-05",
+      "dataverse_doi": "doi:10.7910/DVN/IXA7BM",
+      "release_version": null,
+      "snapshot_build_date": null
+    },
+    "n_entities": 129375,
+    "n_relations_real": 33,
+    "n_tuning_triples": 8097798
+  },
+  "environment": {
+    "platform": "Kaggle kernel",
+    "gpu": "Tesla T4",
+    "gpu_memory_mb": 14941.1875,
+    "torch_version": "2.11.0+cu128",
+    "cuda_available": true,
+    "internet_enabled": false
+  },
+  "config": {
+    "name": "rgcn-base",
+    "hidden_dim": 64,
+    "num_bases": 8,
+    "num_layers": 2,
+    "margin": 1.0,
+    "learning_rate": 0.001,
+    "batch_size": 1024,
+    "negatives_per_positive": 4,
+    "fanout_hop1": 15,
+    "fanout_hop2": 10,
+    "seed": 42
+  },
+  "status": "ok",
+  "error": null,
+  "n_batches_completed": 500,
+  "loss_finite_throughout": true,
+  "loss_first_batch": 1.0266684293746948,
+  "loss_last_batch": 0.2163175642490387,
+  "preprocessing": {
+    "positive_store_build_s": 0.4244445680000126,
+    "adjacency_build_s": 12.969864942999948,
+    "adjacency_built_once_per_run": true,
+    "adjacency_rebuilt_during_training": false,
+    "adjacency_cpu_rss_mb_isolated_measurement_taken": false,
+    "adjacency_cpu_rss_mb_proxy_note": "No dedicated pre/post-adjacency memory snapshot was instrumented. The closest available number is total process RSS at batch 0 (2460.79 MB), which already includes the Python interpreter, torch, the full 8,097,798-row triples array, the positive-triple store, type pools, the model, optimizer, and the first sampled subgraph -- not an isolated measurement of the adjacency structure alone. Treat this as an upper bound on everything loaded by that point, not as the adjacency's own footprint.",
+    "adjacency_serialized_cacheable_size_measured": false,
+    "adjacency_caching_safety_reasoning": "build_relation_adjacency() is a pure deterministic function of its input triples array (plain dict aggregation, no RNG draws), and in this pipeline it is only ever built from the already leakage-safe tuning_triples/final_triples. Caching its output (e.g. keyed by a hash of the input triples array) would not alter determinism or reintroduce any leakage risk -- it would only skip recomputing an already-deterministic, already-leakage-safe structure. No caching was implemented in this task; this is a reasoning-based conclusion from the existing code, not a measurement of an implemented cache.",
+    "adjacency_build_classification": "A_ACCEPTABLE_ONE_TIME_STARTUP_COST",
+    "adjacency_build_classification_reason": "12.97s to build the full-scale relation adjacency from all 8,097,798 real tuning triples is negligible next to both the measured steady-state per-batch cost (~5.2s/batch) and the resulting projected full-epoch runtime (~11.4 hours) -- adjacency construction is not the bottleneck."
+  },
+  "steady_state_batch_timing_s": {
+    "note": "Computed over batches 1..499 (excludes batch 0, which includes one-time CUDA/model warmup). Units: seconds.",
+    "total_batch_s": {"mean": 5.201292, "median": 5.190898, "min": 5.034889, "max": 5.628879},
+    "negative_sampling_s": {"mean": 0.026661, "median": 0.026493, "min": 0.024467, "max": 0.038752},
+    "neighbor_sampling_s": {"mean": 5.016318, "median": 5.005423, "min": 4.848175, "max": 5.443950},
+    "transfer_s": {"mean": 0.004994, "median": 0.004962, "min": 0.004519, "max": 0.006710},
+    "encoder_forward_s": {"mean": 0.065985, "median": 0.065569, "min": 0.062207, "max": 0.089457},
+    "decoder_loss_s": {"mean": 0.001181, "median": 0.001140, "min": 0.000959, "max": 0.013427},
+    "backward_s": {"mean": 0.082985, "median": 0.082969, "min": 0.080020, "max": 0.087425},
+    "optimizer_step_s": {"mean": 0.002930, "median": 0.002925, "min": 0.002839, "max": 0.003139},
+    "neighbor_sampling_fraction_of_total_batch_time_mean": 0.9644,
+    "bottleneck_finding": "Neighbor sampling (CPU-bound, single-threaded Python/NumPy traversal of RelationAwareNeighborSampler.sample(), itself built on the plain-dict RelationAdjacency flagged as not-yet-scale-optimized in its own module docstring) accounts for ~96.4% of total batch wall time. GPU-side encoder forward, decoder/loss, and backward together account for under 3% of batch time. This is a severe CPU bottleneck, not a GPU compute or GPU memory bottleneck."
+  },
+  "subgraph_size_stats": {
+    "note": "Computed over batches 1..499.",
+    "unique_seed_entities": {"mean": 5479.05, "median": 5478, "min": 5415, "max": 5551},
+    "sampled_nodes": {"mean": 47593.18, "median": 47595, "min": 46057, "max": 49267},
+    "sampled_real_edges_before_inverse_expansion": {"mean": 189126.46, "median": 188865, "min": 182314, "max": 195934},
+    "sampled_message_passing_edges_after_inverse_expansion": {"mean": 378252.93, "median": 377730, "min": 364628, "max": 391868},
+    "relation_coverage_of_33_real_relations": {"mean": 33, "median": 33, "min": 33, "max": 33},
+    "examples_per_sec": {"mean": 196.92, "median": 197.27, "min": 181.92, "max": 203.38},
+    "sampled_edges_per_sec": {"mean": 72737.55, "median": 72895.35, "min": 66818.27, "max": 75688.03}
+  },
+  "cuda_memory_mb": {
+    "note": "Computed over batches 1..499; peak_* are torch's running max since the last reset_peak_memory_stats() call (made once, immediately before this profile), not per-batch peaks.",
+    "cuda_allocated_mb": {"mean": 167.71, "median": 167.51, "min": 166.68, "max": 169.48},
+    "cuda_peak_allocated_mb": {"mean": 653.79, "median": 654.38, "min": 631.35, "max": 656.66},
+    "cuda_peak_reserved_mb": {"mean": 734.77, "median": 736.0, "min": 702.0, "max": 738.0},
+    "gpu_total_memory_mb": 14941.1875,
+    "peak_reserved_utilization_fraction": 0.0494,
+    "progressive_memory_growth_over_batch_index": "none observed -- peak_allocated/peak_reserved plateau after the first ~100 batches and stay flat (max 656.66 MB allocated / 738 MB reserved across all 500 batches); no leak signature"
+  },
+  "cpu_memory_mb": {
+    "cpu_rss_mb_via_ru_maxrss": {"mean": 2506.13, "median": 2506.55, "min": 2496.55, "max": 2506.55},
+    "progressive_memory_growth_over_batch_index": "none observed -- ru_maxrss is a monotonic high-water mark and it stabilizes almost immediately; no CPU-side leak signature over 500 batches"
+  },
+  "sampler_stats": {
+    "negative_sampler_retry_rounds_cumulative_after_500_batches": 10000,
+    "negative_sampler_unresolved_cumulative_after_500_batches": 0,
+    "note": "Zero unresolved negatives across all 500 batches (2,048,000 negative draws) -- the vectorized-retry/scalar-fallback negative sampler never failed to find a valid negative within budget."
+  },
+  "runtime_projection": {
+    "note": "Pure arithmetic projection from the measured steady-state mean batch time. Not a recommendation; the 3-config search is explicitly NOT launched in this task regardless of this projection.",
+    "batches_per_epoch": 7908,
+    "projected_epoch_wall_time_hours": 11.43,
+    "projected_search_wall_time_hours_3_epochs_per_config_x3_configs": 102.83,
+    "projected_search_wall_time_hours_5_epochs_per_config_x3_configs": 171.39,
+    "projected_search_wall_time_hours_10_epochs_per_config_x3_configs": 342.77
+  },
+  "feasibility_decision": {
+    "classification": "C_NOT_FEASIBLE",
+    "classification_axis": "runtime (CPU-bound sampler), not GPU memory -- GPU memory headroom is excellent (peak reserved 738 MB of 14,941 MB, 4.9% utilization)",
+    "reason": "All 500 batches ran cleanly with no OOM, no NaN/Inf, and no progressive memory growth on either GPU or CPU -- the sampled-subgraph training architecture itself is memory-safe at real PrimeKG scale. However, neighbor sampling consumes ~96.4% of every batch's wall time, driving a projected full-epoch runtime of ~11.4 hours and a projected 3-config x 3-epoch search of ~103 hours. This is a severe CPU bottleneck producing an operationally impractical runtime for the planned validation search, which is explicitly one of this task's own C-classification triggers.",
+    "root_cause": "RelationAwareNeighborSampler.sample() (rgcn_sampling.py), specifically the per-seed-entity, per-hop Python loop in _sample_subgraph_impl() and _sample_neighbors_relation_balanced() -- a correct but unoptimized plain-Python/dict implementation, exactly as flagged as a known risk in that module's own docstring before this profiling task began.",
+    "not_the_cause": "GPU memory, GPU compute (encoder/decoder/backward/optimizer together are under 3% of batch time), adjacency construction (one-time 12.97s), negative sampling (0.5% of batch time), host-device transfer (0.1% of batch time)."
+  },
+  "safety_and_protocol": {
+    "export_dataset_contents": ["metadata.json", "triples.npz", "validation_indications.json"],
+    "locked_test_manifest_present": false,
+    "test_indications_present_in_metadata": false,
+    "validation_search_performed": false,
+    "final_training_performed": false,
+    "locked_test_evaluation_performed": false,
+    "fanout_tuned_based_on_this_profile": false,
+    "sampling_methodology_changed_based_on_this_profile": false
+  },
+  "next_step_note": "Do not tune fanout, batch size, or sampling methodology in response to this profile, and do not start the 3-config search. The architecture is memory-safe but the current neighbor-sampling implementation is the practical blocker. A separately justified methodological decision is needed (e.g. vectorizing/batching the neighbor sampler, caching the deterministic adjacency across runs, precomputing neighbor lists, or a different sampling strategy) before any real validation search is attempted -- that decision is the user's, not an autonomous continuation of this profiling task."
+}

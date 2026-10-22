@@ -1,0 +1,81 @@
+{
+  "stage": "rgcn_fullgraph_inference_profile",
+  "purpose": "systems feasibility, not benchmark -- no model-quality claim should be read from this file",
+  "generated_at": "2026-10-22T10:54:00Z",
+  "provenance": {
+    "source_commit_tested": "e79d3e46f9d0894bc4c456cb61a8e26a201d741b",
+    "source_archive_sha256_tested": "d82c382925494094692010803a7237191a612fa3751801296c74f46a8af6e95b",
+    "export_fingerprint": "8e41f866f9fb90b0017b9056c1eb69b585004e01e65e6c6e4d17b9dbf16cb1aa",
+    "primekg_fingerprint": {
+      "sha256": "0a5a010fcd88dcec572a573d98c26c1c244a11567092b6161d3ded611cfb5c69",
+      "size_bytes": 981751236,
+      "retrieved_date": "2026-10-05",
+      "dataverse_doi": "doi:10.7910/DVN/IXA7BM",
+      "release_version": null,
+      "snapshot_build_date": null
+    },
+    "n_entities": 129375,
+    "n_relations_real": 33,
+    "n_tuning_triples": 8097798
+  },
+  "environment": {
+    "platform": "Kaggle kernel",
+    "gpu": "Tesla T4",
+    "gpu_memory_mb": 14941.1875,
+    "torch_version": "2.11.0+cu128",
+    "cuda_available": true,
+    "internet_enabled": false
+  },
+  "config": {
+    "name": "rgcn-base",
+    "hidden_dim": 64,
+    "num_bases": 8,
+    "num_layers": 2,
+    "use_gradient_checkpointing": false,
+    "mode": "eval, torch.no_grad(), no backward, no optimizer"
+  },
+  "status": "ok",
+  "error": null,
+  "graph": {
+    "n_real_triples": 8097798,
+    "n_message_passing_edges_after_inverse_expansion": 16195596,
+    "graph_construction_and_transfer_s": 0.3164967660000002
+  },
+  "inference": {
+    "encoder_inference_s": 0.5844214620001367,
+    "embedding_shape": [129375, 64],
+    "embedding_finite": true,
+    "embedding_tensor_memory_mb": 31.585693359375,
+    "cuda_peak_allocated_mb": 2087.94970703125,
+    "cuda_peak_reserved_mb": 2836.0,
+    "gpu_total_memory_mb": 14941.1875,
+    "peak_reserved_utilization_fraction": 0.1898
+  },
+  "scoring_microprofile": {
+    "disease_ids_used": "validation-split disease IDs only (loaded.val_disease_ids), never locked-test disease IDs",
+    "n_drugs_scored_per_disease": 7957,
+    "one_disease_scoring_s": 0.0070543970000471745,
+    "drugs_per_sec_one_disease": 1127948.9940737372,
+    "n_diseases_scored_in_several_disease_run": 5,
+    "several_diseases_total_s": 0.008557152000321366,
+    "mean_s_per_disease_in_several_disease_run": 0.0017114304000642733,
+    "encoder_forward_call_count_during_scoring_phase": 0,
+    "encoder_forward_call_count_total_for_the_whole_profile": 1,
+    "note": "The encoder ran exactly once (to produce the full-graph embeddings used above); scoring both the single-disease and five-disease runs reused those same fixed embeddings with zero additional encoder forward calls, confirming the existing evaluation-harness pattern (one encoder forward per evaluation run, decoder-only scoring per disease) is directly compatible with this score_fn."
+  },
+  "feasibility_decision": {
+    "classification": "A_FEASIBLE",
+    "reason": "Full-graph, no-grad, eval-mode encoder inference over the complete 16,195,596-edge real message-passing graph completed in well under one second (0.32s graph construction + 0.58s encoder forward), using 2,836 MB of 14,941 MB GPU memory (19.0% of the T4's reserved-memory capacity) -- comfortable headroom. The subsequent full-universe scoring micro-profile (one disease and five diseases, each against the full 7,957-drug universe) ran in single-digit milliseconds with zero extra encoder calls. No redesign toward sampled/approximate inference is needed."
+  },
+  "safety_and_protocol": {
+    "export_dataset_contents": ["metadata.json", "triples.npz", "validation_indications.json"],
+    "locked_test_manifest_present": false,
+    "test_indications_present_in_metadata": false,
+    "locked_test_disease_ids_used": false,
+    "validation_search_performed": false,
+    "final_training_performed": false,
+    "locked_test_evaluation_performed": false,
+    "validation_metrics_computed": false
+  },
+  "next_step_note": "Inference is feasible as-is; no sampled-inference strategy needs to be designed. The remaining blocker to a real validation search is purely the sampled-training neighbor-sampling throughput measured in rgcn_sampled_training_profile_e79d3e4.json, not inference."
+}
