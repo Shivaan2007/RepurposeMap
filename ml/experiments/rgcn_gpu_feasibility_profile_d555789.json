@@ -1,0 +1,66 @@
+{
+  "stage": "rgcn_gpu_feasibility_profile",
+  "purpose": "systems feasibility only, not a model benchmark -- no model-quality claim should be read from this file",
+  "generated_at": "2026-10-22T02:00:00Z",
+  "supersedes_hypothesis_in": "ml/experiments/rgcn_gpu_feasibility_profile_9b65b33.json",
+  "correction_note": "That profile (commit 9b65b33) correctly identified the encoder's per-relation message-passing loop as the real memory driver, and commit a998448 added per-layer gradient checkpointing, which measurably helped (~25-28% peak memory reduction at every subset size) but did not fix feasibility (still OOM at 4M triples). The natural next hypothesis was that checkpointing needed to be finer-grained -- per relation, not per layer, since a single per-layer recompute-then-backward call still needed every one of that layer's 66 relations' gathered input slices alive simultaneously. Commit d555789 implemented exactly that. This profile shows that hypothesis was ALSO wrong: per-relation checkpointing measured WORSE than per-layer checkpointing (6324.5 MB vs 5275.7 MB peak at 1,000,000 triples -- a regression, not an improvement), and still OOM'd at 4,000,000 triples, identically to every prior configuration. Per-relation checkpointing has been reverted (git revert of d555789, restoring a998448's per-layer approach, the best-measured configuration found so far) rather than kept as a regression.",
+  "provenance": {
+    "source_commit_tested": "d5557890501323911dc492e3c2430534950e91ce",
+    "source_commit_reverted_to": "80c34a9d1f472bf6e85951ee881372245c02dc3b",
+    "source_archive_sha256_tested": "a35117282938abf0cd65ac306fb37c2d17c2acbe971aac947ca1ef6e86f4e0d3",
+    "export_fingerprint": "8e41f866f9fb90b0017b9056c1eb69b585004e01e65e6c6e4d17b9dbf16cb1aa",
+    "primekg_fingerprint": {
+      "sha256": "0a5a010fcd88dcec572a573d98c26c1c244a11567092b6161d3ded611cfb5c69",
+      "size_bytes": 981751236,
+      "retrieved_date": "2026-10-05",
+      "dataverse_doi": "doi:10.7910/DVN/IXA7BM",
+      "release_version": null,
+      "snapshot_build_date": null
+    },
+    "n_entities": 129375,
+    "n_relations_real": 33,
+    "n_tuning_triples": 8097798
+  },
+  "environment": {
+    "platform": "Kaggle kernel",
+    "gpu": "Tesla T4",
+    "gpu_memory_mb": 14911.6875,
+    "torch_version": "2.11.0+cu128",
+    "cuda_available": true,
+    "internet_enabled": false
+  },
+  "config": {
+    "name": "rgcn-base",
+    "hidden_dim": 64,
+    "num_bases": 8,
+    "num_layers": 2,
+    "margin": 1.0,
+    "learning_rate": 0.001,
+    "batch_size": 1024,
+    "negatives_per_positive": 4,
+    "epochs_profiled": 1
+  },
+  "peak_cuda_allocated_mb_comparison": {
+    "100000_triples": {"no_checkpointing": 887.71, "per_layer_checkpointing": 677.33, "per_relation_checkpointing": 786.56},
+    "500000_triples": {"no_checkpointing": 3762.70, "per_layer_checkpointing": 2727.74, "per_relation_checkpointing": 3251.42},
+    "1000000_triples": {"no_checkpointing": 7323.37, "per_layer_checkpointing": 5275.73, "per_relation_checkpointing": 6324.49},
+    "4000000_triples": {"no_checkpointing": "oom", "per_layer_checkpointing": "oom", "per_relation_checkpointing": "oom"}
+  },
+  "full_graph_attempted": false,
+  "full_graph_result": null,
+  "feasibility_decision": {
+    "classification": "C_NOT_FEASIBLE",
+    "attempt_full": false,
+    "reason": "every configuration tested (no checkpointing, per-layer checkpointing, per-relation checkpointing) OOMs at 4,000,000 triples -- less than half the full 8,097,798-triple tuning set -- on a 14.6 GB T4",
+    "best_configuration_found": "per-layer gradient checkpointing (commit a998448 / current HEAD 80c34a9), ~25-28% peak memory reduction vs. no checkpointing, still insufficient for full scale"
+  },
+  "safety_and_protocol": {
+    "export_dataset_contents": ["metadata.json", "triples.npz", "validation_indications.json"],
+    "locked_test_manifest_present": false,
+    "test_indications_present_in_metadata": false,
+    "validation_search_performed": false,
+    "final_training_performed": false,
+    "locked_test_evaluation_performed": false
+  },
+  "next_step_note": "Stopping further speculative architecture changes here. Three real-GPU-measured attempts (gradient accumulation alone: no memory effect, correct but not the bottleneck; per-layer checkpointing: best result, ~28% reduction, insufficient; per-relation checkpointing: worse than per-layer, reverted) indicate the current understanding of where this encoder's memory actually goes is incomplete -- reasoning from first principles has now twice produced a wrong prediction. Continuing to guess at architectural changes without better diagnostic tooling (e.g. torch.cuda.memory._record_memory_history / a real memory snapshot at the peak moment) is not a productive use of further Kaggle GPU time. Recommended next step is either (a) an actual memory-profiling pass to see what is allocated at the peak moment, before any further architecture change, or (b) a explicit methodological decision (smaller hidden_dim/fewer bases, real neighbor sampling, subgraph mini-batching, graph partitioning, or more GPU memory) -- the user's call, not an autonomous one."
+}
