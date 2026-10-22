@@ -27,6 +27,7 @@ from __future__ import annotations
 import numpy as np
 import torch
 from torch import nn
+from torch.utils.checkpoint import checkpoint
 
 
 def build_message_passing_edges(triples: np.ndarray, n_relations: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -149,6 +150,7 @@ class RGCNEncoder(nn.Module):
         hidden_dim: int,
         num_bases: int,
         num_layers: int = 2,
+        use_gradient_checkpointing: bool = True,
     ) -> None:
         super().__init__()
         if n_relations < 1:
@@ -160,6 +162,7 @@ class RGCNEncoder(nn.Module):
         self.n_relations_mp = 2 * n_relations
         self.hidden_dim = hidden_dim
         self.num_layers = num_layers
+        self.use_gradient_checkpointing = use_gradient_checkpointing
 
         self.entity_embeddings = nn.Embedding(n_entities, hidden_dim)
         self.layers = nn.ModuleList(
@@ -177,10 +180,36 @@ class RGCNEncoder(nn.Module):
         already be in the doubled ``[0, 2 * self.n_relations)`` space (see
         ``build_message_passing_edges``) -- this function does not double
         edges itself, keeping edge construction and the model's forward
-        pass independently testable."""
+        pass independently testable.
+
+        **Gradient checkpointing, and why it's here.** Measured on real
+        PrimeKG-scale data (see
+        ``ml/experiments/rgcn_gpu_feasibility_profile_9b65b33.json``), a
+        plain (non-checkpointed) forward through this per-relation,
+        multi-layer loop retains every relation's intermediate tensors in
+        memory from the moment they're created until whatever later call
+        eventually backpropagates through them -- which, in the training
+        loop this feeds, can be much later. That retention window, not
+        anything about mini-batching, is what drove peak GPU memory to
+        scale directly with total edge count and OOM well before full
+        scale. Wrapping each layer's forward in
+        ``torch.utils.checkpoint.checkpoint`` changes nothing about what
+        is computed (the recomputed forward is bit-for-bit the same
+        deterministic function; there is no dropout or other randomness
+        in this layer to worry about) -- it only changes *when*: the
+        initial forward pass runs without tracking gradients at all (so
+        nothing from the per-relation loop is retained), and the full
+        per-relation graph is rebuilt, used, and immediately discarded
+        only once, right when backward actually needs it for that one
+        layer. Disable via ``use_gradient_checkpointing=False`` (e.g. for
+        a quick numerical cross-check against the unchanged math).
+        """
         features = self.entity_embeddings.weight
         for layer_index, layer in enumerate(self.layers):
-            features = layer(features, edge_h, edge_r, edge_t, n_entities)
+            if self.use_gradient_checkpointing and features.requires_grad and torch.is_grad_enabled():
+                features = checkpoint(layer, features, edge_h, edge_r, edge_t, n_entities, use_reentrant=False)
+            else:
+                features = layer(features, edge_h, edge_r, edge_t, n_entities)
             if layer_index < self.num_layers - 1:
                 features = torch.relu(features)
         return features
@@ -202,9 +231,13 @@ class RGCN(nn.Module):
         hidden_dim: int,
         num_bases: int,
         num_layers: int = 2,
+        use_gradient_checkpointing: bool = True,
     ) -> None:
         super().__init__()
-        self.encoder = RGCNEncoder(n_entities, n_relations, hidden_dim, num_bases, num_layers)
+        self.encoder = RGCNEncoder(
+            n_entities, n_relations, hidden_dim, num_bases, num_layers,
+            use_gradient_checkpointing=use_gradient_checkpointing,
+        )
         self.relation_embeddings = nn.Embedding(n_relations, hidden_dim)
 
     def encode(self, edge_h: torch.Tensor, edge_r: torch.Tensor, edge_t: torch.Tensor, n_entities: int) -> torch.Tensor:

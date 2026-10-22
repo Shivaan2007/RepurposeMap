@@ -166,3 +166,36 @@ def test_encode_does_not_recompute_inside_score():
 
     score_with_stale_embeddings = model.score(embeddings_before, torch.tensor([0]), torch.tensor([0]), torch.tensor([1])).item()
     assert score_before == pytest.approx(score_with_stale_embeddings)
+
+
+def test_gradient_checkpointing_matches_non_checkpointed_gradients():
+    # Gradient checkpointing must not change what is computed -- only
+    # when activations are materialized. Proves checkpointed and
+    # non-checkpointed encoders produce the same forward output and the
+    # same gradients w.r.t. every encoder parameter, from identical
+    # initial weights.
+    n_entities, n_relations = 10, 2
+    triples = np.array([[i, i % n_relations, (i + 1) % n_entities] for i in range(8)], dtype=np.int64)
+    edge_h, edge_r, edge_t = build_message_passing_edges(triples, n_relations)
+    edge_h_t = torch.as_tensor(edge_h, dtype=torch.long)
+    edge_r_t = torch.as_tensor(edge_r, dtype=torch.long)
+    edge_t_t = torch.as_tensor(edge_t, dtype=torch.long)
+
+    torch.manual_seed(0)
+    encoder_checkpointed = RGCNEncoder(n_entities, n_relations, hidden_dim=6, num_bases=2, num_layers=2, use_gradient_checkpointing=True)
+    torch.manual_seed(0)
+    encoder_plain = RGCNEncoder(n_entities, n_relations, hidden_dim=6, num_bases=2, num_layers=2, use_gradient_checkpointing=False)
+
+    # Same initial weights by construction (same seed) -- confirm before trusting the gradient comparison.
+    for p_a, p_b in zip(encoder_checkpointed.parameters(), encoder_plain.parameters(), strict=True):
+        assert torch.equal(p_a, p_b)
+
+    out_checkpointed = encoder_checkpointed(edge_h_t, edge_r_t, edge_t_t, n_entities)
+    out_plain = encoder_plain(edge_h_t, edge_r_t, edge_t_t, n_entities)
+    assert torch.allclose(out_checkpointed, out_plain, atol=1e-6)
+
+    out_checkpointed.sum().backward()
+    out_plain.sum().backward()
+
+    for p_a, p_b in zip(encoder_checkpointed.parameters(), encoder_plain.parameters(), strict=True):
+        assert torch.allclose(p_a.grad, p_b.grad, atol=1e-5)
