@@ -70,10 +70,7 @@ class _BasisRelationLayer(nn.Module):
     "real" vs. "inverse" relations; it just has that many weight slots.
     """
 
-    def __init__(
-        self, in_dim: int, out_dim: int, n_relations_mp: int, num_bases: int,
-        use_gradient_checkpointing: bool = True,
-    ) -> None:
+    def __init__(self, in_dim: int, out_dim: int, n_relations_mp: int, num_bases: int) -> None:
         super().__init__()
         if num_bases < 1:
             raise ValueError(f"num_bases must be at least 1, got {num_bases}")
@@ -81,7 +78,6 @@ class _BasisRelationLayer(nn.Module):
         self.out_dim = out_dim
         self.n_relations_mp = n_relations_mp
         self.num_bases = num_bases
-        self.use_gradient_checkpointing = use_gradient_checkpointing
 
         self.bases = nn.Parameter(torch.empty(num_bases, in_dim, out_dim))
         self.coefficients = nn.Parameter(torch.empty(n_relations_mp, num_bases))
@@ -96,29 +92,6 @@ class _BasisRelationLayer(nn.Module):
         reconstructed from the shared bases -- exposed mainly so tests can
         check the basis-decomposition math directly."""
         return torch.einsum("b,bio->io", self.coefficients[relation_id], self.bases)
-
-    @staticmethod
-    def _relation_messages(
-        node_features: torch.Tensor, h_idx: torch.Tensor, weight: torch.Tensor,
-        t_idx: torch.Tensor, n_entities: int,
-    ) -> torch.Tensor:
-        """One relation's normalized, un-scattered messages -- the part
-        that's expensive to keep (``node_features[h_idx]``, a gathered
-        slice sized by that relation's own edge count, is retained for
-        backward by the matmul it feeds into). Checkpointed per-relation
-        below so at most one relation's worth of this is ever retained at
-        once, not all of them simultaneously for the whole epoch."""
-        transformed = node_features[h_idx] @ weight
-        # Relation-wise mean normalization: each edge's contribution is
-        # divided by how many edges of *this relation* point into its
-        # target -- the standard R-GCN normalization, computed by
-        # scattering a ones-vector then gathering each edge's own target's
-        # count. Only ever gathered at indices that just received a real
-        # edge, so this is always >= 1 -- no divide-by-zero guard is
-        # reachable here.
-        in_degree = torch.zeros(n_entities, device=node_features.device, dtype=node_features.dtype)
-        in_degree.index_add_(0, t_idx, torch.ones_like(t_idx, dtype=node_features.dtype))
-        return transformed / in_degree[t_idx].clamp_min(1e-12).unsqueeze(-1)
 
     def forward(
         self,
@@ -137,34 +110,27 @@ class _BasisRelationLayer(nn.Module):
         # out_dim is a few MB even at hidden_dim=128), not a per-edge cost.
         all_weights = torch.einsum("rb,bio->rio", self.coefficients, self.bases)
 
-        checkpoint_this = self.use_gradient_checkpointing and node_features.requires_grad and torch.is_grad_enabled()
-
         for relation_id in range(self.n_relations_mp):
             mask = edge_r == relation_id
             if not torch.any(mask):
                 continue
             h_idx = edge_h[mask]
             t_idx = edge_t[mask]
-            weight = all_weights[relation_id]
 
-            # Checkpointed PER RELATION, not per layer: a node that
+            transformed = node_features[h_idx] @ all_weights[relation_id]
+
+            # Relation-wise mean normalization: each edge's contribution is
+            # divided by how many edges of *this relation* point into its
+            # target -- the standard R-GCN normalization, computed by
+            # scattering a ones-vector then gathering each edge's own
+            # target's count. Only ever gathered at indices that just
+            # received a real edge, so this is always >= 1 -- no
+            # divide-by-zero guard is reachable here, but a node that
             # receives no edges at all under any relation simply never
             # enters this loop body, and still gets its self-loop term.
-            # See ``_relation_messages``'s docstring for why this
-            # granularity (not coarser, per-layer checkpointing) is what
-            # actually bounds peak memory -- confirmed empirically (see
-            # ml/experiments/rgcn_gpu_feasibility_profile_a998448.json):
-            # per-layer checkpointing alone only removed cross-layer
-            # duplication (~25-28% reduction), because a single
-            # recompute-then-backward call for a whole layer still needed
-            # every one of that layer's relations' gathered input slices
-            # alive simultaneously. Checkpointing each relation
-            # individually means at most one relation's slice is ever
-            # retained at a time.
-            if checkpoint_this:
-                normalized = checkpoint(self._relation_messages, node_features, h_idx, weight, t_idx, n_entities, use_reentrant=False)
-            else:
-                normalized = self._relation_messages(node_features, h_idx, weight, t_idx, n_entities)
+            in_degree = torch.zeros(n_entities, device=device, dtype=node_features.dtype)
+            in_degree.index_add_(0, t_idx, torch.ones_like(t_idx, dtype=node_features.dtype))
+            normalized = transformed / in_degree[t_idx].clamp_min(1e-12).unsqueeze(-1)
 
             messages_sum.index_add_(0, t_idx, normalized)
 
@@ -200,11 +166,7 @@ class RGCNEncoder(nn.Module):
 
         self.entity_embeddings = nn.Embedding(n_entities, hidden_dim)
         self.layers = nn.ModuleList(
-            _BasisRelationLayer(
-                hidden_dim, hidden_dim, self.n_relations_mp, num_bases,
-                use_gradient_checkpointing=use_gradient_checkpointing,
-            )
-            for _ in range(num_layers)
+            _BasisRelationLayer(hidden_dim, hidden_dim, self.n_relations_mp, num_bases) for _ in range(num_layers)
         )
 
     def forward(
@@ -220,20 +182,34 @@ class RGCNEncoder(nn.Module):
         edges itself, keeping edge construction and the model's forward
         pass independently testable.
 
-        Gradient checkpointing (see ``_BasisRelationLayer._relation_messages``'s
-        docstring) is applied per relation, inside each layer -- not here,
-        at the per-layer level. An earlier version checkpointed whole
-        layers instead; measured on real PrimeKG-scale data (see
-        ``ml/experiments/rgcn_gpu_feasibility_profile_a998448.json``),
-        that only removed cross-layer duplication (~25-28% peak memory
-        reduction) because one recompute-then-backward call for an entire
-        layer still needed every one of that layer's relations' gathered
-        input slices alive simultaneously. Per-relation checkpointing
-        bounds that to one relation's slice at a time.
+        **Gradient checkpointing, and why it's here.** Measured on real
+        PrimeKG-scale data (see
+        ``ml/experiments/rgcn_gpu_feasibility_profile_9b65b33.json``), a
+        plain (non-checkpointed) forward through this per-relation,
+        multi-layer loop retains every relation's intermediate tensors in
+        memory from the moment they're created until whatever later call
+        eventually backpropagates through them -- which, in the training
+        loop this feeds, can be much later. That retention window, not
+        anything about mini-batching, is what drove peak GPU memory to
+        scale directly with total edge count and OOM well before full
+        scale. Wrapping each layer's forward in
+        ``torch.utils.checkpoint.checkpoint`` changes nothing about what
+        is computed (the recomputed forward is bit-for-bit the same
+        deterministic function; there is no dropout or other randomness
+        in this layer to worry about) -- it only changes *when*: the
+        initial forward pass runs without tracking gradients at all (so
+        nothing from the per-relation loop is retained), and the full
+        per-relation graph is rebuilt, used, and immediately discarded
+        only once, right when backward actually needs it for that one
+        layer. Disable via ``use_gradient_checkpointing=False`` (e.g. for
+        a quick numerical cross-check against the unchanged math).
         """
         features = self.entity_embeddings.weight
         for layer_index, layer in enumerate(self.layers):
-            features = layer(features, edge_h, edge_r, edge_t, n_entities)
+            if self.use_gradient_checkpointing and features.requires_grad and torch.is_grad_enabled():
+                features = checkpoint(layer, features, edge_h, edge_r, edge_t, n_entities, use_reentrant=False)
+            else:
+                features = layer(features, edge_h, edge_r, edge_t, n_entities)
             if layer_index < self.num_layers - 1:
                 features = torch.relu(features)
         return features
