@@ -1,0 +1,115 @@
+{
+  "stage": "rgcn_gpu_feasibility_profile",
+  "purpose": "systems feasibility only, not a model benchmark -- no model-quality claim should be read from this file",
+  "generated_at": "2026-10-22T00:00:00Z",
+  "provenance": {
+    "source_commit": "136466577f038de4a297a0acbef31a889508dbed",
+    "source_archive_sha256": "afd8d824493dbd155901f2eb2b71ad1c42d36d4b1c1b2aa4a63bd7edd20b4645",
+    "export_fingerprint": "8e41f866f9fb90b0017b9056c1eb69b585004e01e65e6c6e4d17b9dbf16cb1aa",
+    "primekg_fingerprint": {
+      "sha256": "0a5a010fcd88dcec572a573d98c26c1c244a11567092b6161d3ded611cfb5c69",
+      "size_bytes": 981751236,
+      "retrieved_date": "2026-10-05",
+      "dataverse_doi": "doi:10.7910/DVN/IXA7BM",
+      "release_version": null,
+      "snapshot_build_date": null
+    },
+    "n_entities": 129375,
+    "n_relations_real": 33,
+    "n_tuning_triples": 8097798,
+    "n_message_passing_edges_at_full_scale": 16195596
+  },
+  "environment": {
+    "platform": "Kaggle kernel",
+    "gpu": "Tesla T4",
+    "gpu_memory_mb": 14911.6875,
+    "torch_version": "2.11.0+cu128",
+    "cuda_available": true,
+    "internet_enabled": false
+  },
+  "config": {
+    "name": "rgcn-base",
+    "hidden_dim": 64,
+    "num_bases": 8,
+    "num_layers": 2,
+    "margin": 1.0,
+    "learning_rate": 0.001,
+    "batch_size": 1024,
+    "negatives_per_positive": 4,
+    "epochs_profiled": 1
+  },
+  "training_strategy_profiled": "one full encoder forward per epoch; per-batch decoder scoring/loss computation with every batch's loss retained; one accumulated backward pass; one optimizer step per epoch (the approved foundation design -- see rgcn_train_gpu.py)",
+  "subset_profiles": [
+    {
+      "n_triples": 100000,
+      "n_message_passing_edges": 200000,
+      "n_batches": 98,
+      "encoder_forward_s": 0.7123461169999814,
+      "sampling_s": 1.6875287810000827,
+      "decoder_loss_s": 0.17176227000004474,
+      "backward_s": 0.6519041330000164,
+      "optimizer_step_s": 0.15110179900000276,
+      "total_epoch_s": 3.530615410999985,
+      "examples_per_sec": 28323.674022506108,
+      "negative_sampling_per_sec": 237032.9943427379,
+      "final_train_loss": 1.0170577764511108,
+      "loss_finite": true,
+      "cuda_peak_allocated_mb": 887.7138671875,
+      "cuda_peak_reserved_mb": 950.0
+    },
+    {
+      "n_triples": 500000,
+      "n_message_passing_edges": 1000000,
+      "n_batches": 489,
+      "encoder_forward_s": 0.08489712400000826,
+      "sampling_s": 8.869942013999378,
+      "decoder_loss_s": 0.5536832959994058,
+      "backward_s": 1.4548999909999907,
+      "optimizer_step_s": 0.004322416999968937,
+      "total_epoch_s": 11.246855985000025,
+      "examples_per_sec": 44456.868716630845,
+      "negative_sampling_per_sec": 225480.61721749834,
+      "final_train_loss": 1.025452733039856,
+      "loss_finite": true,
+      "cuda_peak_allocated_mb": 3762.69580078125,
+      "cuda_peak_reserved_mb": 3790.0
+    },
+    {
+      "n_triples": 1000000,
+      "n_message_passing_edges": 2000000,
+      "n_batches": 977,
+      "encoder_forward_s": 0.10611030499995877,
+      "sampling_s": 18.166258649998497,
+      "decoder_loss_s": 1.1181621809999456,
+      "backward_s": 2.7925758850000193,
+      "optimizer_step_s": 0.00427072899998393,
+      "total_epoch_s": 22.76081220200001,
+      "examples_per_sec": 43935.16325889852,
+      "negative_sampling_per_sec": 220188.43158992074,
+      "final_train_loss": 1.024165391921997,
+      "loss_finite": true,
+      "cuda_peak_allocated_mb": 7323.37451171875,
+      "cuda_peak_reserved_mb": 7490.0
+    }
+  ],
+  "full_graph_attempted": false,
+  "full_graph_result": null,
+  "feasibility_decision": {
+    "classification": "C_NOT_FEASIBLE",
+    "attempt_full": false,
+    "reason": "projected peak memory 59303 MB (linearly extrapolated from the 1,000,000-triple subset's measured 7323 MB peak) exceeds the 70% safety threshold of 14912 MB total GPU memory on a Tesla T4 -- roughly 4x over capacity, not a marginal overshoot",
+    "projected_full_graph_peak_allocated_mb": 59303.207474247065,
+    "total_gpu_memory_mb": 14911.6875,
+    "memory_scaling_observation": "peak CUDA allocated memory scaled approximately linearly with triple count across all three subsets (887.7 MB at 100k, 3762.7 MB at 500k, 7323.4 MB at 1M), consistent with the approved training strategy's memory cost being dominated by retaining every mini-batch's forward computation graph simultaneously until the single epoch-end backward pass (required to keep exactly one optimizer step per epoch), not solely by the encoder's message-passing edge count"
+  },
+  "safety_and_protocol": {
+    "export_dataset_contents": ["metadata.json", "triples.npz", "validation_indications.json"],
+    "locked_test_manifest_present": false,
+    "test_indications_present_in_metadata": false,
+    "validation_search_performed": false,
+    "final_training_performed": false,
+    "locked_test_evaluation_performed": false,
+    "kernel_log_confirmation": "\"Safety check PASSED: dataset contains exactly the required safe files, no locked_test_manifest.json, and no test_indications in metadata.json.\" / \"Done. GPU feasibility profiling only -- no validation search, no final training, no locked-test evaluation was run. No internet was used.\""
+  },
+  "next_step_note": "Per protocol, this result alone does not select a redesign. The current full-graph, accumulate-then-single-backward strategy is not feasible on a single T4 at real PrimeKG scale. Candidate next steps (graph partitioning, neighbor sampling, subgraph mini-batching, layer-wise training, true per-batch gradient accumulation with immediate graph-freeing, or a larger/multi-GPU instance) are a separate, explicitly reviewed methodological decision -- not made in this profiling task."
+}
