@@ -1,0 +1,131 @@
+{
+  "stage": "rgcn_sampled_training_profile",
+  "purpose": "systems feasibility, not benchmark -- no model-quality claim should be read from this file",
+  "generated_at": "2026-10-23T00:40:00Z",
+  "supersedes_hypothesis_in": "ml/experiments/rgcn_sampled_training_profile_e79d3e4.json",
+  "provenance": {
+    "source_commit_tested": "e6ce5d935fa0f28c3ed177aa27f6a95942168b05",
+    "source_archive_sha256_tested": "fdd8cea7ac9027bb87b37fb4c0f61f18fb65d6862e63f1f56410737d674b0f08",
+    "export_fingerprint": "8e41f866f9fb90b0017b9056c1eb69b585004e01e65e6c6e4d17b9dbf16cb1aa",
+    "primekg_fingerprint": {
+      "sha256": "0a5a010fcd88dcec572a573d98c26c1c244a11567092b6161d3ded611cfb5c69",
+      "size_bytes": 981751236,
+      "retrieved_date": "2026-10-05",
+      "dataverse_doi": "doi:10.7910/DVN/IXA7BM",
+      "release_version": null,
+      "snapshot_build_date": null
+    },
+    "n_entities": 129375,
+    "n_relations_real": 33,
+    "n_tuning_triples": 8097798
+  },
+  "environment": {
+    "platform": "Kaggle kernel",
+    "gpu": "Tesla T4",
+    "gpu_memory_mb": 14941.1875,
+    "torch_version": "2.11.0+cu128",
+    "cuda_available": true,
+    "internet_enabled": false
+  },
+  "config": {
+    "name": "rgcn-base",
+    "hidden_dim": 64,
+    "num_bases": 8,
+    "num_layers": 2,
+    "margin": 1.0,
+    "learning_rate": 0.001,
+    "batch_size": 1024,
+    "negatives_per_positive": 4,
+    "fanout_hop1": 15,
+    "fanout_hop2": 10,
+    "seed": 42
+  },
+  "change_under_test": {
+    "description": "Vectorized the relation-balanced neighbor sampler. Replaced per-relation, per-node Python loops (one rng.permutation + Python list build per relation per node, plus a fresh outgoing+incoming merge into a new candidate dict on every single sampling call) with: (1) a one-time CSR-style numpy precompute of that merge at adjacency-build time (RelationAdjacency.combined), and (2) a vectorized sampling core (_sample_neighbors_relation_balanced_arrays) doing one combined shuffle per node plus numpy-vectorized regrouping/selection instead of a Python-level loop over every candidate. The relation-balanced policy itself (even split across relations present, then round-robin leftover) and all safety/determinism invariants are unchanged; only the random draw pattern realizing that policy differs from the previous implementation.",
+    "commit": "e6ce5d935fa0f28c3ed177aa27f6a95942168b05",
+    "commit_message": "Vectorize relation-balanced neighbor sampling",
+    "methodology_changed": false,
+    "sampling_policy_changed": false,
+    "fanout_tuned": false
+  },
+  "status": "ok",
+  "error": null,
+  "n_batches_completed": 500,
+  "loss_finite_throughout": true,
+  "loss_first_batch": 1.0416858196258545,
+  "loss_last_batch": 0.21981501579284668,
+  "preprocessing": {
+    "positive_store_build_s": 0.40,
+    "adjacency_build_s": 26.761614264,
+    "adjacency_build_s_previous": 12.969864943,
+    "adjacency_build_classification": "A_ACCEPTABLE_ONE_TIME_STARTUP_COST",
+    "adjacency_build_classification_reason": "26.76s is roughly 2x the previous 12.97s (the new CSR precompute does more work per entity at build time, by design, to remove that work from every sampling call), but is still negligible next to both the steady-state per-batch cost (~2.16s/batch) and the resulting projected full-epoch runtime (~4.74 hours) -- still a one-time cost, still not the bottleneck.",
+    "adjacency_built_once_per_run": true,
+    "adjacency_rebuilt_during_training": false
+  },
+  "steady_state_batch_timing_s": {
+    "note": "Computed over batches 1..499 (excludes batch 0, which includes one-time CUDA/model warmup). Units: seconds.",
+    "total_batch_s": {"mean": 2.158126, "median": 2.157248, "p95": 2.246413, "min": 2.017195, "max": 2.340042},
+    "negative_sampling_s": {"mean": 0.025416, "median": 0.025192, "p95": 0.027232, "min": 0.023215, "max": 0.044712},
+    "neighbor_sampling_s": {"mean": 1.975561, "median": 1.974791, "p95": 2.063326, "min": 1.836963, "max": 2.156836},
+    "transfer_s": {"mean": 0.004960, "median": 0.004935, "p95": 0.005205, "min": 0.004609, "max": 0.006487},
+    "encoder_forward_s": {"mean": 0.064543, "median": 0.064243, "p95": 0.067680, "min": 0.060752, "max": 0.086442},
+    "decoder_loss_s": {"mean": 0.001113, "median": 0.001092, "p95": 0.001244, "min": 0.000928, "max": 0.005302},
+    "backward_s": {"mean": 0.083423, "median": 0.083518, "p95": 0.084802, "min": 0.080785, "max": 0.086269},
+    "optimizer_step_s": {"mean": 0.002882, "median": 0.002875, "p95": 0.002939, "min": 0.002828, "max": 0.003151},
+    "neighbor_sampling_fraction_of_total_batch_time_mean": 0.9154,
+    "bottleneck_finding": "Neighbor sampling is still the dominant cost (~91.5% of batch time, down from ~96.4%), but its absolute cost dropped from ~5.02s/batch to ~1.98s/batch -- a 2.54x reduction for that component alone. The vectorized rewrite worked, but the function is still the bottleneck; a Python-level loop over at most n_relations (<=33) per node, plus per-node numpy array allocation/shuffle/argsort overhead, remains the limiting factor at this batch's seed-entity count (~5500) and subgraph size (~47k nodes, ~378k message-passing edges)."
+  },
+  "cuda_memory_mb": {
+    "cuda_peak_allocated_mb": {"mean": 652.35, "median": 653.06, "min": 624.34, "max": 653.06},
+    "cuda_peak_reserved_mb": {"mean": 723.87, "median": 736.0, "min": 702.0, "max": 738.0},
+    "gpu_total_memory_mb": 14941.1875,
+    "peak_reserved_utilization_fraction": 0.0494,
+    "note": "Essentially unchanged from the previous profile -- this change only affects CPU-side sampling, not GPU memory."
+  },
+  "cpu_memory_mb": {
+    "cpu_rss_mb_via_ru_maxrss": {"mean": 3355.66, "median": 3355.66, "min": 3355.66, "max": 3355.66},
+    "cpu_rss_mb_previous": 2506.13,
+    "note": "RSS is higher than the previous profile (~3356MB vs ~2506MB) because the new CSR-style precomputed adjacency arrays use more memory per entity than the old dict-of-tuples representation (a deliberate memory-for-speed trade at adjacency-build time). Flat across all 500 batches -- no progressive growth, no leak signature."
+  },
+  "runtime_projection": {
+    "note": "Pure arithmetic projection from the measured steady-state mean batch time. Not a recommendation; the 3-config search is explicitly NOT launched in this task.",
+    "batches_per_epoch": 7908,
+    "projected_epoch_wall_time_hours": 4.74,
+    "projected_search_wall_time_hours_3_epochs_per_config_x3_configs": 42.67,
+    "projected_search_wall_time_hours_5_epochs_per_config_x3_configs": 71.11,
+    "projected_search_wall_time_hours_10_epochs_per_config_x3_configs": 142.22
+  },
+  "comparison_to_previous_profile": {
+    "previous_profile": "ml/experiments/rgcn_sampled_training_profile_e79d3e4.json",
+    "previous_mean_total_batch_s": 5.201292,
+    "new_mean_total_batch_s": 2.158126,
+    "speedup_factor_total_batch_time": 2.41,
+    "previous_mean_neighbor_sampling_s": 5.016318,
+    "new_mean_neighbor_sampling_s": 1.975561,
+    "speedup_factor_neighbor_sampling": 2.54,
+    "previous_projected_epoch_hours": 11.43,
+    "new_projected_epoch_hours": 4.74,
+    "previous_projected_search_hours_3_epochs": 102.83,
+    "new_projected_search_hours_3_epochs": 42.67,
+    "summary": "The vectorized neighbor sampler is a real, measured ~2.4x end-to-end speedup on real PrimeKG, cutting the projected 3-config/3-epoch search from ~103 hours to ~43 hours. Neighbor sampling remains the dominant cost (now ~91.5% of batch time, down from ~96.4%) -- the fix reduced the bottleneck's severity but did not eliminate it as the bottleneck."
+  },
+  "feasibility_decision": {
+    "classification": "C_NOT_FEASIBLE",
+    "classification_axis": "runtime (still CPU-bound by the same function, now less severely) -- GPU memory headroom remains excellent and unchanged",
+    "reason": "Genuine, measured 2.4x speedup with zero regressions and identical safety/correctness invariants, but the projected 3-config search (~43-142 hours depending on epoch count) is still operationally impractical for a quick validation search by this task's own classification rule, and neighbor sampling is still the overwhelming majority (~91.5%) of batch time. This is real progress, not a fix.",
+    "root_cause_still_present": "RelationAwareNeighborSampler.sample() is still the bottleneck. The per-node work is now vectorized numpy instead of per-item Python objects, but at this node/subgraph scale (~47k sampled nodes, ~378k message-passing edges per batch) numpy array allocation, shuffling, and stable-sort regrouping across ~150,000 node-visits per batch (summed over both hops) still dominate wall time.",
+    "not_the_cause": "GPU memory, GPU compute, adjacency construction (26.76s one-time), negative sampling, host-device transfer -- all unchanged or still negligible shares of batch time."
+  },
+  "safety_and_protocol": {
+    "export_dataset_contents": ["metadata.json", "triples.npz", "validation_indications.json"],
+    "locked_test_manifest_present": false,
+    "test_indications_present_in_metadata": false,
+    "validation_search_performed": false,
+    "final_training_performed": false,
+    "locked_test_evaluation_performed": false,
+    "fanout_tuned_based_on_this_profile": false,
+    "sampling_methodology_changed_based_on_this_profile": false
+  },
+  "next_step_note": "A second optimization pass (e.g. reducing per-batch subgraph size via smaller fanout -- a methodology change requiring explicit sign-off, not an autonomous one -- or further reducing per-node Python/numpy overhead, e.g. batching the neighbor-sampling loop across multiple frontier nodes at once instead of one node at a time) would still be needed before a ~43-hour 3-config search is clearly worth launching. That decision -- whether ~43 hours is acceptable as-is, or whether to invest in a further optimization pass first -- is the user's call."
+}
