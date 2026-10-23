@@ -31,8 +31,9 @@ as every other real-GPU-scale milestone in this project.
 
 from __future__ import annotations
 
+import json
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import numpy as np
@@ -42,12 +43,18 @@ from repurposemap.embeddings.batched_negative_sampling import BatchedTypeAwareNe
 from repurposemap.embeddings.checkpointing import (
     _restore_rng_state,
     build_checkpoint,
+    load_checkpoint,
     save_checkpoint,
 )
 from repurposemap.embeddings.negative_sampling import TypePools
-from repurposemap.embeddings.positive_store import PositiveTripleStore
+from repurposemap.embeddings.positive_store import PositiveTripleStore, build_positive_store
 from repurposemap.embeddings.rgcn_model import RGCN
-from repurposemap.embeddings.rgcn_sampling import RelationAdjacency, RelationAwareNeighborSampler, SamplingConfig
+from repurposemap.embeddings.rgcn_sampling import (
+    RelationAdjacency,
+    RelationAwareNeighborSampler,
+    SamplingConfig,
+    build_relation_adjacency,
+)
 from repurposemap.embeddings.transe_train import margin_ranking_loss, seed_everything
 
 
@@ -137,6 +144,20 @@ class RGCNSampledTrainingConfig:
         }
 
 
+# The same exactly-3 predeclared configs as the full-graph trainer's
+# SEARCH_CONFIGS (rgcn_train_gpu.py) -- this is a deliberate, explicit
+# reuse of that same model-capacity decision, not a second independent
+# choice. `fanout_hop1`/`fanout_hop2` use RGCNSampledTrainingConfig's
+# approved defaults (15/10, fixed by the feasibility profiling in
+# ml/experiments/rgcn_sampled_training_profile_e6ce5d9.json) and are never
+# varied across these 3 configs -- only `hidden_dim`/`num_bases` do.
+SEARCH_CONFIGS: tuple[tuple[str, RGCNSampledTrainingConfig], ...] = (
+    ("rgcn-base", RGCNSampledTrainingConfig(hidden_dim=64, num_bases=8, margin=1.0, learning_rate=1e-3, negatives_per_positive=4)),
+    ("rgcn-wide", RGCNSampledTrainingConfig(hidden_dim=128, num_bases=8, margin=1.0, learning_rate=1e-3, negatives_per_positive=4)),
+    ("rgcn-moreBases", RGCNSampledTrainingConfig(hidden_dim=64, num_bases=30, margin=1.0, learning_rate=1e-3, negatives_per_positive=4)),
+)
+
+
 @dataclass
 class SampledEpochRecord:
     epoch: int
@@ -167,6 +188,7 @@ class SampledGPUTrainingResult:
     shuffle_generator: torch.Generator
     sampler: BatchedTypeAwareNegativeSampler
     neighbor_sampler: RelationAwareNeighborSampler
+    stopped_for_time_budget: bool = False
 
 
 def train_sampled_gpu(
@@ -180,15 +202,28 @@ def train_sampled_gpu(
     *,
     resume_from: dict | None = None,
     validation_score_fn=None,
+    entity_index=None,
+    indication_relation_idx: int | None = None,
     val_disease_ids=None,
     val_indications=None,
     drug_ids=None,
     checkpoint_path: str | Path | None = None,
+    max_wall_time_s: float | None = None,
 ) -> SampledGPUTrainingResult:
     """Train (or resume training) an R-GCN model with sampled-subgraph
     mini-batches. Ordinary SGD: each batch samples its own neighborhood,
     runs its own encoder forward, backward, and ``optimizer.step()`` --
     no shared encoder graph, no ``retain_graph=True``.
+
+    ``max_wall_time_s``, if given, is measured from this call's own start
+    (not cumulative across resumed calls -- each process invocation gets
+    its own fresh budget). After each epoch finishes and its checkpoint is
+    written, if the elapsed wall time has reached this budget, training
+    stops there (``stopped_for_time_budget=True`` on the result) rather
+    than continuing into another multi-hour epoch -- this is what lets a
+    single config's multi-epoch training be split across several
+    Kaggle sessions, each with its own hard GPU-time limit, resuming
+    cleanly from the last epoch's checkpoint.
 
     ``triples`` is whichever leakage-safe array is "live" for the current
     phase -- ``tuning_triples`` during search, ``final_triples`` for final
@@ -198,14 +233,18 @@ def train_sampled_gpu(
     this function never reads or requires a locked-test manifest, and has
     no parameter for one.
 
-    Validation, if ``config.validate_every`` is set, uses a caller-supplied
-    ``validation_score_fn`` only -- this function does not invent a
-    sampled-inference evaluation strategy. Full-graph no-grad inference is
-    the preferred validation strategy (cheaper than full-graph training,
-    since no backward graph is retained) and, if it proves feasible on
-    real data, should be what the caller's ``validation_score_fn`` wraps --
-    but that feasibility check is a separate, later profiling step, not
-    decided or implemented by this function.
+    Validation, if ``config.validate_every`` is set: an explicit
+    ``validation_score_fn`` always wins if given. Otherwise, if
+    ``entity_index``/``indication_relation_idx`` are given, this function
+    falls back to full-graph no-grad inference over ``triples`` as the
+    default validation strategy -- the same approach profiled and
+    classified feasible on real PrimeKG in
+    ``ml/experiments/rgcn_fullgraph_inference_profile_e79d3e4.json``
+    (0.58s encoder forward, ~19% GPU memory), computed exactly once per
+    validation event (not once per disease) and reused for every disease
+    in that pass, same discipline as every other evaluation path in this
+    project. This still never invents a *sampled*-inference strategy --
+    it reuses the already-approved full-graph one.
     """
     device = torch.device(config.device)
     seed_everything(config.seed)
@@ -264,6 +303,8 @@ def train_sampled_gpu(
     batch_size = min(config.batch_size, n)
 
     stopped_early = False
+    stopped_for_time_budget = False
+    call_start = time.monotonic()
 
     for epoch in range(start_epoch, config.epochs):
         epoch_start = time.monotonic()
@@ -336,11 +377,44 @@ def train_sampled_gpu(
 
         val_metrics = None
         if config.validate_every is not None and (epoch + 1) % config.validate_every == 0:
-            if validation_score_fn is None or val_disease_ids is None or val_indications is None or drug_ids is None:
+            if val_disease_ids is None or val_indications is None or drug_ids is None:
                 raise ValueError("validate_every is set but validation inputs were not all provided")
+
+            active_score_fn = validation_score_fn
+            if active_score_fn is None:
+                if entity_index is None or indication_relation_idx is None:
+                    raise ValueError(
+                        "validate_every is set but no validation_score_fn was given and "
+                        "entity_index/indication_relation_idx (needed for the default full-graph "
+                        "inference fallback) were not both provided"
+                    )
+                from repurposemap.embeddings.rgcn_model import build_message_passing_edges
+
+                edge_h_np, edge_r_np, edge_t_np = build_message_passing_edges(triples, n_relations)
+                edge_h_val = torch.as_tensor(edge_h_np, dtype=torch.long, device=device)
+                edge_r_val = torch.as_tensor(edge_r_np, dtype=torch.long, device=device)
+                edge_t_val = torch.as_tensor(edge_t_np, dtype=torch.long, device=device)
+                model.eval()
+                with torch.no_grad():
+                    val_entity_embeddings = model.encode(edge_h_val, edge_r_val, edge_t_val, n_entities)
+                model.train()
+
+                def active_score_fn(disease_id, candidate_drug_ids):
+                    """Closes over `val_entity_embeddings`, computed exactly
+                    once above -- the encoder runs once per validation
+                    event, never once per disease."""
+                    disease_idx = entity_index.id_to_index[disease_id]
+                    drug_indices = torch.as_tensor(
+                        [entity_index.id_to_index[d] for d in candidate_drug_ids], dtype=torch.long, device=device
+                    )
+                    rel = torch.full_like(drug_indices, indication_relation_idx)
+                    tail = torch.full_like(drug_indices, disease_idx)
+                    with torch.no_grad():
+                        return model.score(val_entity_embeddings, drug_indices, rel, tail).cpu().numpy()
+
             from repurposemap.evaluation.transe_baseline import evaluate_transe_on_diseases
 
-            val_result = evaluate_transe_on_diseases(validation_score_fn, val_disease_ids, val_indications, drug_ids)
+            val_result = evaluate_transe_on_diseases(active_score_fn, val_disease_ids, val_indications, drug_ids)
             val_metrics = {
                 "hits_at_1": val_result.hits_at(1),
                 "hits_at_3": val_result.hits_at(3),
@@ -392,6 +466,10 @@ def train_sampled_gpu(
             stopped_early = True
             break
 
+        if max_wall_time_s is not None and (time.monotonic() - call_start) >= max_wall_time_s:
+            stopped_for_time_budget = True
+            break
+
     return SampledGPUTrainingResult(
         model=model,
         optimizer=optimizer,
@@ -401,4 +479,241 @@ def train_sampled_gpu(
         shuffle_generator=shuffle_generator,
         sampler=sampler,
         neighbor_sampler=neighbor_sampler,
+        stopped_for_time_budget=stopped_for_time_budget,
     )
+
+
+# --------------------------------------------------------------------------
+# Validation search and final training -- orchestration on top of
+# train_sampled_gpu, mirroring rgcn_train_gpu.py's run_validation_search/
+# train_final exactly (same SEARCH_CONFIGS, same selection rule, same
+# eligibility-gate checkpoint fields), with one addition this trainer
+# needs that the full-graph one doesn't: resumability ACROSS process
+# invocations at search granularity, not just epoch granularity, via
+# ``search_state_path``. Each epoch here is itself expensive enough
+# (~4.7h on real PrimeKG -- see
+# ml/experiments/rgcn_sampled_training_profile_e6ce5d9.json) that a single
+# config's whole multi-epoch run routinely exceeds one Kaggle GPU
+# session's hard time limit, so this function is designed to be called
+# repeatedly (once per session): it picks up exactly where the last call
+# left off (same config, next epoch) using ``max_wall_time_s`` to stop
+# cleanly before a session is cut off mid-epoch, and reports whether the
+# whole 3-config search is done yet via the returned log's ``"status"``.
+#
+# Neither function here ever reads or requires a locked-test manifest:
+# they operate entirely on ``LoadedExport.tuning_triples``/
+# ``final_triples`` and ``LoadedExport.val_indications``.
+# --------------------------------------------------------------------------
+
+
+def run_sampled_validation_search(
+    loaded_export,
+    *,
+    search_configs: tuple[tuple[str, RGCNSampledTrainingConfig], ...] = SEARCH_CONFIGS,
+    epochs: int = 3,
+    validate_every: int = 1,
+    output_log_path: str | Path | None = None,
+    checkpoint_dir: str | Path | None = None,
+    search_state_path: str | Path | None = None,
+    max_wall_time_s: float | None = None,
+) -> dict:
+    """Train each of the (exactly 3) predefined sampled-training configs on
+    ``tuning_triples``, evaluate each on validation diseases only (via the
+    default full-graph no-grad inference fallback in ``train_sampled_gpu``),
+    and apply the existing selection rule
+    (``repurposemap.evaluation.transe_baseline``, unchanged and reused as-is
+    -- it is model-agnostic).
+
+    Resumable at search granularity: if ``search_state_path`` already
+    exists (from a prior call, likely in a prior Kaggle session), configs
+    it marks complete are skipped, and the in-progress config resumes from
+    its own checkpoint in ``checkpoint_dir``. Returns a log whose
+    ``"status"`` is ``"in_progress"`` (call again to continue) or
+    ``"complete"`` (every config finished and the winner is selected).
+
+    Never touches locked-test data: ``loaded_export`` has none to touch.
+    """
+    from repurposemap.evaluation.transe_baseline import SearchCandidateResult, select_best_candidate
+
+    tuning_triples = loaded_export.tuning_triples
+    n_entities = len(loaded_export.entity_index)
+    n_relations = len(loaded_export.relation_index)
+    positive_store = build_positive_store(tuning_triples, n_relations, n_entities)
+    adjacency = build_relation_adjacency(tuning_triples)
+
+    if checkpoint_dir is not None:
+        Path(checkpoint_dir).mkdir(parents=True, exist_ok=True)
+
+    state_path = Path(search_state_path) if search_state_path is not None else None
+    state = json.loads(state_path.read_text()) if state_path is not None and state_path.exists() else {"completed": []}
+    runs: list[dict] = list(state["completed"])
+    completed_names = {r["name"] for r in runs}
+    candidates: list[SearchCandidateResult] = [
+        SearchCandidateResult(
+            name=r["name"], embedding_dim=r["config"]["hidden_dim"],
+            val_mrr=r["best_val_mrr"], val_macro_auprc=r["best_val_macro_auprc"],
+        )
+        for r in runs
+    ]
+
+    for name, base_config in search_configs:
+        if name in completed_names:
+            continue
+
+        config = replace(base_config, epochs=epochs, validate_every=validate_every)
+        checkpoint_path = Path(checkpoint_dir) / f"{name}.pt" if checkpoint_dir is not None else None
+        resume_from = None
+        if checkpoint_path is not None and checkpoint_path.exists():
+            resume_from = load_checkpoint(checkpoint_path, map_location=config.device)
+
+        started = time.monotonic()
+        result = train_sampled_gpu(
+            tuning_triples, n_entities, n_relations, loaded_export.type_pools, positive_store, adjacency, config,
+            resume_from=resume_from, entity_index=loaded_export.entity_index,
+            indication_relation_idx=loaded_export.indication_relation_idx,
+            val_disease_ids=loaded_export.val_disease_ids, val_indications=loaded_export.val_indications,
+            drug_ids=loaded_export.drug_ids, checkpoint_path=checkpoint_path, max_wall_time_s=max_wall_time_s,
+        )
+        runtime_s = time.monotonic() - started
+
+        config_finished = result.stopped_early or (result.final_epoch + 1 >= config.epochs)
+        if not config_finished:
+            # Time budget ran out mid-config this session -- not an error,
+            # just not done yet. The checkpoint already written by
+            # train_sampled_gpu is exactly what the next call resumes from.
+            log = {
+                "status": "in_progress",
+                "completed_configs": [r["name"] for r in runs],
+                "current_config": name,
+                "current_epoch": result.final_epoch,
+                "current_config_total_epochs": config.epochs,
+            }
+            if output_log_path is not None:
+                Path(output_log_path).write_text(json.dumps(log, indent=2, default=str))
+            return log
+
+        val_records = [r for r in result.history if r.val_metrics is not None]
+        best_record = max(val_records, key=lambda r: r.val_metrics["mrr"]) if val_records else None
+        best_val_mrr = best_record.val_metrics["mrr"] if best_record else float("-inf")
+        best_val_macro_auprc = best_record.val_metrics["macro_auprc"] if best_record else 0.0
+
+        candidates.append(SearchCandidateResult(name=name, embedding_dim=config.hidden_dim, val_mrr=best_val_mrr, val_macro_auprc=best_val_macro_auprc))
+        run_record = {
+            "name": name,
+            "config": config.to_dict(),
+            "history": [r.to_dict() for r in result.history],
+            "runtime_s": runtime_s,
+            "stopped_early": result.stopped_early,
+            "best_val_epoch": best_record.epoch if best_record else None,
+            "best_val_mrr": best_val_mrr,
+            "best_val_macro_auprc": best_val_macro_auprc,
+            "checkpoint_path": str(checkpoint_path) if checkpoint_path is not None else None,
+        }
+        runs.append(run_record)
+        completed_names.add(name)
+
+        if state_path is not None:
+            state_path.write_text(json.dumps({"completed": runs}, indent=2, default=str))
+
+    selected_index = select_best_candidate(candidates)
+
+    from repurposemap.evaluation.transe_baseline import SELECTION_RULE_DESCRIPTION
+
+    log = {
+        "status": "complete",
+        "rule": SELECTION_RULE_DESCRIPTION,
+        "candidates": [
+            {"name": c.name, "embedding_dim": c.embedding_dim, "val_mrr": c.val_mrr, "val_macro_auprc": c.val_macro_auprc}
+            for c in candidates
+        ],
+        "selected_index": selected_index,
+        "selected_name": candidates[selected_index].name,
+        "runs": runs,
+    }
+    if output_log_path is not None:
+        Path(output_log_path).write_text(json.dumps(log, indent=2, default=str))
+    return log
+
+
+def train_sampled_final(
+    loaded_export,
+    *,
+    selected_config: RGCNSampledTrainingConfig,
+    epochs: int,
+    search_log: dict,
+    checkpoint_path: str | Path,
+    primekg_fingerprint: dict | None = None,
+    git_commit: str | None = None,
+    git_dirty: bool | None = None,
+    device: str | None = None,
+    resume_from: dict | None = None,
+    max_wall_time_s: float | None = None,
+) -> dict:
+    """Train exactly once on ``final_triples`` (validation diseases'
+    indications restored) with the already-selected config, and save a
+    fully self-describing final checkpoint -- same shape and same
+    eligibility-gate fields as TransE's/the full-graph R-GCN trainer's
+    ``train_final`` (``is_final_training``, ``export_fingerprint``,
+    ``locked_test_manifest_fingerprint``), so
+    ``assert_eligible_for_locked_test_evaluation`` accepts this
+    checkpoint unchanged.
+
+    ``epochs`` must be decided from the winning search run's observed
+    plateau *before* this is called -- there is no validation signal
+    during final training (validation diseases are now training data), so
+    no early stopping is used here, by design. Resumable across sessions
+    the same way the search is, via ``resume_from``/``max_wall_time_s`` --
+    call again with the checkpoint this wrote if ``"stopped_for_time_budget"``
+    comes back true in the result this function returns under
+    ``"stopped_for_time_budget"``.
+    """
+    device_override = {"device": device} if device is not None else {}
+    final_config = replace(
+        selected_config, epochs=epochs, validate_every=None, early_stopping_patience=None, **device_override,
+    )
+    final_triples = loaded_export.final_triples
+    n_entities = len(loaded_export.entity_index)
+    n_relations = len(loaded_export.relation_index)
+    positive_store = build_positive_store(final_triples, n_relations, n_entities)
+    adjacency = build_relation_adjacency(final_triples)
+
+    result = train_sampled_gpu(
+        final_triples, n_entities, n_relations, loaded_export.type_pools, positive_store, adjacency, final_config,
+        resume_from=resume_from, max_wall_time_s=max_wall_time_s,
+    )
+
+    checkpoint = build_checkpoint(
+        model=result.model, optimizer=result.optimizer, epoch=result.final_epoch, history=result.history,
+        config=final_config, shuffle_generator=result.shuffle_generator, sampler=result.sampler,
+        is_final_training=True,
+        extra={
+            "neighbor_sampler_rng_state": result.neighbor_sampler.get_state(),
+            "entity_index": {"index_to_id": list(loaded_export.entity_index.index_to_id)},
+            "relation_index": {"index_to_id": [list(p) for p in loaded_export.relation_index.index_to_id]},
+            "indication_relation_idx": loaded_export.indication_relation_idx,
+            "indication_relation_key": loaded_export.metadata["indication_relation_key"],
+            "primekg_fingerprint": primekg_fingerprint if primekg_fingerprint is not None else loaded_export.metadata.get("primekg_fingerprint"),
+            "git_commit": git_commit,
+            "git_dirty": git_dirty,
+            "export_fingerprint": loaded_export.metadata["export_fingerprint"],
+            "locked_test_manifest_fingerprint": loaded_export.metadata.get("locked_test_manifest_fingerprint"),
+            "hyperparameter_search": {
+                "rule": search_log["rule"],
+                "candidates": search_log["candidates"],
+                "selected_index": search_log["selected_index"],
+                "selected_name": search_log["selected_name"],
+            },
+            "final_train_loss": result.history[-1].train_loss if result.history else None,
+            "train_loss_curve": [r.train_loss for r in result.history],
+            "normalization_assumptions": (
+                "entity embeddings produced by relation-wise mean-normalized message passing "
+                "(no post-hoc normalization step); DistMult relation embeddings not normalized"
+            ),
+        },
+    )
+    save_checkpoint(checkpoint, checkpoint_path)
+    return {
+        "final_epoch": result.final_epoch,
+        "stopped_for_time_budget": result.stopped_for_time_budget,
+        "train_loss_curve": [r.train_loss for r in result.history],
+    }
