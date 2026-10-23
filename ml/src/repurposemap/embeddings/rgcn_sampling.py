@@ -49,10 +49,25 @@ class RelationAdjacency:
     ``outgoing[e][r]`` -- entities ``e`` has a ``(e, r, t)`` edge to.
     ``incoming[e][r]`` -- entities ``e`` has a ``(h, r, e)`` edge from.
     Entities with no edges at all simply have no key in either dict.
+
+    ``combined[e]`` is the same outgoing+incoming information, pre-merged
+    and pre-flattened into the CSR-style numpy arrays
+    ``_sample_neighbors_relation_balanced_arrays`` needs --
+    ``(rel_ids, offsets, neighbors, directions)``, where relation ``i``'s
+    candidates are ``neighbors[offsets[i]:offsets[i+1]]`` /
+    ``directions[offsets[i]:offsets[i+1]]`` -- built once here instead of
+    being re-merged and re-converted to arrays on every single sampling
+    call for every node (every mini-batch, every epoch). Profiling at
+    real-PrimeKG scale showed that repeated per-call merge/conversion was
+    the dominant share of the ~96% of batch time neighbor sampling was
+    consuming (see
+    ``ml/experiments/rgcn_sampled_training_profile_e79d3e4.json``); moving
+    it here makes it a one-time cost instead of a per-batch one.
     """
 
     outgoing: dict[int, dict[int, tuple[int, ...]]]
     incoming: dict[int, dict[int, tuple[int, ...]]]
+    combined: dict[int, tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]]
 
 
 def build_relation_adjacency(triples: np.ndarray) -> RelationAdjacency:
@@ -69,7 +84,33 @@ def build_relation_adjacency(triples: np.ndarray) -> RelationAdjacency:
         incoming.setdefault(t, {}).setdefault(r, []).append(h)
     outgoing_frozen = {e: {r: tuple(ns) for r, ns in rels.items()} for e, rels in outgoing.items()}
     incoming_frozen = {e: {r: tuple(ns) for r, ns in rels.items()} for e, rels in incoming.items()}
-    return RelationAdjacency(outgoing=outgoing_frozen, incoming=incoming_frozen)
+
+    merged: dict[int, dict[int, list[tuple[int, int]]]] = {}
+    for e, rels in outgoing.items():
+        for r, tails in rels.items():
+            merged.setdefault(e, {}).setdefault(r, []).extend((t, 1) for t in tails)
+    for e, rels in incoming.items():
+        for r, heads in rels.items():
+            merged.setdefault(e, {}).setdefault(r, []).extend((h, 0) for h in heads)
+
+    combined: dict[int, tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]] = {}
+    for e, rels in merged.items():
+        rel_ids_sorted = sorted(rels)
+        group_sizes = np.fromiter((len(rels[r]) for r in rel_ids_sorted), dtype=np.int64, count=len(rel_ids_sorted))
+        offsets = np.zeros(len(rel_ids_sorted) + 1, dtype=np.int64)
+        np.cumsum(group_sizes, out=offsets[1:])
+        total = int(offsets[-1])
+        neighbors = np.empty(total, dtype=np.int64)
+        directions = np.empty(total, dtype=np.int64)
+        pos = 0
+        for r, n in zip(rel_ids_sorted, group_sizes.tolist(), strict=True):
+            arr = np.asarray(rels[r], dtype=np.int64)
+            neighbors[pos : pos + n] = arr[:, 0]
+            directions[pos : pos + n] = arr[:, 1]
+            pos += n
+        combined[e] = (np.array(rel_ids_sorted, dtype=np.int64), offsets, neighbors, directions)
+
+    return RelationAdjacency(outgoing=outgoing_frozen, incoming=incoming_frozen, combined=combined)
 
 
 @dataclass(frozen=True)
@@ -192,6 +233,74 @@ def _sample_neighbors_relation_balanced(
     return sampled
 
 
+def _sample_neighbors_relation_balanced_arrays(
+    rel_ids: np.ndarray,
+    offsets: np.ndarray,
+    neighbors: np.ndarray,
+    directions: np.ndarray,
+    fanout: int,
+    rng: np.random.Generator,
+) -> list[tuple[int, int, int]]:
+    """Same relation-balanced policy as ``_sample_neighbors_relation_balanced``
+    (even split across relations present, then round-robin leftover), but
+    operating on the precomputed CSR-style arrays ``RelationAdjacency.combined``
+    stores per entity, instead of a freshly-built dict of Python lists.
+
+    This is the hot path ``_sample_subgraph_impl`` actually calls. Doing one
+    combined ``rng.permutation`` for the whole node (not one per relation)
+    plus vectorized numpy regrouping/selection -- instead of a Python-level
+    loop over every candidate -- is what fixed the severe CPU bottleneck
+    measured in ``ml/experiments/rgcn_sampled_training_profile_e79d3e4.json``
+    (neighbor sampling was ~96% of sampled R-GCN batch time). The random
+    draw pattern differs from the dict-based function above (still
+    deterministic for a fixed seed, still exactly resumable); no test
+    depends on the two implementations producing identical draws.
+    """
+    n_rel = len(rel_ids)
+    if n_rel == 0 or fanout <= 0:
+        return []
+
+    group_sizes = np.diff(offsets)
+    total = int(offsets[-1])
+
+    group_id = np.repeat(np.arange(n_rel), group_sizes)
+    perm = rng.permutation(total)
+    order = np.argsort(group_id[perm], kind="stable")
+    shuffled_idx = perm[order]
+    grouped_neighbors = neighbors[shuffled_idx]
+    grouped_directions = directions[shuffled_idx]
+
+    base_cap = max(1, fanout // n_rel)
+    taken = np.minimum(base_cap, group_sizes)
+    remaining = fanout - int(taken.sum())
+
+    progress = remaining > 0
+    while remaining > 0 and progress:
+        progress = False
+        for i in range(n_rel):
+            if remaining <= 0:
+                break
+            if taken[i] < group_sizes[i]:
+                taken[i] += 1
+                remaining -= 1
+                progress = True
+
+    total_taken = int(taken.sum())
+    if total_taken == 0:
+        return []
+
+    cum_taken_excl = np.concatenate(([0], np.cumsum(taken)[:-1]))
+    within = np.arange(total_taken) - np.repeat(cum_taken_excl, taken)
+    base = np.repeat(offsets[:-1], taken)
+    selected_idx = base + within
+
+    rel_out = np.repeat(rel_ids, taken)
+    neighbor_out = grouped_neighbors[selected_idx]
+    direction_out = grouped_directions[selected_idx]
+
+    return list(zip(rel_out.tolist(), neighbor_out.tolist(), direction_out.tolist(), strict=True))
+
+
 def _sample_subgraph_impl(
     adjacency: RelationAdjacency,
     seed_entities: Sequence[int],
@@ -212,15 +321,11 @@ def _sample_subgraph_impl(
         hop_edges_sampled = 0
 
         for node in frontier:
-            candidates_by_relation: dict[int, list[tuple[int, int]]] = {}
-            for rel, tails in adjacency.outgoing.get(node, {}).items():
-                for t in tails:
-                    candidates_by_relation.setdefault(rel, []).append((t, 1))
-            for rel, heads in adjacency.incoming.get(node, {}).items():
-                for h in heads:
-                    candidates_by_relation.setdefault(rel, []).append((h, 0))
-
-            sampled = _sample_neighbors_relation_balanced(candidates_by_relation, fanout, rng)
+            entry = adjacency.combined.get(node)
+            if entry is None:
+                continue
+            rel_ids, offsets, neighbors, directions = entry
+            sampled = _sample_neighbors_relation_balanced_arrays(rel_ids, offsets, neighbors, directions, fanout, rng)
             for rel, neighbor, direction in sampled:
                 if direction == 1:
                     raw_edges.add((node, rel, neighbor))
