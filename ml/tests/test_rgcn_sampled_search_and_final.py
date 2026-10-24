@@ -269,3 +269,31 @@ def test_resumed_search_matches_an_uninterrupted_one(loaded_export, tmp_path):
     ):
         assert a["name"] == b["name"]
         assert [h["train_loss"] for h in a["history"]] == [h["train_loss"] for h in b["history"]]
+
+
+def test_resume_always_loads_the_checkpoint_onto_cpu_regardless_of_training_device(loaded_export, tmp_path, monkeypatch):
+    # Regression test: a real multi-session Kaggle run hit "RNG state must
+    # be a torch.ByteTensor" because the checkpoint was loaded with
+    # map_location=config.device ("cuda"), which moved the RNG-state
+    # tensors (which torch.Generator.set_state()/torch.set_rng_state()
+    # always require to be CPU ByteTensors) onto the GPU too. The fix:
+    # always load onto CPU; model/optimizer state dicts still load
+    # correctly from there via the ordinary cross-device copy in
+    # load_state_dict.
+    import repurposemap.embeddings.rgcn_sampled_train_gpu as module
+
+    checkpoint_dir = tmp_path / "ckpt"
+    configs = _tiny_search_configs()[:1]
+    run_sampled_validation_search(loaded_export, search_configs=configs, epochs=2, validate_every=1, checkpoint_dir=checkpoint_dir, max_wall_time_s=0)
+
+    seen_map_locations = []
+    original_load_checkpoint = module.load_checkpoint
+
+    def _spy(path, *, map_location=None):
+        seen_map_locations.append(map_location)
+        return original_load_checkpoint(path, map_location=map_location)
+
+    monkeypatch.setattr(module, "load_checkpoint", _spy)
+    run_sampled_validation_search(loaded_export, search_configs=configs, epochs=2, validate_every=1, checkpoint_dir=checkpoint_dir)
+
+    assert seen_map_locations == ["cpu"]

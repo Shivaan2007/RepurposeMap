@@ -564,7 +564,17 @@ def run_sampled_validation_search(
         checkpoint_path = Path(checkpoint_dir) / f"{name}.pt" if checkpoint_dir is not None else None
         resume_from = None
         if checkpoint_path is not None and checkpoint_path.exists():
-            resume_from = load_checkpoint(checkpoint_path, map_location=config.device)
+            # Always load onto CPU, never config.device: the checkpoint's
+            # RNG-state tensors (shuffle_generator_state, torch_cpu_rng_state)
+            # must stay CPU ByteTensors for torch.Generator.set_state()/
+            # torch.set_rng_state() regardless of training device -- using
+            # map_location=config.device moved them to CUDA too, breaking
+            # resume with "RNG state must be a torch.ByteTensor". Loading
+            # the model/optimizer state dicts onto CPU is safe here: both
+            # load_state_dict calls below copy their tensors into the
+            # already-GPU-resident model/optimizer, which handles the
+            # cross-device copy correctly.
+            resume_from = load_checkpoint(checkpoint_path, map_location="cpu")
 
         started = time.monotonic()
         result = train_sampled_gpu(
