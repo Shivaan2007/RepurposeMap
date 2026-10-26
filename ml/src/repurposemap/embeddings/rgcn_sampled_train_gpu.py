@@ -556,10 +556,33 @@ def run_sampled_validation_search(
         for r in runs
     ]
 
+    # max_wall_time_s is a budget for this whole call, not per config:
+    # train_sampled_gpu measures its own budget from its own start, so
+    # passing the full value to every config would let a session that
+    # finishes one config early run the next config for another full budget.
+    call_start = time.monotonic()
+    trained_this_call = False
+
     for name, base_config in search_configs:
         if name in completed_names:
             continue
 
+        remaining_s = None if max_wall_time_s is None else max_wall_time_s - (time.monotonic() - call_start)
+        # The first config trained in a call always gets to finish one epoch
+        # (train_sampled_gpu does), so a zero budget still makes progress.
+        if trained_this_call and remaining_s is not None and remaining_s <= 0:
+            log = {
+                "status": "in_progress",
+                "completed_configs": [r["name"] for r in runs],
+                "current_config": name,
+                "current_epoch": None,
+                "current_config_total_epochs": epochs,
+            }
+            if output_log_path is not None:
+                Path(output_log_path).write_text(json.dumps(log, indent=2, default=str))
+            return log
+
+        trained_this_call = True
         config = replace(base_config, epochs=epochs, validate_every=validate_every)
         checkpoint_path = Path(checkpoint_dir) / f"{name}.pt" if checkpoint_dir is not None else None
         resume_from = None
@@ -582,7 +605,7 @@ def run_sampled_validation_search(
             resume_from=resume_from, entity_index=loaded_export.entity_index,
             indication_relation_idx=loaded_export.indication_relation_idx,
             val_disease_ids=loaded_export.val_disease_ids, val_indications=loaded_export.val_indications,
-            drug_ids=loaded_export.drug_ids, checkpoint_path=checkpoint_path, max_wall_time_s=max_wall_time_s,
+            drug_ids=loaded_export.drug_ids, checkpoint_path=checkpoint_path, max_wall_time_s=remaining_s,
         )
         runtime_s = time.monotonic() - started
 
