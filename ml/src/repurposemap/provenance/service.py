@@ -37,7 +37,39 @@ EXPERIMENTS_DIR = Path(__file__).resolve().parents[3] / "experiments"
 # experiment JSON file's own claims about itself.
 CONFIGURED_CHECKPOINT: str | None = None
 
-_REQUIRED_TOP_LEVEL_FIELDS = ("stage", "purpose", "generated_at", "provenance", "safety_and_protocol")
+_REQUIRED_TOP_LEVEL_FIELDS = ("stage", "purpose", "generated_at", "provenance")
+
+
+def _protocol_flags(payload: dict) -> dict | None:
+    """The record's self-reported protocol flags, or ``None`` if it reports none.
+
+    Current schema: a top-level ``safety_and_protocol`` block.
+
+    Historical schema: the final TransE locked-test record
+    (``transe_stage_d_final_locked_test_c8997e9.json``) predates that block and
+    reports the same two facts under top-level ``final_training`` /
+    ``locked_test_evaluation`` blocks. Those are read only when both explicit
+    booleans are present. Nothing else is inferred from them, and the artifact
+    itself is never rewritten: it is an immutable research record.
+    """
+
+    if "safety_and_protocol" in payload:
+        block = payload["safety_and_protocol"]
+        return block if isinstance(block, dict) else {}
+
+    final_training = payload.get("final_training")
+    locked_test = payload.get("locked_test_evaluation")
+    if (
+        isinstance(final_training, dict)
+        and isinstance(locked_test, dict)
+        and "is_final_training" in final_training
+        and "locked_test_evaluation_performed" in locked_test
+    ):
+        return {
+            "final_training_performed": bool(final_training["is_final_training"]),
+            "locked_test_evaluation_performed": bool(locked_test["locked_test_evaluation_performed"]),
+        }
+    return None
 
 
 def _classify_kind(safety_and_protocol: dict, stage: str | None) -> tuple[ExperimentKind, bool, bool]:
@@ -113,6 +145,9 @@ def _parse_experiment_file(path: Path) -> ModelProvenance:
         )
 
     missing = [field for field in _REQUIRED_TOP_LEVEL_FIELDS if field not in payload]
+    protocol_flags = _protocol_flags(payload)
+    if protocol_flags is None:
+        missing.append("safety_and_protocol")
     if missing:
         return ModelProvenance(
             experiment_file=path.name,
@@ -124,11 +159,7 @@ def _parse_experiment_file(path: Path) -> ModelProvenance:
             parse_errors=[f"missing required field(s): {missing}"],
         )
 
-    safety_and_protocol = payload.get("safety_and_protocol", {})
-    if not isinstance(safety_and_protocol, dict):
-        safety_and_protocol = {}
-
-    kind, is_final_training, locked_test_evaluation_performed = _classify_kind(safety_and_protocol, payload.get("stage"))
+    kind, is_final_training, locked_test_evaluation_performed = _classify_kind(protocol_flags, payload.get("stage"))
 
     return ModelProvenance(
         experiment_file=path.name,

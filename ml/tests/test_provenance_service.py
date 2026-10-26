@@ -37,22 +37,50 @@ def test_validation_search_experiment_is_not_final():
         assert record.locked_test_evaluation_performed is False
 
 
-def test_no_final_training_record_exists_yet():
-    # Final training is currently running on Kaggle; no committed
-    # experiment file may claim to be final training while this is true.
-    assert not any(r.is_final_training for r in REPO_EXPERIMENTS)
+def test_only_the_transe_record_claims_final_training():
+    # TransE final training is done and recorded. R-GCN final training has
+    # not been run, so no R-GCN experiment file may claim it. When a real
+    # R-GCN final-training record is committed, update this list on purpose.
+    finals = sorted(r.experiment_file for r in REPO_EXPERIMENTS if r.is_final_training)
+    assert finals == ["transe_stage_d_final_locked_test_c8997e9.json"]
 
 
-def test_model_eligibility_is_false_without_a_final_training_record():
+def test_historical_transe_final_record_is_read_from_its_own_blocks():
+    # That file predates the safety_and_protocol block; its facts come from
+    # its top-level final_training / locked_test_evaluation blocks.
+    record = next(r for r in REPO_EXPERIMENTS if r.experiment_file == "transe_stage_d_final_locked_test_c8997e9.json")
+    assert record.status == ExperimentStatus.VALID
+    assert record.kind == ExperimentKind.FINAL_TRAINING
+    assert record.is_final_training is True
+    assert record.locked_test_evaluation_performed is True
+
+
+def _legacy_record(**blocks):
+    return {"stage": "s", "purpose": "p", "generated_at": "2026-10-21T00:00:00Z", "provenance": {}, **blocks}
+
+
+def test_legacy_blocks_are_read_only_when_both_explicit_flags_are_present(tmp_path):
+    (tmp_path / "ok.json").write_text(json.dumps(_legacy_record(
+        final_training={"is_final_training": False}, locked_test_evaluation={"locked_test_evaluation_performed": False},
+    )))
+    (tmp_path / "half.json").write_text(json.dumps(_legacy_record(final_training={"is_final_training": True})))
+    (tmp_path / "none.json").write_text(json.dumps(_legacy_record()))
+    by_name = {r.experiment_file: r for r in load_experiments(tmp_path)}
+
+    assert by_name["ok.json"].status == ExperimentStatus.VALID
+    assert by_name["ok.json"].is_final_training is False
+    # One flag is not enough to infer anything: reported as missing, not guessed.
+    assert by_name["half.json"].status == ExperimentStatus.MISSING_REQUIRED_FIELDS
+    assert by_name["none.json"].status == ExperimentStatus.MISSING_REQUIRED_FIELDS
+    assert "safety_and_protocol" in by_name["none.json"].parse_errors[0]
+
+
+def test_transe_final_record_is_eligible_but_not_available():
     eligibility = get_model_eligibility(REPO_EXPERIMENTS)
-    assert eligibility.eligible is False
-    assert eligibility.final_training_experiment_file is None
-
-
-def test_model_eligibility_true_requires_availability_still_false():
-    # A final-training record alone must never be enough to flip
-    # "available" -- that also requires an explicitly configured
-    # checkpoint path, which does not exist yet.
+    assert eligibility.eligible is True
+    assert eligibility.final_training_experiment_file == "transe_stage_d_final_locked_test_c8997e9.json"
+    # Eligible per the record's own claim; "available" still needs an
+    # explicitly configured checkpoint.
     assert is_model_available(REPO_EXPERIMENTS) is False
 
 

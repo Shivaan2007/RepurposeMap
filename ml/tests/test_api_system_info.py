@@ -46,10 +46,10 @@ def test_system_info_provenance_is_present_and_static():
     assert "size_bytes" not in provenance
 
 
-def test_system_info_model_provenance_reflects_no_final_training_yet():
-    # Final training is currently running on Kaggle -- system/info must
-    # keep reporting inference as ineligible until it completes AND a
-    # checkpoint is explicitly configured.
+def test_system_info_keeps_inference_ineligible_without_a_configured_checkpoint():
+    # A final-training experiment record exists (TransE), but no checkpoint is
+    # explicitly configured, so system/info must keep reporting inference as
+    # ineligible and the model as unavailable.
     client = TestClient(app)
     body = client.get("/api/v1/system/info").json()
 
