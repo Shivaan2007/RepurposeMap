@@ -6,11 +6,11 @@ Both scripts need dataverse.harvard.edu, which the cloud sandbox cannot reach (4
 
 `python ml/scripts/fetch_primekg_provenance.py --csv data/raw/primekg/kg.csv`
 
-Writes `ml/experiments/primekg_provenance.json`: every Dataverse version of the dataset, the first one containing `kg.csv` (datafile 6180620), a suggested time-travel cutoff, and whether your local file's MD5 matches Dataverse's.
+Writes `ml/provenance/primekg_provenance.json`: every Dataverse version of the dataset, the first one containing `kg.csv` (datafile 6180620), a suggested time-travel cutoff, and whether your local file's MD5 matches Dataverse's.
 
 Do **not** put the result into `PrimeKGFingerprint.release_version` / `snapshot_build_date`. They are hashed into `export_fingerprint`, so filling them changes it and breaks the match with the TransE locked-test result (`8e41f866…cb1aa`) and the checkpoint eligibility gate. Cite the provenance file next to results instead.
 
-**Result (run 2026-10-26 on the owner's Mac, output in `ml/experiments/primekg_provenance.json`):** the local `kg.csv` has MD5 `aac8191d4fbc5bf09cdf8c3c78b4e75f`, which matches Dataverse's. The same MD5 appears in all three dataset versions (1.0 released 2022-04-25, 2.0 on 2022-04-28, 2.1 on 2022-05-02), so the file has not changed since the first release. **Time-travel cutoff: 2022-04-25T23:45:53Z.** The dataset record was created 2021-07-12, so the graph's content may be older than the cutoff; the cutoff is the release, not a rebuilt past (state this in one sentence in the write-up, as PLAN.md says).
+**Result (run 2026-10-26 on the owner's Mac, output in `ml/provenance/primekg_provenance.json`):** the local `kg.csv` has MD5 `aac8191d4fbc5bf09cdf8c3c78b4e75f`, which matches Dataverse's. The same MD5 appears in all three dataset versions (1.0 released 2022-04-25, 2.0 on 2022-04-28, 2.1 on 2022-05-02), so the file has not changed since the first release. **Time-travel cutoff: 2022-04-25T23:45:53Z.** The dataset record was created 2021-07-12, so the graph's content may be older than the cutoff; the cutoff is the release, not a rebuilt past (state this in one sentence in the write-up, as PLAN.md says). **The build date of the graph itself is still unknown** and is recorded as `null`; no release, create or download date is used in its place.
 
 Background from the README (before the run) (from PrimeKG's README, 2026-10-26, maintainers' claims): first public on Dataverse in April 2022; the Dataverse files "remain unchanged" through the July 2023 rebuild; the README says nothing about whether the Dec 2023 OMIM extension was published there; PrimeKG is now superseded by OptimusKG. The exact release date is not known yet, so the cutoff is still open.
 

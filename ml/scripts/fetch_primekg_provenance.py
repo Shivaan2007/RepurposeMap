@@ -6,7 +6,7 @@ Run this on a machine that can reach dataverse.harvard.edu (the cloud
 sandbox this repo was developed in cannot). It asks the Dataverse API for
 every version of the PrimeKG dataset, finds the version(s) that contain the
 kg.csv file this project uses (datafile 6180620), and writes
-ml/experiments/primekg_provenance.json. With --csv it also compares the
+ml/provenance/primekg_provenance.json. With --csv it also compares the
 local file's MD5 to the one Dataverse reports, which is how you confirm the
 file on disk is that exact release.
 
@@ -14,7 +14,9 @@ Why a separate file and not PrimeKGFingerprint: those fields are hashed into
 export_fingerprint (and from there into the locked-test manifest and the
 checkpoint eligibility gate). Filling them in would change the fingerprint
 and break the match with the existing TransE locked-test result. This file
-sits next to the results instead and is cited with them.
+sits next to the results instead and is cited with them. It lives in
+ml/provenance/, not ml/experiments/: that directory holds experiment records
+and the provenance loader requires every file in it to follow their schema.
 """
 
 from __future__ import annotations
@@ -29,7 +31,7 @@ from pathlib import Path
 DOI = "doi:10.7910/DVN/IXA7BM"
 DATAFILE_ID = 6180620  # the kg.csv PrimeKG's README links to
 VERSIONS_URL = f"https://dataverse.harvard.edu/api/datasets/:persistentId/versions?persistentId={DOI}"
-OUTPUT = Path(__file__).resolve().parents[1] / "experiments" / "primekg_provenance.json"
+OUTPUT = Path(__file__).resolve().parents[1] / "provenance" / "primekg_provenance.json"
 
 # Facts read from PrimeKG's own README (github.com/mims-harvard/PrimeKG) on
 # 2026-10-26. Recorded as claims by the maintainers, not independently checked.
@@ -101,6 +103,13 @@ def main() -> None:
         "dataverse": summary,
     }
     first = summary["first_version_containing_datafile"]
+    record["first_release_date"] = first["release_time"] if first else None
+    # Never filled from a release time, a create time or a download date: none of them says when the graph was built.
+    record["snapshot_build_date"] = None
+    record["snapshot_build_date_note"] = (
+        "UNKNOWN. Dataverse reports when files were released, not when the graph was built. "
+        "Not substituted with the release time, the dataset record's create time, or the local download date."
+    )
     record["suggested_time_travel_cutoff"] = first["release_time"] if first else None
     record["cutoff_note"] = (
         "Dataverse release time of the first version containing this file. The graph has no per-edge dates, "
