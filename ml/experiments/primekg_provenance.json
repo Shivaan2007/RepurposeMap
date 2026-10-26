@@ -1,0 +1,25 @@
+{
+  "dataverse_doi": "doi:10.7910/DVN/IXA7BM",
+  "datafile_id": 6180620,
+  "local_sha256": "0a5a010fcd88dcec572a573d98c26c1c244a11567092b6161d3ded611cfb5c69",
+  "local_retrieved_date": "2026-10-05",
+  "readme_claims": {
+    "first_public_release": "April 2022 (README news: 'PrimeKG is live on bioRxiv and Harvard Dataverse')",
+    "dataverse_files_after_july_2023_rebuild": "unchanged (README: 'the files published on Harvard DataVerse remain unchanged')",
+    "dec_2023_omim_extension_on_dataverse": "not stated in the README",
+    "superseded_by": "OptimusKG (README banner)"
+  },
+  "dataverse": {
+    "versions": [
+      {"version": "2.1", "state": "RELEASED", "release_time": "2022-05-02T18:39:28Z", "create_time": "2022-05-02T18:32:29Z", "contains_datafile": true},
+      {"version": "2.0", "state": "RELEASED", "release_time": "2022-04-28T21:08:01Z", "create_time": "2022-04-28T17:47:11Z", "contains_datafile": true},
+      {"version": "1.0", "state": "RELEASED", "release_time": "2022-04-25T23:45:53Z", "create_time": "2021-07-12T12:27:37Z", "contains_datafile": true}
+    ],
+    "first_version_containing_datafile": {"version": "1.0", "state": "RELEASED", "release_time": "2022-04-25T23:45:53Z", "create_time": "2021-07-12T12:27:37Z", "contains_datafile": true},
+    "datafile_md5_values_seen": ["aac8191d4fbc5bf09cdf8c3c78b4e75f"]
+  },
+  "suggested_time_travel_cutoff": "2022-04-25T23:45:53Z",
+  "cutoff_note": "Dataverse release time of the first version containing this file. The graph has no per-edge dates, so the cutoff is the snapshot's release, not a rebuilt past. The graph's true content date may be earlier, which only makes this cutoff conservative.",
+  "local_md5": "aac8191d4fbc5bf09cdf8c3c78b4e75f",
+  "local_file_matches_dataverse": true
+}
