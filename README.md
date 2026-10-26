@@ -23,14 +23,16 @@ RepurposeMap is **not** a treatment recommendation system. It does not:
 
 ```mermaid
 flowchart LR
-    A[PrimeKG] --> B[Graph ingestion / validation]
-    B --> C[Path baseline / popularity baseline / TransE]
-    C --> D[Disease-based evaluation]
-    D --> E[FastAPI + Pydantic]
-    E --> F[OpenAPI schema]
-    F --> G[Generated TypeScript client]
-    G --> H[Future React research workspace]
+    A[PrimeKG] --> B[Leakage-safe graph and disease-based splits]
+    B --> C[Path / popularity / TransE / R-GCN]
+    C --> D[Ranking]
+    D --> E[Explanation paths]
+    E --> F[Evidence and safety]
+    F --> G[FastAPI + OpenAPI]
+    G --> H[TypeScript client + React research workspace]
 ```
+
+Built today: everything up to the ranking for the path, popularity and TransE models, the typed API, and the React workspace shell. R-GCN training is in progress (see Project status). Explanation paths exist for the path baseline only. Evidence and safety exist as typed contracts, not live lookups.
 
 See [API.md](API.md) for the FastAPI / OpenAPI / TypeScript boundary in detail.
 
@@ -45,7 +47,10 @@ See [API.md](API.md) for the FastAPI / OpenAPI / TypeScript boundary in detail.
 - Leakage-safe, disease-based evaluation harness (split, training-graph construction, leakage checks, metrics)
 - TransE foundation (model, training loop, triples export, CLI commands)
 - TransE Stage D GPU profiling (plumbing/throughput validation on a Kaggle T4; not a trained checkpoint or a benchmark result)
-- R-GCN foundation (model, leakage-safe message-passing construction, training/checkpoint infrastructure, CLI commands, synthetic tests) -- reuses TransE's export package and evaluation harness unchanged; real PrimeKG GPU profiling/search/training/locked-test evaluation not yet performed
+- R-GCN foundation (model, leakage-safe message-passing construction, training/checkpoint infrastructure, CLI commands) -- reuses TransE's export package and evaluation harness unchanged
+- Full-graph R-GCN GPU feasibility experiments on real PrimeKG (gradient checkpointing tried; the per-relation refinement was reverted) -- see `ml/experiments/rgcn_gpu_feasibility_profile_*.json`
+- Sampled R-GCN training: relation-aware neighbor sampler (vectorized), per-batch training, checkpoint/resume across sessions, real-PrimeKG feasibility profile (fanout 15/10, about 4.7 h per epoch projected, no OOM or NaN in a 500-batch run), full-graph no-grad inference profile -- see `ml/experiments/rgcn_sampled_training_profile_*.json` and `rgcn_fullgraph_inference_profile_e79d3e4.json`
+- Sampled R-GCN validation search and final-training code, Kaggle runner with a smoke mode ([ml/RGCN_RUNBOOK.md](ml/RGCN_RUNBOOK.md)), and a frozen evaluation protocol ([ml/RGCN_EVALUATION_PROTOCOL.md](ml/RGCN_EVALUATION_PROTOCOL.md))
 - Typed API foundation (FastAPI + Pydantic, OpenAPI export, generated TypeScript client)
 - Experiment/model provenance layer (`repurposemap.provenance`): reads `ml/experiments/*.json` and reports honest model-eligibility status through `GET /api/v1/system/info`, without loading PrimeKG or a checkpoint
 - React research workspace (`web/app`): disease-query UI over the generated TypeScript client, with system-status, candidate, evidence, explanation-path and safety panels -- shows the honest "no model available" state today, never a fake ranking
@@ -54,9 +59,13 @@ See [API.md](API.md) for the FastAPI / OpenAPI / TypeScript boundary in detail.
 - 3-config TransE validation search (Kaggle, GPU) — see [ml/experiments/transe_stage_d_validation_search_606711d.json](ml/experiments/transe_stage_d_validation_search_606711d.json)
 - Final TransE training (`search-dim128`, 4 epochs, Kaggle GPU) and the exactly-once locked-test evaluation — see "Final TransE result (locked test)" below and [ml/experiments/transe_stage_d_final_locked_test_c8997e9.json](ml/experiments/transe_stage_d_final_locked_test_c8997e9.json)
 
+**In progress / not yet complete**
+
+- R-GCN validation search (3 predeclared configs x 3 epochs, about 43 GPU-hours projected): not run yet; no R-GCN result exists
+- R-GCN final training and the one locked-test evaluation: not done. They follow the frozen protocol, and selection is on validation only; the locked test used above has now been observed once for TransE and must not become a tuning set for this or any future model
+
 **Planned**
 
-- R-GCN (relational GNN), evaluated using the same locked-test discipline (selected on training/validation only — the locked test used above has now been observed once and must not become an iterative tuning set for this or any future model)
 - Real PubMed/ClinicalTrials.gov/DailyMed/openFDA adapters behind the evidence domain foundation above
 
 Do not treat anything in "planned" as complete or benchmarked.
@@ -86,7 +95,7 @@ On a controlled 100-disease, 498-pair benchmark (seed 42), the path baseline sco
 
 Not implemented yet, as of this writing:
 
-- **No trained or evaluated R-GCN.** Its foundation (model, training loop, CLI commands) now exists, implemented and tested only against tiny synthetic data; no real PrimeKG GPU profiling, validation search, final training, or locked-test evaluation has been run yet.
+- **No trained or evaluated R-GCN yet.** The model, the sampled trainer and the Kaggle runner exist and have been profiled on real PrimeKG for feasibility (speed and memory only, not accuracy). The validation search, final training and locked-test evaluation have not been run, so there are no R-GCN performance numbers.
 - No live evidence lookup (PubMed, ClinicalTrials.gov, DailyMed, openFDA) and no real drug safety information -- only the typed domain contracts and adapter interfaces exist (`repurposemap.evidence`).
 - The React frontend (`web/app`) exists and queries the real API, but since no model is available yet it only ever shows the honest unavailable/empty state -- see "Project status" above and [API.md](API.md).
 
@@ -95,7 +104,7 @@ Not implemented yet, as of this writing:
 The split is **by disease**, not by edge: every indication edge of a held-out disease is removed from training in both directions (`drug -> disease` and `disease -> drug`), all at once. See "Why not split by edge" in [ml/README.md](ml/README.md).
 
 - **100 locked test diseases**, holding out **498 indication pairs**, fixed once by `repurposemap.embeddings.export` and recorded in a local-only `locked_test_manifest.json` (never uploaded to Kaggle, never used for tuning).
-- A separate **validation** split (distinct from the locked test) is what the 3-config search used for model selection.
+- A separate **validation** split (distinct from the locked test) is what the TransE 3-config search used for model selection. The R-GCN search, not yet run, uses the same validation split and the same selection rule (see [ml/RGCN_EVALUATION_PROTOCOL.md](ml/RGCN_EVALUATION_PROTOCOL.md)).
 - The locked test is evaluated **exactly once**, after final training — `assert_eligible_for_locked_test_evaluation` refuses the run unless the checkpoint is marked `is_final_training`, the manifest's export fingerprint matches the checkpoint's, and the manifest's recomputed content fingerprint matches what the checkpoint recorded as expected.
 - Locked-test labels are kept out of the Kaggle training environment entirely; only `triples.npz`, `metadata.json` and `validation_indications.json` are uploaded.
 - No test-driven retuning: hyperparameters are chosen on validation metrics, never on the locked test.
