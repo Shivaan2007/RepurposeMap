@@ -16,6 +16,8 @@ Background from the README (before the run) (from PrimeKG's README, 2026-10-26, 
 
 ## 2. TxGNN splits
 
+**Status: draft, never run; frozen for later.** The environment steps in the exporter's docstring are partly unverified (see there). Nothing here shows the output matches TxGNN's published splits.
+
 `python ml/scripts/export_txgnn_splits.py --data-dir ~/txgnn_data --out-dir ml/experiments/txgnn_splits --export-dir ~/rgcn-export`
 
 What the code review found:
