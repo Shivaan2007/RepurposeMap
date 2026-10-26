@@ -98,6 +98,18 @@ def smoke(loaded, work: Path, *, device: str, subset_size: int) -> dict:
     return report
 
 
+def final_status(out: dict, epochs: int) -> str:
+    """The checkpoint is written with is_final_training=True even when training
+    stopped early on the time budget, so it would pass the locked-test
+    eligibility gate. Say loudly when it is not actually finished. Finished means
+    every epoch ran; hitting the budget on the very last epoch is still finished."""
+
+    if out["final_epoch"] + 1 < epochs:
+        return (f"INCOMPLETE: trained through epoch {out['final_epoch']} of {epochs}. "
+                "Rerun this command; do NOT run the locked-test evaluation on this checkpoint yet.")
+    return f"COMPLETE: {epochs} epochs. final_checkpoint.pt is ready for the one locked-test evaluation."
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("mode", choices=["smoke", "search", "final"])
@@ -140,6 +152,8 @@ def main() -> None:
             print(f"selected: {log['selected_name']}")
         return
 
+    if not search_log_path.exists():
+        raise SystemExit(f"no search log at {search_log_path}; run `search` first")
     search_log = json.loads(search_log_path.read_text())
     if search_log.get("status") != "complete":
         raise SystemExit("search is not complete; finish `search` first")
@@ -158,11 +172,8 @@ def main() -> None:
         checkpoint_path=ckpt_path, device=args.device, resume_from=resume, max_wall_time_s=max_wall_s,
     )
     print(f"stopped_for_time_budget: {out.get('stopped_for_time_budget')}")
-    # The checkpoint is written with is_final_training=True even when training
-    # stopped early on the time budget, so it would pass the locked-test
-    # eligibility gate. Say loudly when it is not actually finished.
-    if out.get("stopped_for_time_budget") or out["final_epoch"] + 1 < epochs:
-        print(f"INCOMPLETE: trained through epoch {out['final_epoch']} of {epochs}. "
-              "Rerun this command; do NOT run the locked-test evaluation on this checkpoint yet.")
-    else:
-        print(f"COMPLETE: {epochs} epochs. final_checkpoint.pt is ready for the one locked-test evaluation.")
+    print(final_status(out, epochs))
+
+
+if __name__ == "__main__":
+    main()
