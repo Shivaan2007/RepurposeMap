@@ -1,8 +1,14 @@
 """Dump TxGNN's disease splits as plain (drug_id, disease_id) lists.
 
-    pip install TxGNN dgl torch pandas      # plus PyG for the disease-area splits
-    python ml/scripts/export_txgnn_splits.py --data-dir ~/txgnn_data \\
+    git clone https://github.com/mims-harvard/TxGNN ~/TxGNN
+    PYTHONPATH=~/TxGNN python ml/scripts/export_txgnn_splits.py --data-dir ~/txgnn_data \\
         --out-dir ml/experiments/txgnn_splits [--export-dir ~/rgcn-export]
+
+Do not `pip install TxGNN`: every published version (0.0.1 to 0.0.3) fails to
+build (its sdist is missing requirements.txt / version.py). Clone the repo and
+put it on PYTHONPATH as above. The environment needs pandas<2 (TxGNN calls
+DataFrame.append), plus torch, dgl, scipy, scikit-learn, matplotlib, tqdm,
+requests and goatools; PyG too for the disease-area splits.
 
 TxGNN builds its splits with its own code (TxData.prepare_split) on its own
 copy of PrimeKG (Dataverse datafile 7144484, not the kg.csv this project
