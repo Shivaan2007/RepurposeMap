@@ -4,11 +4,15 @@
     PYTHONPATH=~/TxGNN python ml/scripts/export_txgnn_splits.py --data-dir ~/txgnn_data \\
         --out-dir ml/experiments/txgnn_splits [--export-dir ~/rgcn-export]
 
-Do not `pip install TxGNN`: every published version (0.0.1 to 0.0.3) fails to
-build (its sdist is missing requirements.txt / version.py). Clone the repo and
-put it on PYTHONPATH as above. The environment needs pandas<2 (TxGNN calls
-DataFrame.append), plus torch, dgl, scipy, scikit-learn, matplotlib, tqdm,
-requests and goatools; PyG too for the disease-area splits.
+STATUS: DRAFT, NEVER RUN. Nothing below has been reproduced end to end.
+Verified by reading code / trying it: `pip install TxGNN` fails to build for every
+published version (0.0.1 to 0.0.3; the sdist is missing requirements.txt /
+version.py), and TxGNN's split code calls DataFrame.append (removed in pandas 2).
+UNVERIFIED: that a clone on PYTHONPATH imports at all; which dgl version works
+(TxGNN's README pins dgl 0.5.2, likely unavailable on Apple Silicon); where the
+disease-area splits' disease lists (`disease_files/`) come from; that the output
+matches TxGNN's published splits. Do not rely on it for a comparison until it has
+been run and checked. This is frozen for later, not part of the R-GCN critical path.
 
 TxGNN builds its splits with its own code (TxData.prepare_split) on its own
 copy of PrimeKG (Dataverse datafile 7144484, not the kg.csv this project
