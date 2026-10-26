@@ -58,6 +58,10 @@ class PubMedEvidence(EvidenceRecord):
     pmid: str
     journal: str | None = None
     publication_date: str | None = None
+    publication_types: list[str] = Field(
+        default_factory=list,
+        description="PubMed's own publication-type labels (e.g. 'Clinical Trial'), copied as reported; not interpreted",
+    )
 
 
 class ClinicalTrialEvidence(EvidenceRecord):

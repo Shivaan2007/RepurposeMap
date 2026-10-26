@@ -1,6 +1,7 @@
 """Service interfaces for future evidence/safety adapters.
 
-Nothing in this module performs a network call. Each adapter here is a
+Nothing in this module performs a network call. (The live PubMed adapter
+is in ``pubmed.py``; it implements ``PubMedAdapter`` below.) Each adapter here is a
 ``typing.Protocol`` describing the shape a real PubMed/ClinicalTrials.gov/
 DailyMed/openFDA adapter would implement, plus a ``NotImplementedAdapter``
 base class any concrete first implementation can subclass -- its methods

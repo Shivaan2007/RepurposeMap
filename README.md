@@ -54,7 +54,7 @@ See [API.md](API.md) for the FastAPI / OpenAPI / TypeScript boundary in detail.
 - Typed API foundation (FastAPI + Pydantic, OpenAPI export, generated TypeScript client)
 - Experiment/model provenance layer (`repurposemap.provenance`): reads `ml/experiments/*.json` and reports honest model-eligibility status through `GET /api/v1/system/info`, without loading PrimeKG or a checkpoint
 - React research workspace (`web/app`): disease-query UI over the generated TypeScript client, with system-status, candidate, evidence, explanation-path and safety panels -- shows the honest "no model available" state today, never a fake ranking
-- Evidence and safety domain foundation (`repurposemap.evidence`): typed contracts and adapter interfaces for future PubMed/ClinicalTrials.gov/DailyMed/openFDA lookups; no live adapter yet
+- Evidence and safety domain (`repurposemap.evidence`): typed contracts and adapter interfaces, and a live PubMed adapter (E-utilities esearch/efetch -> typed records with PMID, URL, journal, date, abstract and retrieval time; tested against mocked responses only, never run against the live service from this repo's tests). It returns papers that matched a drug/disease search. It does not classify or rate evidence. ClinicalTrials.gov, DailyMed and openFDA have contracts only
 - `RepurposingHypothesis` domain object (`repurposemap.hypothesis`): shows how model score, explanation paths, evidence and safety will assemble once a real model and real adapters exist
 - 3-config TransE validation search (Kaggle, GPU) — see [ml/experiments/transe_stage_d_validation_search_606711d.json](ml/experiments/transe_stage_d_validation_search_606711d.json)
 - Final TransE training (`search-dim128`, 4 epochs, Kaggle GPU) and the exactly-once locked-test evaluation — see "Final TransE result (locked test)" below and [ml/experiments/transe_stage_d_final_locked_test_c8997e9.json](ml/experiments/transe_stage_d_final_locked_test_c8997e9.json)
@@ -66,7 +66,7 @@ See [API.md](API.md) for the FastAPI / OpenAPI / TypeScript boundary in detail.
 
 **Planned**
 
-- Real PubMed/ClinicalTrials.gov/DailyMed/openFDA adapters behind the evidence domain foundation above
+- Evidence-level labels for PubMed results, and real ClinicalTrials.gov/DailyMed/openFDA adapters behind the evidence domain above
 
 Do not treat anything in "planned" as complete or benchmarked.
 
@@ -96,7 +96,7 @@ On a controlled 100-disease, 498-pair benchmark (seed 42), the path baseline sco
 Not implemented yet, as of this writing:
 
 - **No trained or evaluated R-GCN yet.** The model, the sampled trainer and the Kaggle runner exist and have been profiled on real PrimeKG for feasibility (speed and memory only, not accuracy). The validation search, final training and locked-test evaluation have not been run, so there are no R-GCN performance numbers.
-- No live evidence lookup (PubMed, ClinicalTrials.gov, DailyMed, openFDA) and no real drug safety information -- only the typed domain contracts and adapter interfaces exist (`repurposemap.evidence`).
+- Evidence lookup is partial: a PubMed adapter exists (search results only, no evidence labelling) but is not wired into the API or the UI. There is no ClinicalTrials.gov, DailyMed or openFDA lookup and no real drug safety information -- only typed contracts for those (`repurposemap.evidence`).
 - The React frontend (`web/app`) exists and queries the real API, but since no model is available yet it only ever shows the honest unavailable/empty state -- see "Project status" above and [API.md](API.md).
 
 ## Evaluation protocol
