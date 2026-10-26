@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -82,8 +83,13 @@ def main() -> None:
     parser.add_argument("--output", type=Path, default=OUTPUT)
     args = parser.parse_args()
 
-    with urllib.request.urlopen(VERSIONS_URL, timeout=60) as response:
-        payload = json.load(response)
+    # Dataverse answers 403 to urllib's default "Python-urllib" User-Agent.
+    request = urllib.request.Request(VERSIONS_URL, headers={"User-Agent": "Mozilla/5.0 RepurposeMap-provenance", "Accept": "application/json"})
+    try:
+        with urllib.request.urlopen(request, timeout=60) as response:
+            payload = json.load(response)
+    except urllib.error.HTTPError as error:
+        raise SystemExit(f"Dataverse returned HTTP {error.code}: {error.read()[:500].decode(errors='replace')}")
     summary = summarize_versions(payload)
 
     record = {
