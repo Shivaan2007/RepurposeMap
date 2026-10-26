@@ -1,6 +1,6 @@
 # Sampled R-GCN: evaluation protocol (written before any R-GCN result exists)
 
-**Status: proposed, to be confirmed by the project owner before the search is launched.** Once confirmed and merged, changing it after seeing validation or test numbers is not allowed; a change needs a new dated section and a stated reason.
+**Status: approved and frozen by the project owner (recorded 2026-10-26).** The scientific choices below are not changed after this point. A change needs a new dated section with a stated reason, and only for a bug that makes the protocol impossible to execute.
 
 ## Why this exists
 
