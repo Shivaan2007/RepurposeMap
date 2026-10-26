@@ -221,6 +221,23 @@ def test_search_pauses_mid_config_when_wall_time_budget_is_hit(loaded_export, tm
     assert (checkpoint_dir / f"{log['current_config']}.pt").is_file()
 
 
+def test_wall_time_budget_is_shared_across_configs_within_one_call(loaded_export, tmp_path):
+    configs = _tiny_search_configs()
+
+    # With 1 epoch per config the first config finishes within the call. A
+    # budget of 0 is already spent by then, so the call must stop before
+    # starting the second config rather than give it a fresh full budget.
+    log = run_sampled_validation_search(
+        loaded_export, search_configs=configs, epochs=1, validate_every=1,
+        checkpoint_dir=tmp_path / "ckpt", search_state_path=tmp_path / "state.json", max_wall_time_s=0,
+    )
+
+    assert log["status"] == "in_progress"
+    assert log["completed_configs"] == [configs[0][0]]
+    assert log["current_config"] == configs[1][0]
+    assert not (tmp_path / "ckpt" / f"{configs[1][0]}.pt").exists()
+
+
 def test_search_resumes_from_where_it_paused_and_eventually_completes(loaded_export, tmp_path):
     checkpoint_dir = tmp_path / "ckpt"
     state_path = tmp_path / "state.json"
