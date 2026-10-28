@@ -7,6 +7,11 @@ PubMed, there is no separate search-then-fetch step.
 What a record means: this trial's intervention and condition fields matched
 the search terms. It is not a claim that the drug works for the disease, and
 ``status``/``phase`` are ClinicalTrials.gov's own words, copied as reported.
+``strength`` is set from ``designModule.studyType`` -- ``INTERVENTIONAL``
+maps to ``CONTROLLED_TRIAL``, ``OBSERVATIONAL`` to ``OBSERVATIONAL``, and
+anything else (including a missing field) to ``UNKNOWN``. This is a
+deterministic mapping over ClinicalTrials.gov's own controlled field, never
+an inference from the title or any other free text.
 
 Failures are never turned into an empty result. A network error, a non-200
 reply or an unparseable body raises ``ClinicalTrialsError``, so "the lookup
@@ -30,7 +35,7 @@ from datetime import datetime, timezone
 
 from pydantic import BaseModel, Field, field_validator
 
-from repurposemap.evidence.models import ClinicalTrialEvidence
+from repurposemap.evidence.models import ClinicalTrialEvidence, EvidenceStrength
 
 CLINICALTRIALS_BASE_URL = "https://clinicaltrials.gov/api/v2"
 CLINICALTRIALS_STUDY_URL = "https://clinicaltrials.gov/study/{nct_id}"
@@ -95,6 +100,20 @@ def _first_phase(phases: object) -> str | None:
     return None
 
 
+_STUDY_TYPE_STRENGTH = {
+    "INTERVENTIONAL": EvidenceStrength.CONTROLLED_TRIAL,
+    "OBSERVATIONAL": EvidenceStrength.OBSERVATIONAL,
+}
+
+
+def classify_strength(study_type: object) -> EvidenceStrength:
+    """Map ClinicalTrials.gov's own ``designModule.studyType`` to a coarse
+    ``EvidenceStrength``. Returns ``UNKNOWN`` for a missing or unrecognized
+    value -- never a guess from anything else in the record."""
+
+    return _STUDY_TYPE_STRENGTH.get(study_type, EvidenceStrength.UNKNOWN) if isinstance(study_type, str) else EvidenceStrength.UNKNOWN
+
+
 def parse_studies_json(body: bytes, *, retrieved_at: str) -> tuple[list[ClinicalTrialEvidence], int]:
     """Parse a ``/studies`` response. Deterministic: document order, no network."""
 
@@ -130,6 +149,7 @@ def parse_studies_json(body: bytes, *, retrieved_at: str) -> tuple[list[Clinical
                 retrieved_at=retrieved_at,
                 status=status_module.get("overallStatus"),
                 phase=_first_phase(design_module.get("phases")),
+                strength=classify_strength(design_module.get("studyType")),
             )
         )
 

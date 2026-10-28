@@ -14,12 +14,13 @@ from datetime import datetime, timezone
 import pytest
 from pydantic import ValidationError
 
-from repurposemap.evidence import EvidenceSource
+from repurposemap.evidence import EvidenceSource, EvidenceStrength
 from repurposemap.evidence.clinicaltrials import (
     ClinicalTrialsAdapter,
     ClinicalTrialsParseError,
     ClinicalTrialsQuery,
     ClinicalTrialsRequestError,
+    classify_strength,
     parse_studies_json,
 )
 
@@ -30,12 +31,12 @@ def studies_json(studies, total_count=None):
     return json.dumps({"studies": studies, "totalCount": len(studies) if total_count is None else total_count}).encode()
 
 
-def demo_study(nct_id, *, title="DEMO study of Drug A in Disease B", status="RECRUITING", phases=("PHASE2",)):
+def demo_study(nct_id, *, title="DEMO study of Drug A in Disease B", status="RECRUITING", phases=("PHASE2",), study_type="INTERVENTIONAL"):
     return {
         "protocolSection": {
             "identificationModule": {"nctId": nct_id, "briefTitle": title},
             "statusModule": {"overallStatus": status},
-            "designModule": {"phases": list(phases) if phases is not None else None},
+            "designModule": {"phases": list(phases) if phases is not None else None, "studyType": study_type},
         }
     }
 
@@ -63,18 +64,37 @@ def test_query_rejects_empty_names_and_out_of_range_limits(kwargs):
 
 
 def test_parse_studies_extracts_metadata_and_provenance():
-    body = studies_json([demo_study("NCT90000002"), demo_study("NCT90000001", status="COMPLETED", phases=("PHASE1", "PHASE2"))])
+    body = studies_json([
+        demo_study("NCT90000002"),
+        demo_study("NCT90000001", status="COMPLETED", phases=("PHASE1", "PHASE2"), study_type="OBSERVATIONAL"),
+    ])
     records, total_count = parse_studies_json(body, retrieved_at=RETRIEVED)
     assert [r.nct_id for r in records] == ["NCT90000002", "NCT90000001"]  # document order preserved
     first, second = records
     assert first.title == "DEMO study of Drug A in Disease B"
     assert first.status == "RECRUITING"
     assert first.phase == "PHASE2"
+    assert first.strength == EvidenceStrength.CONTROLLED_TRIAL  # INTERVENTIONAL
     assert first.url == "https://clinicaltrials.gov/study/NCT90000002"
     assert first.source == EvidenceSource.CLINICAL_TRIALS and first.source_id == "NCT90000002"
     assert first.retrieved_at == RETRIEVED
     assert second.status == "COMPLETED" and second.phase == "PHASE1"  # first of several phases, as reported
+    assert second.strength == EvidenceStrength.OBSERVATIONAL
     assert total_count == 2
+
+
+@pytest.mark.parametrize(
+    "study_type,expected",
+    [
+        ("INTERVENTIONAL", EvidenceStrength.CONTROLLED_TRIAL),
+        ("OBSERVATIONAL", EvidenceStrength.OBSERVATIONAL),
+        ("EXPANDED_ACCESS", EvidenceStrength.UNKNOWN),  # a real ClinicalTrials.gov value, just not one this maps
+        (None, EvidenceStrength.UNKNOWN),
+        (42, EvidenceStrength.UNKNOWN),  # never a guess from a malformed field
+    ],
+)
+def test_classify_strength_maps_clinicaltrials_govs_own_field(study_type, expected):
+    assert classify_strength(study_type) == expected
 
 
 def test_parse_studies_skips_records_without_an_nct_id_or_title():
