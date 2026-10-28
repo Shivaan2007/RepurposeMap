@@ -1,12 +1,14 @@
 """Service interfaces for future evidence/safety adapters.
 
-Nothing in this module performs a network call. (The live PubMed adapter
-is in ``pubmed.py``; it implements ``PubMedAdapter`` below.) Each adapter here is a
-``typing.Protocol`` describing the shape a real PubMed/ClinicalTrials.gov/
-DailyMed/openFDA adapter would implement, plus a ``NotImplementedAdapter``
-base class any concrete first implementation can subclass -- its methods
-raise ``NotImplementedError`` rather than returning fabricated data, so a
-caller can never mistake "not built yet" for "queried and found nothing".
+Nothing in this module performs a network call. (The live PubMed adapter is
+in ``pubmed.py`` and the live ClinicalTrials.gov adapter is in
+``clinicaltrials.py``; each implements the matching protocol below.) Each
+adapter here is a ``typing.Protocol`` describing the shape a real PubMed/
+ClinicalTrials.gov/DailyMed/openFDA adapter would implement, plus a
+``NotImplementedAdapter`` base class any concrete first implementation can
+subclass -- its methods raise ``NotImplementedError`` rather than returning
+fabricated data, so a caller can never mistake "not built yet" for "queried
+and found nothing".
 
 Building a real adapter later means implementing one of these protocols
 against the named API and returning ``EvidenceBundle``-shaped results --
