@@ -7,6 +7,8 @@
 import type { components } from "./types.js";
 
 type DiseaseQuery = components["schemas"]["DiseaseQuery"];
+type EvidenceLookupResponse = components["schemas"]["EvidenceLookupResponse"];
+type EvidenceQuery = components["schemas"]["EvidenceQuery"];
 type HealthResponse = components["schemas"]["HealthResponse"];
 type RankingResponse = components["schemas"]["RankingResponse"];
 type SystemInfoResponse = components["schemas"]["SystemInfoResponse"];
@@ -64,6 +66,20 @@ export class RepurposeMapClient {
    */
   rankCandidates(query: DiseaseQuery): Promise<RankingResponse> {
     return this.request<RankingResponse>("/api/v1/rank", {
+      method: "POST",
+      body: JSON.stringify(query),
+    });
+  }
+
+  /**
+   * A real, synchronous lookup across PubMed, ClinicalTrials.gov, openFDA
+   * and DailyMed for one drug/disease pair. Always returns 200 -- a
+   * source that failed is reported in `source_status` with its error,
+   * not folded into an empty-but-successful result. See the server-side
+   * router's docstring for why this is synchronous for now.
+   */
+  lookupEvidence(query: EvidenceQuery): Promise<EvidenceLookupResponse> {
+    return this.request<EvidenceLookupResponse>("/api/v1/evidence", {
       method: "POST",
       body: JSON.stringify(query),
     });

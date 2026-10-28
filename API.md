@@ -8,10 +8,12 @@ Python research engine -> FastAPI + Pydantic -> OpenAPI
     -> generated TypeScript client -> future React research workspace
 ```
 
-Two real endpoints exist today (`/health`, `/api/v1/system/info`), plus a
-stubbed `POST /api/v1/rank` that always reports `model_status:
-"not_available"`. There is no trained model wired in yet -- see "Plugging
-in a real model" below.
+Three real endpoints exist today (`/health`, `/api/v1/system/info`,
+`POST /api/v1/evidence`), plus a stubbed `POST /api/v1/rank` that always
+reports `model_status: "not_available"`. There is no trained model wired
+in yet -- see "Plugging in a real model" below. `/api/v1/evidence` is
+real but synchronous -- see "Evidence/safety domain" below for what that
+means and why.
 
 ## Running the API locally
 
@@ -89,14 +91,33 @@ API types. Regenerate `web/client/src/types.ts` first if you've changed
 `schemas.py` -- the workspace picks up the new types on its next
 `npm install`/build without any changes of its own.
 
-## Evidence/safety domain foundation (not wired into the API yet)
+## Evidence/safety domain
 
 `repurposemap.evidence` defines typed contracts (`EvidenceSource`,
 `EvidenceRecord`, `PubMedEvidence`, `ClinicalTrialEvidence`,
-`SafetyEvidence`, `EvidenceBundle`) and `Protocol`-based adapter
-interfaces for PubMed, ClinicalTrials.gov, DailyMed and openFDA. No
-adapter performs a live query yet -- `NotImplementedAdapter.search()`
-raises rather than returning an empty or fabricated result.
+`SafetyEvidence`, `EvidenceBundle`) and live adapters for all four named
+sources: PubMed, ClinicalTrials.gov, openFDA and DailyMed. Each adapter
+raises its own typed error on a real failure rather than returning an
+empty or fabricated result; none classifies or rates evidence beyond a
+coarse, deterministic `strength` derived only from the source's own
+controlled vocabulary (PubMed's publication types, ClinicalTrials.gov's
+`studyType`) -- never from free text.
+
+`POST /api/v1/evidence` wires all four into one request:
+`{"drug_name": ..., "disease_name": ..., "max_results": 5}` returns an
+`EvidenceBundle` plus a `source_status` list saying whether each of the
+four sources succeeded, with its error if not -- a failure in one source
+never drops the other three's results, and is never silently reported as
+"zero matches". **This call is synchronous**: all four external APIs are
+queried in-process on the request thread, so a slow or rate-limited
+source adds directly to response latency. `PLAN.md`'s tech stack calls
+for this to move into a background job (RQ + Redis) once that
+infrastructure exists in this repo -- it does not yet, so this is a
+deliberate stepping stone, not the final design. The frontend's
+`EvidencePanel` (`web/app/src/components/EvidencePanel.tsx`) is a thin,
+synchronous caller of the same endpoint.
+
 `repurposemap.hypothesis.RepurposingHypothesis` shows how a model score,
 explanation paths, an evidence bundle, safety flags and provenance will
-assemble into one researcher-facing object once both exist.
+assemble into one researcher-facing object once a real ranking model
+exists; `/api/v1/evidence` is not yet called from the ranking path.

@@ -213,6 +213,82 @@ dd.unavailable {
   color: #b23a2e;
 }
 
+.evidence-panel {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1rem 1.25rem;
+  margin-top: 1.5rem;
+}
+
+.evidence-panel h2 {
+  margin: 0 0 0.25rem;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.evidence-form {
+  margin: 1rem 0;
+}
+
+.evidence-inputs {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.evidence-inputs > div {
+  flex: 1;
+  min-width: 200px;
+}
+
+.evidence-inputs label {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--muted);
+  margin-bottom: 0.4rem;
+}
+
+.evidence-inputs input {
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--fg);
+  font-size: 1rem;
+}
+
+.source-status-row {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+
+.source-status-chip {
+  font-size: 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.1rem 0.6rem;
+}
+
+.source-status-chip.ok {
+  color: var(--ok);
+}
+
+.source-status-chip.unavailable {
+  color: var(--warn);
+}
+
+.disclaimer {
+  margin-top: 1rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
 .page-footer {
   margin-top: 2.5rem;
   border-top: 1px solid var(--border);

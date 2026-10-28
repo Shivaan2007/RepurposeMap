@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 
+from repurposemap.api.evidence import router as evidence_router
 from repurposemap.api.health import router as health_router
 from repurposemap.api.ranking import router as ranking_router
 from repurposemap.api.system_info import router as system_info_router
@@ -31,6 +32,7 @@ def create_app() -> FastAPI:
     app.include_router(health_router)
     app.include_router(system_info_router)
     app.include_router(ranking_router)
+    app.include_router(evidence_router)
     return app
 
 

@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/api/v1/evidence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Lookup Evidence */
+        post: operations["lookup_evidence_api_v1_evidence_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/rank": {
         parameters: {
             query?: never;
@@ -94,6 +111,32 @@ export interface components {
             /** Value */
             value: number;
         };
+        /** ClinicalTrialEvidence */
+        ClinicalTrialEvidence: {
+            /** Nct Id */
+            nct_id: string;
+            /** Phase */
+            phase?: string | null;
+            /** Retrieved At */
+            retrieved_at?: string | null;
+            /** @default clinical_trials */
+            source: components["schemas"]["EvidenceSource"];
+            /**
+             * Source Id
+             * @description the source's own identifier, e.g. a PMID or NCT number -- never fabricated
+             */
+            source_id: string;
+            /** Status */
+            status?: string | null;
+            /** @default unknown */
+            strength: components["schemas"]["EvidenceStrength"];
+            /** Summary */
+            summary?: string | null;
+            /** Title */
+            title: string;
+            /** Url */
+            url?: string | null;
+        };
         /**
          * DiseaseQuery
          * @description A request to rank candidate drugs for one disease. Exactly one of
@@ -112,6 +155,71 @@ export interface components {
              */
             top_k: number;
         };
+        /**
+         * EvidenceBundle
+         * @description All evidence gathered so far for one candidate drug/disease pair.
+         *     Every list defaults empty -- an empty bundle means "no lookups have
+         *     been run yet", never "no evidence exists".
+         */
+        EvidenceBundle: {
+            /** Clinical Trials */
+            clinical_trials?: components["schemas"]["ClinicalTrialEvidence"][];
+            /** Generated At */
+            generated_at?: string | null;
+            /** Pubmed */
+            pubmed?: components["schemas"]["PubMedEvidence"][];
+            /** Safety */
+            safety?: components["schemas"]["SafetyEvidence"][];
+        };
+        /**
+         * EvidenceLookupResponse
+         * @description What ``POST /api/v1/evidence`` returns: one live, synchronous lookup
+         *     across PubMed, ClinicalTrials.gov, openFDA and DailyMed (see that
+         *     router's docstring for why this is synchronous for now). ``bundle`` is
+         *     the same ``EvidenceBundle`` the evidence domain already defines --
+         *     presence of a record here is not a claim of efficacy or safety.
+         */
+        EvidenceLookupResponse: {
+            bundle: components["schemas"]["EvidenceBundle"];
+            /**
+             * Disclaimer
+             * @default Research evidence lookup. Presence of a record is not proof of efficacy or safety.
+             */
+            disclaimer: string;
+            query: components["schemas"]["EvidenceQuery"];
+            /** Source Status */
+            source_status: components["schemas"]["SourceLookupStatus"][];
+        };
+        /**
+         * EvidenceQuery
+         * @description A request to look up real external evidence for one drug/disease pair.
+         */
+        EvidenceQuery: {
+            /** Disease Name */
+            disease_name: string;
+            /** Drug Name */
+            drug_name: string;
+            /**
+             * Max Results
+             * @description per source, not a total
+             * @default 5
+             */
+            max_results: number;
+        };
+        /**
+         * EvidenceSource
+         * @description Where a piece of evidence would come from. Matches the sources
+         *     named in the project README's "Planned" section.
+         * @enum {string}
+         */
+        EvidenceSource: "pubmed" | "clinical_trials" | "dailymed" | "openfda";
+        /**
+         * EvidenceStrength
+         * @description A coarse, non-clinical categorization of evidence type -- never a
+         *     claim about whether the evidence shows efficacy.
+         * @enum {string}
+         */
+        EvidenceStrength: "unknown" | "case_report" | "observational" | "controlled_trial" | "systematic_review";
         /**
          * EvidenceSummary
          * @description One piece of graph evidence linking a candidate drug toward a
@@ -234,6 +342,37 @@ export interface components {
             /** Version */
             version?: string | null;
         };
+        /** PubMedEvidence */
+        PubMedEvidence: {
+            /** Journal */
+            journal?: string | null;
+            /** Pmid */
+            pmid: string;
+            /** Publication Date */
+            publication_date?: string | null;
+            /**
+             * Publication Types
+             * @description PubMed's own publication-type labels (e.g. 'Clinical Trial'), copied as reported; not interpreted
+             */
+            publication_types?: string[];
+            /** Retrieved At */
+            retrieved_at?: string | null;
+            /** @default pubmed */
+            source: components["schemas"]["EvidenceSource"];
+            /**
+             * Source Id
+             * @description the source's own identifier, e.g. a PMID or NCT number -- never fabricated
+             */
+            source_id: string;
+            /** @default unknown */
+            strength: components["schemas"]["EvidenceStrength"];
+            /** Summary */
+            summary?: string | null;
+            /** Title */
+            title: string;
+            /** Url */
+            url?: string | null;
+        };
         /**
          * RankingResponse
          * @description The future candidate-ranking response shape. ``model_status`` must
@@ -257,6 +396,24 @@ export interface components {
             provenance?: components["schemas"]["Provenance"] | null;
         };
         /**
+         * SafetyEvidence
+         * @description One raw safety signal from DailyMed/openFDA, before it is
+         *     distilled into an API-facing ``repurposemap.api.schemas.SafetyFlag``.
+         *     Never a dosing recommendation or clinical judgment -- a pointer to a
+         *     real external record only.
+         */
+        SafetyEvidence: {
+            /** Description */
+            description: string;
+            /** Retrieved At */
+            retrieved_at?: string | null;
+            source: components["schemas"]["EvidenceSource"];
+            /** Source Id */
+            source_id: string;
+            /** Url */
+            url?: string | null;
+        };
+        /**
          * SafetyFlag
          * @description A caution attached to a candidate -- e.g. a known contraindication
          *     or interaction. Structural placeholder: no safety-data source is wired
@@ -272,6 +429,24 @@ export interface components {
              * @enum {string}
              */
             severity: "info" | "caution" | "exclude";
+        };
+        /**
+         * SourceLookupStatus
+         * @description Whether one of the four evidence/safety sources answered this
+         *     request. A source that failed is reported here with its error, never
+         *     silently folded into an empty-but-successful result -- see
+         *     ``repurposemap.evidence``'s own "never swallowed into an empty result"
+         *     rule, which this endpoint preserves rather than hides from the caller.
+         */
+        SourceLookupStatus: {
+            /**
+             * Error
+             * @description set only when succeeded is False
+             */
+            error?: string | null;
+            source: components["schemas"]["EvidenceSource"];
+            /** Succeeded */
+            succeeded: boolean;
         };
         /**
          * SystemInfoResponse
@@ -308,6 +483,39 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    lookup_evidence_api_v1_evidence_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EvidenceQuery"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceLookupResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     rank_candidates_api_v1_rank_post: {
         parameters: {
             query?: never;

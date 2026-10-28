@@ -3,6 +3,7 @@ import type { components } from "@repurposemap/api-client";
 
 import { apiClient } from "./api.js";
 import { CandidateList } from "./components/CandidateList.js";
+import { EvidencePanel } from "./components/EvidencePanel.js";
 import { QueryForm } from "./components/QueryForm.js";
 import { StatusPanel } from "./components/StatusPanel.js";
 
@@ -56,6 +57,8 @@ export function App() {
         {queryState.phase === "error" && <p className="error">{queryState.message}</p>}
         {queryState.phase === "done" && <CandidateList result={queryState.result} />}
       </section>
+
+      <EvidencePanel />
 
       <footer className="page-footer">
         <p>Research hypothesis ranking. Not a treatment recommendation. Every output requires expert review.</p>

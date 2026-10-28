@@ -20,6 +20,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from repurposemap.evidence import EvidenceBundle, EvidenceSource
+
 # --------------------------------------------------------------------------
 # Live today: /health, /api/v1/system/info
 # --------------------------------------------------------------------------
@@ -164,3 +166,41 @@ class RankingResponse(BaseModel):
     model_status: Literal["not_available", "ready"]
     provenance: Provenance | None = None
     disclaimer: str = "Research hypothesis ranking. Not a treatment recommendation."
+
+
+# --------------------------------------------------------------------------
+# Live today: /api/v1/evidence
+# --------------------------------------------------------------------------
+
+
+class EvidenceQuery(BaseModel):
+    """A request to look up real external evidence for one drug/disease pair."""
+
+    drug_name: str
+    disease_name: str
+    max_results: int = Field(default=5, ge=1, le=20, description="per source, not a total")
+
+
+class SourceLookupStatus(BaseModel):
+    """Whether one of the four evidence/safety sources answered this
+    request. A source that failed is reported here with its error, never
+    silently folded into an empty-but-successful result -- see
+    ``repurposemap.evidence``'s own "never swallowed into an empty result"
+    rule, which this endpoint preserves rather than hides from the caller."""
+
+    source: EvidenceSource
+    succeeded: bool
+    error: str | None = Field(default=None, description="set only when succeeded is False")
+
+
+class EvidenceLookupResponse(BaseModel):
+    """What ``POST /api/v1/evidence`` returns: one live, synchronous lookup
+    across PubMed, ClinicalTrials.gov, openFDA and DailyMed (see that
+    router's docstring for why this is synchronous for now). ``bundle`` is
+    the same ``EvidenceBundle`` the evidence domain already defines --
+    presence of a record here is not a claim of efficacy or safety."""
+
+    query: EvidenceQuery
+    bundle: EvidenceBundle
+    source_status: list[SourceLookupStatus]
+    disclaimer: str = "Research evidence lookup. Presence of a record is not proof of efficacy or safety."
