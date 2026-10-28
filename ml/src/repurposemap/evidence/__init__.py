@@ -1,7 +1,8 @@
-"""Evidence/safety domain: typed contracts and service interfaces, plus three
+"""Evidence/safety domain: typed contracts and service interfaces, plus four
 live adapters -- PubMed (``pubmed.py``), ClinicalTrials.gov
-(``clinicaltrials.py``) and openFDA (``openfda.py``). DailyMed has contracts
-only, no live adapter yet; see ``adapters.py``'s docstring."""
+(``clinicaltrials.py``), openFDA (``openfda.py``) and DailyMed
+(``dailymed.py``). See ``adapters.py``'s docstring for the shared adapter
+protocols."""
 
 from __future__ import annotations
 
@@ -11,6 +12,12 @@ from repurposemap.evidence.clinicaltrials import (
     ClinicalTrialsError,
     ClinicalTrialsQuery,
     ClinicalTrialsSearchResult,
+)
+from repurposemap.evidence.dailymed import (
+    DailyMedAdapter,
+    DailyMedError,
+    DailyMedQuery,
+    DailyMedSearchResult,
 )
 from repurposemap.evidence.openfda import (
     DrugLabelQuery,
@@ -36,6 +43,10 @@ __all__ = [
     "ClinicalTrialsError",
     "ClinicalTrialsQuery",
     "ClinicalTrialsSearchResult",
+    "DailyMedAdapter",
+    "DailyMedError",
+    "DailyMedQuery",
+    "DailyMedSearchResult",
     "DrugLabelQuery",
     "DrugLabelSearchResult",
     "EvidenceBundle",

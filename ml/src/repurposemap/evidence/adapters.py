@@ -2,13 +2,16 @@
 
 Nothing in this module performs a network call. (The live PubMed adapter is
 in ``pubmed.py``, the live ClinicalTrials.gov adapter is in
-``clinicaltrials.py``, and the live openFDA adapter is in ``openfda.py``;
-each implements the matching protocol below.) Each adapter here is a
-``typing.Protocol`` describing the shape a real PubMed/ClinicalTrials.gov/
-DailyMed/openFDA adapter would implement, plus a ``NotImplementedAdapter``
-base class any concrete first implementation can subclass -- its methods
-raise ``NotImplementedError`` rather than returning fabricated data, so a
-caller can never mistake "not built yet" for "queried and found nothing".
+``clinicaltrials.py``, the live openFDA adapter is in ``openfda.py``, and
+the live DailyMed adapter is in ``dailymed.py``; each implements the
+matching protocol below -- ``SafetyAdapter`` has two concrete
+implementations, since openFDA and DailyMed both describe drug labels.)
+Each adapter here is a ``typing.Protocol`` describing the shape a real
+PubMed/ClinicalTrials.gov/DailyMed/openFDA adapter would implement, plus a
+``NotImplementedAdapter`` base class any concrete first implementation can
+subclass -- its methods raise ``NotImplementedError`` rather than returning
+fabricated data, so a caller can never mistake "not built yet" for "queried
+and found nothing".
 
 Building a real adapter later means implementing one of these protocols
 against the named API and returning ``EvidenceBundle``-shaped results --
