@@ -54,7 +54,7 @@ See [API.md](API.md) for the FastAPI / OpenAPI / TypeScript boundary in detail.
 - Typed API foundation (FastAPI + Pydantic, OpenAPI export, generated TypeScript client)
 - Experiment/model provenance layer (`repurposemap.provenance`): reads `ml/experiments/*.json` and reports honest model-eligibility status through `GET /api/v1/system/info`, without loading PrimeKG or a checkpoint
 - React research workspace (`web/app`): disease-query UI over the generated TypeScript client, with system-status, candidate, evidence, explanation-path and safety panels -- shows the honest "no model available" state today, never a fake ranking
-- Evidence and safety domain (`repurposemap.evidence`): typed contracts and adapter interfaces, plus two live adapters -- PubMed (E-utilities esearch/efetch -> typed records with PMID, URL, journal, date, abstract and retrieval time) and ClinicalTrials.gov (API v2 `/studies` -> typed records with NCT ID, URL, status and phase). Both are tested against mocked responses only, never run against the live service from this repo's tests. Each returns records that matched a drug/disease search; neither classifies or rates evidence. DailyMed and openFDA have contracts only
+- Evidence and safety domain (`repurposemap.evidence`): typed contracts and adapter interfaces, plus three live adapters -- PubMed (E-utilities esearch/efetch -> typed records with PMID, URL, journal, date, abstract and retrieval time), ClinicalTrials.gov (API v2 `/studies` -> typed records with NCT ID, URL, status and phase), and openFDA (Drug Label API -> typed safety records with the label's boxed-warning/contraindication/warnings text and a DailyMed cross-reference URL). All three are tested against mocked responses only, never run against the live service from this repo's tests. Each returns records that matched a drug/disease search; none classifies or rates evidence. DailyMed has contracts only
 - `RepurposingHypothesis` domain object (`repurposemap.hypothesis`): shows how model score, explanation paths, evidence and safety will assemble once a real model and real adapters exist
 - 3-config TransE validation search (Kaggle, GPU) — see [ml/experiments/transe_stage_d_validation_search_606711d.json](ml/experiments/transe_stage_d_validation_search_606711d.json)
 - Final TransE training (`search-dim128`, 4 epochs, Kaggle GPU) and the exactly-once locked-test evaluation — see "Final TransE result (locked test)" below and [ml/experiments/transe_stage_d_final_locked_test_c8997e9.json](ml/experiments/transe_stage_d_final_locked_test_c8997e9.json)
@@ -66,7 +66,7 @@ See [API.md](API.md) for the FastAPI / OpenAPI / TypeScript boundary in detail.
 
 **Planned**
 
-- Evidence-level labels for PubMed and ClinicalTrials.gov results, and real DailyMed/openFDA adapters behind the evidence domain above
+- Evidence-level labels for PubMed and ClinicalTrials.gov results, and a real DailyMed adapter behind the evidence domain above
 
 Do not treat anything in "planned" as complete or benchmarked.
 
