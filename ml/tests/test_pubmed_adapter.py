@@ -20,6 +20,7 @@ from repurposemap.evidence.pubmed import (
     PubMedParseError,
     PubMedQuery,
     PubMedRequestError,
+    classify_strength,
     parse_efetch_xml,
     parse_esearch_json,
 )
@@ -109,8 +110,32 @@ def test_parse_efetch_extracts_metadata_abstract_and_provenance():
     assert second.publication_date == "2019 Dec-2020 Jan"
 
 
-def test_records_carry_no_evidence_label():
-    assert all(r.strength == EvidenceStrength.UNKNOWN for r in parse_efetch_xml(EFETCH_XML, retrieved_at=RETRIEVED))
+def test_records_carry_a_strength_derived_only_from_publication_type():
+    first, second = parse_efetch_xml(EFETCH_XML, retrieved_at=RETRIEVED)
+    assert first.strength == EvidenceStrength.CASE_REPORT  # has "Case Reports" in its publication types
+    assert second.strength == EvidenceStrength.UNKNOWN  # no PublicationTypeList at all
+
+
+@pytest.mark.parametrize(
+    "publication_types,expected",
+    [
+        ([], EvidenceStrength.UNKNOWN),
+        (["Journal Article"], EvidenceStrength.UNKNOWN),
+        (["Case Reports"], EvidenceStrength.CASE_REPORT),
+        (["Observational Study"], EvidenceStrength.OBSERVATIONAL),
+        (["Clinical Trial"], EvidenceStrength.CONTROLLED_TRIAL),
+        (["Randomized Controlled Trial"], EvidenceStrength.CONTROLLED_TRIAL),
+        (["Clinical Trial, Phase III"], EvidenceStrength.CONTROLLED_TRIAL),
+        (["Systematic Review"], EvidenceStrength.SYSTEMATIC_REVIEW),
+        (["Meta-Analysis"], EvidenceStrength.SYSTEMATIC_REVIEW),
+        (["case reports"], EvidenceStrength.CASE_REPORT),  # case-insensitive
+        (["Journal Article", "Case Reports"], EvidenceStrength.CASE_REPORT),  # unrecognized type alongside a real one
+        (["Case Reports", "Randomized Controlled Trial"], EvidenceStrength.CONTROLLED_TRIAL),  # strongest wins, listed order ignored
+        (["Randomized Controlled Trial", "Systematic Review"], EvidenceStrength.SYSTEMATIC_REVIEW),
+    ],
+)
+def test_classify_strength_maps_pubmeds_own_vocabulary(publication_types, expected):
+    assert classify_strength(publication_types) == expected
 
 
 def test_parse_efetch_is_deterministic():

@@ -5,10 +5,12 @@ becomes a typed ``PubMedEvidence`` that keeps its PMID, URL and the time it
 was retrieved.
 
 What a record means: this paper matched the search terms. It is not a claim
-that the drug works for the disease, and it carries no evidence label
-(``strength`` stays ``UNKNOWN``, ``publication_types`` are PubMed's own words,
-copied as reported). Classifying evidence is a separate step that does not
-exist yet.
+that the drug works for the disease. ``publication_types`` are PubMed's own
+words, copied as reported; ``strength`` is a coarse ``EvidenceStrength``
+derived from them by ``classify_strength`` below -- a deterministic mapping
+over PubMed's own controlled vocabulary, never an inference from the title
+or abstract text. A paper with no recognized publication type, or none at
+all, gets ``UNKNOWN``, never a guessed label.
 
 Failures are never turned into an empty result. A network error, a non-200
 reply, an NCBI error message or an unparseable body raises ``PubMedError``,
@@ -141,6 +143,38 @@ def _abstract(article: ET.Element) -> str | None:
     return "\n".join(sections) or None
 
 
+# PubMed's own MeSH publication-type strings, matched case-insensitively.
+# Checked strongest first: a paper tagged with more than one type (common --
+# e.g. "Randomized Controlled Trial" and "Multicenter Study" together) is
+# classified by the strongest one present, not the first one PubMed listed.
+_SYSTEMATIC_REVIEW_TYPES = {"systematic review", "meta-analysis"}
+_CONTROLLED_TRIAL_TYPES = {
+    "randomized controlled trial", "controlled clinical trial", "clinical trial",
+    "clinical trial, phase i", "clinical trial, phase ii", "clinical trial, phase iii", "clinical trial, phase iv",
+    "pragmatic clinical trial", "adaptive clinical trial", "equivalence trial",
+}
+_OBSERVATIONAL_TYPES = {"observational study", "comparative study", "multicenter study", "clinical study"}
+_CASE_REPORT_TYPES = {"case reports"}
+
+
+def classify_strength(publication_types: list[str]) -> EvidenceStrength:
+    """Map PubMed's own publication-type labels to a coarse
+    ``EvidenceStrength``, strongest type present wins. Returns ``UNKNOWN``
+    for an empty list or a type this mapping does not recognize -- never a
+    guess from the title, abstract, or anything PubMed did not itself say."""
+
+    lowered = {t.lower() for t in publication_types}
+    if lowered & _SYSTEMATIC_REVIEW_TYPES:
+        return EvidenceStrength.SYSTEMATIC_REVIEW
+    if lowered & _CONTROLLED_TRIAL_TYPES:
+        return EvidenceStrength.CONTROLLED_TRIAL
+    if lowered & _OBSERVATIONAL_TYPES:
+        return EvidenceStrength.OBSERVATIONAL
+    if lowered & _CASE_REPORT_TYPES:
+        return EvidenceStrength.CASE_REPORT
+    return EvidenceStrength.UNKNOWN
+
+
 def parse_efetch_xml(xml_bytes: bytes, *, retrieved_at: str) -> list[PubMedEvidence]:
     """Parse an efetch ``PubmedArticleSet``. Deterministic: document order, no network."""
 
@@ -158,6 +192,7 @@ def parse_efetch_xml(xml_bytes: bytes, *, retrieved_at: str) -> list[PubMedEvide
         title = _text(article.find("ArticleTitle")) if article is not None else None
         if not pmid or article is None or not title:
             continue  # without a PMID and a title there is nothing to cite
+        publication_types = [t for t in (_text(n) for n in article.findall("PublicationTypeList/PublicationType")) if t]
         records.append(
             PubMedEvidence(
                 source_id=pmid,
@@ -165,11 +200,11 @@ def parse_efetch_xml(xml_bytes: bytes, *, retrieved_at: str) -> list[PubMedEvide
                 title=title,
                 summary=_abstract(article),
                 url=PUBMED_RECORD_URL.format(pmid=pmid),
-                strength=EvidenceStrength.UNKNOWN,
+                strength=classify_strength(publication_types),
                 retrieved_at=retrieved_at,
                 journal=_text(article.find("Journal/Title")),
                 publication_date=_publication_date(article),
-                publication_types=[t for t in (_text(n) for n in article.findall("PublicationTypeList/PublicationType")) if t],
+                publication_types=publication_types,
             )
         )
     return records

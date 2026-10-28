@@ -54,7 +54,7 @@ See [API.md](API.md) for the FastAPI / OpenAPI / TypeScript boundary in detail.
 - Typed API foundation (FastAPI + Pydantic, OpenAPI export, generated TypeScript client)
 - Experiment/model provenance layer (`repurposemap.provenance`): reads `ml/experiments/*.json` and reports honest model-eligibility status through `GET /api/v1/system/info`, without loading PrimeKG or a checkpoint
 - React research workspace (`web/app`): disease-query UI over the generated TypeScript client, with system-status, candidate, evidence, explanation-path and safety panels -- shows the honest "no model available" state today, never a fake ranking
-- Evidence and safety domain (`repurposemap.evidence`): typed contracts and adapter interfaces, plus four live adapters -- PubMed (E-utilities esearch/efetch -> typed records with PMID, URL, journal, date, abstract and retrieval time), ClinicalTrials.gov (API v2 `/studies` -> typed records with NCT ID, URL, status and phase), openFDA (Drug Label API -> typed safety records with the label's boxed-warning/contraindication/warnings text and a DailyMed cross-reference URL), and DailyMed (SPL API v2 `/spls.json` -> typed safety records with the label's own title and publication date). All four are tested against mocked responses only, never run against the live service from this repo's tests. Each returns records that matched a drug/disease search; none classifies or rates evidence
+- Evidence and safety domain (`repurposemap.evidence`): typed contracts and adapter interfaces, plus four live adapters -- PubMed (E-utilities esearch/efetch -> typed records with PMID, URL, journal, date, abstract and retrieval time; each record's `strength` is a coarse case-report/observational/controlled-trial/systematic-review label derived deterministically from PubMed's own publication-type vocabulary, never from the title or abstract text), ClinicalTrials.gov (API v2 `/studies` -> typed records with NCT ID, URL, status and phase), openFDA (Drug Label API -> typed safety records with the label's boxed-warning/contraindication/warnings text and a DailyMed cross-reference URL), and DailyMed (SPL API v2 `/spls.json` -> typed safety records with the label's own title and publication date). All four are tested against mocked responses only, never run against the live service from this repo's tests. None rates evidence for or against efficacy
 - `RepurposingHypothesis` domain object (`repurposemap.hypothesis`): shows how model score, explanation paths, evidence and safety will assemble once a real model and real adapters exist
 - 3-config TransE validation search (Kaggle, GPU) — see [ml/experiments/transe_stage_d_validation_search_606711d.json](ml/experiments/transe_stage_d_validation_search_606711d.json)
 - Final TransE training (`search-dim128`, 4 epochs, Kaggle GPU) and the exactly-once locked-test evaluation — see "Final TransE result (locked test)" below and [ml/experiments/transe_stage_d_final_locked_test_c8997e9.json](ml/experiments/transe_stage_d_final_locked_test_c8997e9.json)
@@ -66,7 +66,7 @@ See [API.md](API.md) for the FastAPI / OpenAPI / TypeScript boundary in detail.
 
 **Planned**
 
-- Evidence-level labels for PubMed and ClinicalTrials.gov results, and wiring the evidence/safety domain into the API and the UI
+- A ClinicalTrials.gov evidence-level label (interventional vs. observational, from `designModule.studyType`), and wiring the evidence/safety domain into the API and the UI
 
 Do not treat anything in "planned" as complete or benchmarked.
 
