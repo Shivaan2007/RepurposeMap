@@ -8,12 +8,13 @@ Python research engine -> FastAPI + Pydantic -> OpenAPI
     -> generated TypeScript client -> future React research workspace
 ```
 
-Four real endpoints exist today (`/health`, `/api/v1/system/info`,
-`POST /api/v1/evidence`, `POST /api/v1/disease-biology`), plus a stubbed
-`POST /api/v1/rank` that always reports `model_status: "not_available"`.
-There is no trained model wired in yet -- see "Plugging in a real model"
-below. The two real lookup endpoints are synchronous -- see "Evidence/safety
-domain" and "Disease biology domain" below for what that means and why.
+Five real endpoints exist today (`/health`, `/api/v1/system/info`,
+`POST /api/v1/evidence`, `POST /api/v1/disease-biology`,
+`POST /api/v1/target-scorecard`), plus a stubbed `POST /api/v1/rank` that
+always reports `model_status: "not_available"`. There is no trained model
+wired in yet -- see "Plugging in a real model" below. The three real
+lookup endpoints are synchronous -- see "Evidence/safety domain" and
+"Disease biology domain" below for what that means and why.
 
 ## Running the API locally
 
@@ -120,11 +121,14 @@ synchronous caller of the same endpoint.
 ## Disease biology domain
 
 `repurposemap.biology` defines typed contracts (`DiseaseBiologyModule`,
-`TargetAssociation`, `Pathway`, `DiseaseMatch`) and a live Open Targets
-Platform adapter (`OpenTargetsAdapter`) for PLAN.md's researcher-workflow
-step 1 ("What goes wrong in this disease?"): the genes most strongly
-associated with a disease, ranked by genetic evidence, with their
-Reactome pathways. No API key is required.
+`TargetAssociation`, `Pathway`, `DiseaseMatch`, `TargetScorecard`,
+`TractabilityAssessment`, `TissueExpression`, `TargetMatch`) and a live
+Open Targets Platform adapter (`OpenTargetsAdapter`) for PLAN.md's
+researcher-workflow steps 1 and 2. No API key is required.
+
+**Step 1 ("What goes wrong in this disease?")**: the genes most
+strongly associated with a disease, ranked by genetic evidence, with
+their Reactome pathways.
 
 `POST /api/v1/disease-biology` takes exactly one of `disease_name` /
 `disease_id` (an EFO or MONDO ID) plus `max_targets`. A `disease_name` is
@@ -139,6 +143,21 @@ empty module. **This call is synchronous** for the same reason
 `/api/v1/evidence` is -- see that section above. The frontend's
 `DiseaseBiologyPanel` (`web/app/src/components/DiseaseBiologyPanel.tsx`)
 is a thin, synchronous caller of the same endpoint.
+
+**Step 2 ("Which proteins are worth hitting?")**: for one target, with
+no disease context -- its tractability assessments (per drug modality:
+small molecule, antibody, PROTAC, other), Open Targets' own
+target-prioritisation factors (`geneticConstraint`, `mouseKOScore`,
+`tissueSpecificity`, ... -- kept under their own Open Targets names,
+never re-labelled), and its ten highest-expressing tissues.
+
+`POST /api/v1/target-scorecard` takes exactly one of `gene_symbol` /
+`ensembl_id`, with the same name-resolution and error-shape convention
+as `/api/v1/disease-biology` (`resolved_from`, `404`/`502` on a real
+failure). Also synchronous, for the same reason. The frontend's
+`TargetScorecardPanel`
+(`web/app/src/components/TargetScorecardPanel.tsx`) is a thin,
+synchronous caller.
 
 `repurposemap.hypothesis.RepurposingHypothesis` shows how a model score,
 explanation paths, an evidence bundle, safety flags and provenance will

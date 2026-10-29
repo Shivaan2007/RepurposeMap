@@ -1,22 +1,28 @@
-"""Open Targets Platform adapter: disease-name resolution and the
-disease-biology module (PLAN.md researcher workflow step 1).
+"""Open Targets Platform adapter: disease/target-name resolution, the
+disease-biology module (PLAN.md researcher workflow step 1), and the
+target scorecard (step 2).
 
-Two GraphQL queries against the public Open Targets Platform API
+GraphQL queries against the public Open Targets Platform API
 (``https://api.platform.opentargets.org/api/v4/graphql``, no API key
 required):
 
-- ``resolve_disease``: free-text name -> candidate disease IDs (EFO or
-  MONDO), via the API's own full-text ``search``.
+- ``resolve_disease`` / ``resolve_target``: free-text name -> candidate
+  IDs (EFO/MONDO for diseases, Ensembl for targets), via the API's own
+  full-text ``search``.
 - ``get_disease_biology``: for one disease ID, its targets ranked by
   genetic-association evidence (``orderByScore: "genetic_association
   desc"``), each with its Reactome pathways -- one round trip, no
   separate per-target fetch.
+- ``get_target_scorecard``: for one target ID (no disease context),
+  its tractability assessments, Open Targets' own target-prioritisation
+  factors, and its highest-expressing tissues.
 
 What a result means: Open Targets has integrated evidence (GWAS,
 ClinVar, animal models, literature, ...) connecting this gene to this
-disease, scored and ranked by its own pipeline. This is not a causal
-claim and never substitutes for the actual evidence review PLAN.md's
-"disease biology" step is meant to support.
+disease (or, for a scorecard, characterizing the gene itself), scored
+and ranked by its own pipeline. This is not a causal claim and never
+substitutes for the actual evidence review PLAN.md's researcher
+workflow is meant to support.
 
 Failures are never turned into an empty result. A network error, a
 non-200 reply, a GraphQL ``errors`` payload, or an unparseable body
@@ -26,6 +32,7 @@ for "Open Targets has nothing".
     adapter = OpenTargetsAdapter()
     matches = adapter.resolve_disease("pulmonary arterial hypertension")
     module = adapter.get_disease_biology(matches[0].id, max_targets=10)
+    scorecard = adapter.get_target_scorecard(module.targets[0].ensembl_id)
 """
 
 from __future__ import annotations
@@ -36,15 +43,48 @@ import urllib.request
 from collections.abc import Callable
 from datetime import datetime, timezone
 
-from repurposemap.biology.models import DiseaseBiologyModule, DiseaseMatch, Pathway, TargetAssociation
+from repurposemap.biology.models import (
+    DiseaseBiologyModule,
+    DiseaseMatch,
+    Pathway,
+    TargetAssociation,
+    TargetMatch,
+    TargetScorecard,
+    TissueExpression,
+    TractabilityAssessment,
+)
 
 OPEN_TARGETS_GRAPHQL_URL = "https://api.platform.opentargets.org/api/v4/graphql"
 MAX_RESULTS_LIMIT = 50
+TOP_TISSUE_EXPRESSION_LIMIT = 10
 
 _RESOLVE_DISEASE_QUERY = """
 query ResolveDisease($q: String!, $size: Int!) {
   search(queryString: $q, entityNames: ["disease"], page: {index: 0, size: $size}) {
     hits { id name score }
+  }
+}
+"""
+
+_RESOLVE_TARGET_QUERY = """
+query ResolveTarget($q: String!, $size: Int!) {
+  search(queryString: $q, entityNames: ["target"], page: {index: 0, size: $size}) {
+    hits { id name score }
+  }
+}
+"""
+
+_TARGET_SCORECARD_QUERY = """
+query TargetScorecard($ensemblId: String!) {
+  target(ensemblId: $ensemblId) {
+    id
+    approvedSymbol
+    approvedName
+    tractability { label modality value }
+    prioritisation { items { key value } }
+    baselineExpression {
+      rows { tissueBiosample { biosampleName } median unit }
+    }
   }
 }
 """
@@ -92,9 +132,9 @@ class OpenTargetsParseError(OpenTargetsError):
 
 
 class OpenTargetsNotFoundError(OpenTargetsError):
-    """The disease ID does not exist in Open Targets. Distinct from a
-    request failure: the lookup completed, and Open Targets explicitly
-    reported no such disease."""
+    """The disease or target ID does not exist in Open Targets. Distinct
+    from a request failure: the lookup completed, and Open Targets
+    explicitly reported no such entity."""
 
 
 def _urllib_post(url: str, body: bytes, timeout_s: float) -> bytes:
@@ -186,5 +226,50 @@ class OpenTargetsAdapter:
             disease_description=disease.get("description"),
             total_associated_targets=associated.get("count", 0),
             targets=targets,
+            retrieved_at=self._now().astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        )
+
+    def resolve_target(self, query: str, max_results: int = 5) -> list[TargetMatch]:
+        if max_results < 1 or max_results > MAX_RESULTS_LIMIT:
+            raise ValueError(f"max_results must be between 1 and {MAX_RESULTS_LIMIT}")
+        data = self._graphql(_RESOLVE_TARGET_QUERY, {"q": query, "size": max_results})
+        search = data.get("search")
+        if not isinstance(search, dict) or "hits" not in search:
+            raise OpenTargetsParseError("'search.hits' was missing from the response")
+        return [TargetMatch(id=hit["id"], name=hit["name"], search_score=hit["score"]) for hit in search["hits"]]
+
+    def get_target_scorecard(self, ensembl_id: str) -> TargetScorecard:
+        data = self._graphql(_TARGET_SCORECARD_QUERY, {"ensemblId": ensembl_id})
+        target = data.get("target")
+        if target is None:
+            raise OpenTargetsNotFoundError(f"Open Targets has no target with ID {ensembl_id!r}")
+
+        tractability = [
+            TractabilityAssessment(label=t["label"], modality=t["modality"], value=t["value"])
+            for t in target.get("tractability", [])
+        ]
+
+        prioritisation_factors = {}
+        for item in (target.get("prioritisation") or {}).get("items", []):
+            try:
+                prioritisation_factors[item["key"]] = float(item["value"])
+            except (TypeError, ValueError):
+                pass  # a non-numeric factor value is dropped, never coerced into a misleading number
+
+        rows = (target.get("baselineExpression") or {}).get("rows", [])
+        scored_rows = [
+            TissueExpression(tissue=row["tissueBiosample"]["biosampleName"], median=row["median"], unit=row["unit"])
+            for row in rows
+            if row.get("tissueBiosample") is not None and row.get("median") is not None
+        ]
+        top_tissue_expression = sorted(scored_rows, key=lambda r: r.median, reverse=True)[:TOP_TISSUE_EXPRESSION_LIMIT]
+
+        return TargetScorecard(
+            ensembl_id=target["id"],
+            approved_symbol=target["approvedSymbol"],
+            approved_name=target["approvedName"],
+            tractability=tractability,
+            prioritisation_factors=prioritisation_factors,
+            top_tissue_expression=top_tissue_expression,
             retrieved_at=self._now().astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         )

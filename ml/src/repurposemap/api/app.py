@@ -18,6 +18,7 @@ from repurposemap.api.evidence import router as evidence_router
 from repurposemap.api.health import router as health_router
 from repurposemap.api.ranking import router as ranking_router
 from repurposemap.api.system_info import router as system_info_router
+from repurposemap.api.target_scorecard import router as target_scorecard_router
 from repurposemap.api.version import API_VERSION, APPLICATION_NAME
 
 
@@ -35,6 +36,7 @@ def create_app() -> FastAPI:
     app.include_router(ranking_router)
     app.include_router(evidence_router)
     app.include_router(disease_biology_router)
+    app.include_router(target_scorecard_router)
     return app
 
 

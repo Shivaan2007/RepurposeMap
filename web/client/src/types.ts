@@ -72,6 +72,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/target-scorecard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Lookup Target Scorecard */
+        post: operations["lookup_target_scorecard_api_v1_target_scorecard_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -593,6 +610,114 @@ export interface components {
             /** Pathways */
             pathways?: components["schemas"]["Pathway"][];
         };
+        /**
+         * TargetMatch
+         * @description One candidate target returned when resolving a free-text gene
+         *     symbol to an Open Targets target ID (Ensembl).
+         */
+        TargetMatch: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Search Score
+             * @description Open Targets' own search relevance score, not a biological score
+             */
+            search_score: number;
+        };
+        /**
+         * TargetScorecard
+         * @description What Open Targets reports for one target in isolation (no
+         *     disease context): tractability, Open Targets' own target
+         *     prioritisation factors, and the tissues where it is most highly
+         *     expressed. ``prioritisation_factors`` keeps Open Targets' own factor
+         *     names (e.g. ``geneticConstraint``, ``mouseKOScore``,
+         *     ``tissueSpecificity``) as keys -- see the Open Targets documentation
+         *     for what each one means; this never re-labels or re-scores them.
+         */
+        TargetScorecard: {
+            /** Approved Name */
+            approved_name: string;
+            /** Approved Symbol */
+            approved_symbol: string;
+            /** Ensembl Id */
+            ensembl_id: string;
+            /** Prioritisation Factors */
+            prioritisation_factors?: {
+                [key: string]: number;
+            };
+            /** Retrieved At */
+            retrieved_at: string;
+            /** Top Tissue Expression */
+            top_tissue_expression?: components["schemas"]["TissueExpression"][];
+            /** Tractability */
+            tractability?: components["schemas"]["TractabilityAssessment"][];
+        };
+        /**
+         * TargetScorecardQuery
+         * @description A request to look up the target scorecard for one gene/protein
+         *     target (PLAN.md researcher workflow step 2: "Which proteins are
+         *     worth hitting?"). Exactly one of ``gene_symbol``/``ensembl_id``
+         *     should be given -- ``gene_symbol`` is resolved to an Open Targets
+         *     (Ensembl) ID first (see ``TargetScorecardResponse.resolved_from``);
+         *     ``ensembl_id`` skips that resolution step.
+         */
+        TargetScorecardQuery: {
+            /** Ensembl Id */
+            ensembl_id?: string | null;
+            /** Gene Symbol */
+            gene_symbol?: string | null;
+        };
+        /**
+         * TargetScorecardResponse
+         * @description What ``POST /api/v1/target-scorecard`` returns. ``resolved_from``
+         *     is set only when ``gene_symbol`` was given and had to be resolved to
+         *     an Ensembl ID first.
+         */
+        TargetScorecardResponse: {
+            /**
+             * Disclaimer
+             * @default Research evidence integration from Open Targets. Tractability is not a guarantee a drug can be developed.
+             */
+            disclaimer: string;
+            /** Resolved From */
+            resolved_from?: components["schemas"]["TargetMatch"][] | null;
+            scorecard: components["schemas"]["TargetScorecard"];
+        };
+        /**
+         * TissueExpression
+         * @description The target's expression level in one tissue, from Open Targets'
+         *     baseline expression data (Expression Atlas / HPA / GTEx, as Open
+         *     Targets integrates them). ``median`` is ``None`` when Open Targets
+         *     reports no quantified value for this tissue/unit pair -- never
+         *     defaulted to 0, which would read as "not expressed" rather than
+         *     "not quantified".
+         */
+        TissueExpression: {
+            /** Median */
+            median?: number | null;
+            /** Tissue */
+            tissue: string;
+            /** Unit */
+            unit: string;
+        };
+        /**
+         * TractabilityAssessment
+         * @description One tractability criterion Open Targets checked for a target --
+         *     e.g. whether it has an approved drug, a druggable pocket, or a
+         *     high-quality ligand, for a given drug modality (small molecule,
+         *     antibody, PROTAC, other). ``value`` is the criterion's own
+         *     true/false result, not a composite score.
+         */
+        TractabilityAssessment: {
+            /** Label */
+            label: string;
+            /** Modality */
+            modality: string;
+            /** Value */
+            value: boolean;
+        };
         /** ValidationError */
         ValidationError: {
             /** Context */
@@ -730,6 +855,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SystemInfoResponse"];
+                };
+            };
+        };
+    };
+    lookup_target_scorecard_api_v1_target_scorecard_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TargetScorecardQuery"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TargetScorecardResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

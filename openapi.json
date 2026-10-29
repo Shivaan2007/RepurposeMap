@@ -1049,6 +1049,196 @@
         "title": "TargetAssociation",
         "type": "object"
       },
+      "TargetMatch": {
+        "description": "One candidate target returned when resolving a free-text gene\nsymbol to an Open Targets target ID (Ensembl).",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "search_score": {
+            "description": "Open Targets' own search relevance score, not a biological score",
+            "title": "Search Score",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "search_score"
+        ],
+        "title": "TargetMatch",
+        "type": "object"
+      },
+      "TargetScorecard": {
+        "description": "What Open Targets reports for one target in isolation (no\ndisease context): tractability, Open Targets' own target\nprioritisation factors, and the tissues where it is most highly\nexpressed. ``prioritisation_factors`` keeps Open Targets' own factor\nnames (e.g. ``geneticConstraint``, ``mouseKOScore``,\n``tissueSpecificity``) as keys -- see the Open Targets documentation\nfor what each one means; this never re-labels or re-scores them.",
+        "properties": {
+          "approved_name": {
+            "title": "Approved Name",
+            "type": "string"
+          },
+          "approved_symbol": {
+            "title": "Approved Symbol",
+            "type": "string"
+          },
+          "ensembl_id": {
+            "title": "Ensembl Id",
+            "type": "string"
+          },
+          "prioritisation_factors": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Prioritisation Factors",
+            "type": "object"
+          },
+          "retrieved_at": {
+            "title": "Retrieved At",
+            "type": "string"
+          },
+          "top_tissue_expression": {
+            "items": {
+              "$ref": "#/components/schemas/TissueExpression"
+            },
+            "title": "Top Tissue Expression",
+            "type": "array"
+          },
+          "tractability": {
+            "items": {
+              "$ref": "#/components/schemas/TractabilityAssessment"
+            },
+            "title": "Tractability",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ensembl_id",
+          "approved_symbol",
+          "approved_name",
+          "retrieved_at"
+        ],
+        "title": "TargetScorecard",
+        "type": "object"
+      },
+      "TargetScorecardQuery": {
+        "description": "A request to look up the target scorecard for one gene/protein\ntarget (PLAN.md researcher workflow step 2: \"Which proteins are\nworth hitting?\"). Exactly one of ``gene_symbol``/``ensembl_id``\nshould be given -- ``gene_symbol`` is resolved to an Open Targets\n(Ensembl) ID first (see ``TargetScorecardResponse.resolved_from``);\n``ensembl_id`` skips that resolution step.",
+        "properties": {
+          "ensembl_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ensembl Id"
+          },
+          "gene_symbol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gene Symbol"
+          }
+        },
+        "title": "TargetScorecardQuery",
+        "type": "object"
+      },
+      "TargetScorecardResponse": {
+        "description": "What ``POST /api/v1/target-scorecard`` returns. ``resolved_from``\nis set only when ``gene_symbol`` was given and had to be resolved to\nan Ensembl ID first.",
+        "properties": {
+          "disclaimer": {
+            "default": "Research evidence integration from Open Targets. Tractability is not a guarantee a drug can be developed.",
+            "title": "Disclaimer",
+            "type": "string"
+          },
+          "resolved_from": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/TargetMatch"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved From"
+          },
+          "scorecard": {
+            "$ref": "#/components/schemas/TargetScorecard"
+          }
+        },
+        "required": [
+          "scorecard"
+        ],
+        "title": "TargetScorecardResponse",
+        "type": "object"
+      },
+      "TissueExpression": {
+        "description": "The target's expression level in one tissue, from Open Targets'\nbaseline expression data (Expression Atlas / HPA / GTEx, as Open\nTargets integrates them). ``median`` is ``None`` when Open Targets\nreports no quantified value for this tissue/unit pair -- never\ndefaulted to 0, which would read as \"not expressed\" rather than\n\"not quantified\".",
+        "properties": {
+          "median": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median"
+          },
+          "tissue": {
+            "title": "Tissue",
+            "type": "string"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tissue",
+          "unit"
+        ],
+        "title": "TissueExpression",
+        "type": "object"
+      },
+      "TractabilityAssessment": {
+        "description": "One tractability criterion Open Targets checked for a target --\ne.g. whether it has an approved drug, a druggable pocket, or a\nhigh-quality ligand, for a given drug modality (small molecule,\nantibody, PROTAC, other). ``value`` is the criterion's own\ntrue/false result, not a composite score.",
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "modality": {
+            "title": "Modality",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "label",
+          "modality",
+          "value"
+        ],
+        "title": "TractabilityAssessment",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -1228,6 +1418,44 @@
           }
         },
         "summary": "Get System Info"
+      }
+    },
+    "/api/v1/target-scorecard": {
+      "post": {
+        "operationId": "lookup_target_scorecard_api_v1_target_scorecard_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TargetScorecardQuery"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TargetScorecardResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Lookup Target Scorecard"
       }
     },
     "/health": {

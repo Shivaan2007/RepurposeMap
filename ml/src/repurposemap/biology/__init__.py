@@ -3,7 +3,16 @@ contracts plus a live Open Targets Platform adapter."""
 
 from __future__ import annotations
 
-from repurposemap.biology.models import DiseaseBiologyModule, DiseaseMatch, Pathway, TargetAssociation
+from repurposemap.biology.models import (
+    DiseaseBiologyModule,
+    DiseaseMatch,
+    Pathway,
+    TargetAssociation,
+    TargetMatch,
+    TargetScorecard,
+    TissueExpression,
+    TractabilityAssessment,
+)
 from repurposemap.biology.open_targets import (
     OpenTargetsAdapter,
     OpenTargetsError,
@@ -22,4 +31,8 @@ __all__ = [
     "OpenTargetsRequestError",
     "Pathway",
     "TargetAssociation",
+    "TargetMatch",
+    "TargetScorecard",
+    "TissueExpression",
+    "TractabilityAssessment",
 ]

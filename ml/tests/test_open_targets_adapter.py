@@ -181,3 +181,90 @@ def test_http_error_is_surfaced_with_its_status():
 def test_invalid_timeout_is_rejected():
     with pytest.raises(ValueError):
         OpenTargetsAdapter(timeout_s=0)
+
+
+def demo_scorecard_response(*, tractability=None, prioritisation_items=None, expression_rows=None, target_id="ENSG_DEMO_1"):
+    return graphql_response(
+        {
+            "target": {
+                "id": target_id,
+                "approvedSymbol": "DEMOG1",
+                "approvedName": "demo gene 1",
+                "tractability": tractability if tractability is not None else [],
+                "prioritisation": {"items": prioritisation_items if prioritisation_items is not None else []},
+                "baselineExpression": {"rows": expression_rows if expression_rows is not None else []},
+            }
+        }
+    )
+
+
+def test_resolve_target_returns_candidates_in_order():
+    body = graphql_response({"search": {"hits": [
+        {"id": "ENSG_DEMO_1", "name": "DEMOG1", "score": 5466.2},
+        {"id": "ENSG_DEMO_2", "name": "DEMOG2", "score": 42.9},
+    ]}})
+    fetcher = FakeFetcher(body)
+    matches = make_adapter(fetcher).resolve_target("DEMOG1", max_results=2)
+    assert [m.id for m in matches] == ["ENSG_DEMO_1", "ENSG_DEMO_2"]
+    assert matches[0].search_score == 5466.2
+
+    (_, raw_body, _), = fetcher.calls
+    sent = json.loads(raw_body)
+    assert sent["variables"] == {"q": "DEMOG1", "size": 2}
+    assert "ResolveTarget" in sent["query"]
+
+
+@pytest.mark.parametrize("max_results", [0, 51])
+def test_resolve_target_rejects_out_of_range_limits(max_results):
+    with pytest.raises(ValueError):
+        make_adapter(FakeFetcher()).resolve_target("x", max_results=max_results)
+
+
+def test_get_target_scorecard_extracts_tractability_and_prioritisation():
+    tractability = [{"label": "Approved Drug", "modality": "SM", "value": True}, {"label": "High-Quality Pocket", "modality": "SM", "value": False}]
+    items = [{"key": "geneticConstraint", "value": "-0.76"}, {"key": "hasLigand", "value": "1"}]
+    fetcher = FakeFetcher(demo_scorecard_response(tractability=tractability, prioritisation_items=items))
+    scorecard = make_adapter(fetcher).get_target_scorecard("ENSG_DEMO_1")
+
+    assert scorecard.ensembl_id == "ENSG_DEMO_1"
+    assert scorecard.approved_symbol == "DEMOG1"
+    assert len(scorecard.tractability) == 2
+    assert scorecard.tractability[0].label == "Approved Drug" and scorecard.tractability[0].value is True
+    assert scorecard.prioritisation_factors == {"geneticConstraint": -0.76, "hasLigand": 1.0}
+    assert scorecard.retrieved_at == RETRIEVED
+
+
+def test_get_target_scorecard_drops_non_numeric_prioritisation_values():
+    items = [{"key": "weird", "value": "not-a-number"}, {"key": "ok", "value": "0.5"}]
+    fetcher = FakeFetcher(demo_scorecard_response(prioritisation_items=items))
+    scorecard = make_adapter(fetcher).get_target_scorecard("ENSG_DEMO_1")
+    assert scorecard.prioritisation_factors == {"ok": 0.5}
+
+
+def test_get_target_scorecard_ranks_tissues_by_median_and_caps_at_ten():
+    rows = [
+        {"tissueBiosample": {"biosampleName": f"tissue{i}"}, "median": float(i), "unit": "TPM"}
+        for i in range(15)
+    ]
+    fetcher = FakeFetcher(demo_scorecard_response(expression_rows=rows))
+    scorecard = make_adapter(fetcher).get_target_scorecard("ENSG_DEMO_1")
+    assert len(scorecard.top_tissue_expression) == 10
+    assert [t.tissue for t in scorecard.top_tissue_expression] == [f"tissue{i}" for i in range(14, 4, -1)]
+    assert scorecard.top_tissue_expression[0].median == 14.0
+
+
+def test_get_target_scorecard_drops_rows_without_a_quantified_median():
+    rows = [
+        {"tissueBiosample": {"biosampleName": "tissueA"}, "median": None, "unit": "PPB"},
+        {"tissueBiosample": None, "median": 5.0, "unit": "TPM"},
+        {"tissueBiosample": {"biosampleName": "tissueB"}, "median": 3.0, "unit": "TPM"},
+    ]
+    fetcher = FakeFetcher(demo_scorecard_response(expression_rows=rows))
+    scorecard = make_adapter(fetcher).get_target_scorecard("ENSG_DEMO_1")
+    assert [t.tissue for t in scorecard.top_tissue_expression] == ["tissueB"]
+
+
+def test_get_target_scorecard_raises_not_found_for_a_missing_target():
+    fetcher = FakeFetcher(graphql_response({"target": None}))
+    with pytest.raises(OpenTargetsNotFoundError, match="ENSG_FAKE"):
+        make_adapter(fetcher).get_target_scorecard("ENSG_FAKE")

@@ -7,6 +7,7 @@ import { DiseaseBiologyPanel } from "./components/DiseaseBiologyPanel.js";
 import { EvidencePanel } from "./components/EvidencePanel.js";
 import { QueryForm } from "./components/QueryForm.js";
 import { StatusPanel } from "./components/StatusPanel.js";
+import { TargetScorecardPanel } from "./components/TargetScorecardPanel.js";
 
 type SystemInfoResponse = components["schemas"]["SystemInfoResponse"];
 type RankingResponse = components["schemas"]["RankingResponse"];
@@ -60,6 +61,8 @@ export function App() {
       </section>
 
       <DiseaseBiologyPanel />
+
+      <TargetScorecardPanel />
 
       <EvidencePanel />
 

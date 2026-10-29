@@ -14,6 +14,8 @@ type EvidenceQuery = components["schemas"]["EvidenceQuery"];
 type HealthResponse = components["schemas"]["HealthResponse"];
 type RankingResponse = components["schemas"]["RankingResponse"];
 type SystemInfoResponse = components["schemas"]["SystemInfoResponse"];
+type TargetScorecardQuery = components["schemas"]["TargetScorecardQuery"];
+type TargetScorecardResponse = components["schemas"]["TargetScorecardResponse"];
 
 export class RepurposeMapApiError extends Error {
   constructor(
@@ -97,6 +99,20 @@ export class RepurposeMapClient {
    */
   lookupDiseaseBiology(query: DiseaseBiologyQuery): Promise<DiseaseBiologyResponse> {
     return this.request<DiseaseBiologyResponse>("/api/v1/disease-biology", {
+      method: "POST",
+      body: JSON.stringify(query),
+    });
+  }
+
+  /**
+   * A real, synchronous lookup of one target's tractability, Open
+   * Targets' own prioritisation factors, and its highest-expressing
+   * tissues, with no disease context. Same error-shape convention as
+   * `lookupDiseaseBiology`: throws on a real failure rather than
+   * returning 200 with an empty scorecard.
+   */
+  lookupTargetScorecard(query: TargetScorecardQuery): Promise<TargetScorecardResponse> {
+    return this.request<TargetScorecardResponse>("/api/v1/target-scorecard", {
       method: "POST",
       body: JSON.stringify(query),
     });

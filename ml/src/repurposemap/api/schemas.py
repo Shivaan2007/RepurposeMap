@@ -20,7 +20,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from repurposemap.biology import DiseaseBiologyModule, DiseaseMatch
+from repurposemap.biology import DiseaseBiologyModule, DiseaseMatch, TargetMatch, TargetScorecard
 from repurposemap.evidence import EvidenceBundle, EvidenceSource
 
 # --------------------------------------------------------------------------
@@ -234,3 +234,30 @@ class DiseaseBiologyResponse(BaseModel):
     module: DiseaseBiologyModule
     resolved_from: list[DiseaseMatch] | None = None
     disclaimer: str = "Research evidence integration from Open Targets. Association with a gene is not a causal claim."
+
+
+# --------------------------------------------------------------------------
+# Live today: /api/v1/target-scorecard
+# --------------------------------------------------------------------------
+
+
+class TargetScorecardQuery(BaseModel):
+    """A request to look up the target scorecard for one gene/protein
+    target (PLAN.md researcher workflow step 2: "Which proteins are
+    worth hitting?"). Exactly one of ``gene_symbol``/``ensembl_id``
+    should be given -- ``gene_symbol`` is resolved to an Open Targets
+    (Ensembl) ID first (see ``TargetScorecardResponse.resolved_from``);
+    ``ensembl_id`` skips that resolution step."""
+
+    gene_symbol: str | None = None
+    ensembl_id: str | None = None
+
+
+class TargetScorecardResponse(BaseModel):
+    """What ``POST /api/v1/target-scorecard`` returns. ``resolved_from``
+    is set only when ``gene_symbol`` was given and had to be resolved to
+    an Ensembl ID first."""
+
+    scorecard: TargetScorecard
+    resolved_from: list[TargetMatch] | None = None
+    disclaimer: str = "Research evidence integration from Open Targets. Tractability is not a guarantee a drug can be developed."
