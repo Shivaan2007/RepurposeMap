@@ -166,6 +166,146 @@
         "title": "ClinicalTrialEvidence",
         "type": "object"
       },
+      "DiseaseBiologyModule": {
+        "description": "What Open Targets reports for one disease: its own description,\nplus the targets most strongly associated with it, ranked by genetic\nevidence. ``total_associated_targets`` is Open Targets' total match\ncount, independent of how many are returned in ``targets``.",
+        "properties": {
+          "disease_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Disease Description"
+          },
+          "disease_id": {
+            "title": "Disease Id",
+            "type": "string"
+          },
+          "disease_name": {
+            "title": "Disease Name",
+            "type": "string"
+          },
+          "retrieved_at": {
+            "title": "Retrieved At",
+            "type": "string"
+          },
+          "targets": {
+            "items": {
+              "$ref": "#/components/schemas/TargetAssociation"
+            },
+            "title": "Targets",
+            "type": "array"
+          },
+          "total_associated_targets": {
+            "title": "Total Associated Targets",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "disease_id",
+          "disease_name",
+          "total_associated_targets",
+          "retrieved_at"
+        ],
+        "title": "DiseaseBiologyModule",
+        "type": "object"
+      },
+      "DiseaseBiologyQuery": {
+        "description": "A request to look up the disease-biology module for one disease.\nExactly one of ``disease_name``/``disease_id`` should be given --\n``disease_name`` is resolved to an Open Targets ID first (see\n``DiseaseBiologyResponse.resolved_from``); ``disease_id`` (an EFO or\nMONDO ID) skips that resolution step.",
+        "properties": {
+          "disease_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Disease Id"
+          },
+          "disease_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Disease Name"
+          },
+          "max_targets": {
+            "default": 10,
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Max Targets",
+            "type": "integer"
+          }
+        },
+        "title": "DiseaseBiologyQuery",
+        "type": "object"
+      },
+      "DiseaseBiologyResponse": {
+        "description": "What ``POST /api/v1/disease-biology`` returns. ``resolved_from`` is\nset only when ``disease_name`` was given and had to be resolved to an\nOpen Targets ID first -- it lists the top candidate matches Open\nTargets' own search returned, so a caller can see what else the name\ncould have meant, not just the one picked.",
+        "properties": {
+          "disclaimer": {
+            "default": "Research evidence integration from Open Targets. Association with a gene is not a causal claim.",
+            "title": "Disclaimer",
+            "type": "string"
+          },
+          "module": {
+            "$ref": "#/components/schemas/DiseaseBiologyModule"
+          },
+          "resolved_from": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/DiseaseMatch"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved From"
+          }
+        },
+        "required": [
+          "module"
+        ],
+        "title": "DiseaseBiologyResponse",
+        "type": "object"
+      },
+      "DiseaseMatch": {
+        "description": "One candidate disease returned when resolving a free-text name to\nan Open Targets disease ID (EFO or MONDO).",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "search_score": {
+            "description": "Open Targets' own search relevance score, not a biological score",
+            "title": "Search Score",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "search_score"
+        ],
+        "title": "DiseaseMatch",
+        "type": "object"
+      },
       "DiseaseQuery": {
         "description": "A request to rank candidate drugs for one disease. Exactly one of\n``disease_name``/``disease_id`` should be given -- the same\nname-or-canonical-ID convention already used by the CLI's\n``rank-drugs`` command.",
         "properties": {
@@ -514,6 +654,30 @@
         "title": "ModelStatus",
         "type": "object"
       },
+      "Pathway": {
+        "description": "One Reactome pathway a target participates in.",
+        "properties": {
+          "pathway": {
+            "title": "Pathway",
+            "type": "string"
+          },
+          "pathway_id": {
+            "title": "Pathway Id",
+            "type": "string"
+          },
+          "top_level_term": {
+            "title": "Top Level Term",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pathway_id",
+          "pathway",
+          "top_level_term"
+        ],
+        "title": "Pathway",
+        "type": "object"
+      },
       "Provenance": {
         "description": "Dataset/source provenance -- only fields knowable without touching\nthe raw file (see ``repurposemap.adapters.primekg.PrimeKGFingerprint``,\nwhose ``sha256``/``size_bytes`` require reading the file and are\ndeliberately NOT surfaced here).",
         "properties": {
@@ -836,6 +1000,55 @@
         "title": "SystemInfoResponse",
         "type": "object"
       },
+      "TargetAssociation": {
+        "description": "One gene/protein target associated with the disease, with Open\nTargets' own evidence-integration scores. ``genetic_association_score``\nis ``None`` when Open Targets has no genetic-evidence datatype score\nfor this target/disease pair -- never defaulted to 0, which would\nread as \"evidence against\" rather than \"no genetic evidence datatype\nscored\".",
+        "properties": {
+          "approved_name": {
+            "title": "Approved Name",
+            "type": "string"
+          },
+          "approved_symbol": {
+            "title": "Approved Symbol",
+            "type": "string"
+          },
+          "ensembl_id": {
+            "title": "Ensembl Id",
+            "type": "string"
+          },
+          "genetic_association_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the 'genetic_association' datatype score (0-1), if Open Targets reports one",
+            "title": "Genetic Association Score"
+          },
+          "overall_score": {
+            "description": "Open Targets' overall association score (0-1), across all datatypes",
+            "title": "Overall Score",
+            "type": "number"
+          },
+          "pathways": {
+            "items": {
+              "$ref": "#/components/schemas/Pathway"
+            },
+            "title": "Pathways",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ensembl_id",
+          "approved_symbol",
+          "approved_name",
+          "overall_score"
+        ],
+        "title": "TargetAssociation",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -885,6 +1098,44 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/disease-biology": {
+      "post": {
+        "operationId": "lookup_disease_biology_api_v1_disease_biology_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DiseaseBiologyQuery"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiseaseBiologyResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Lookup Disease Biology"
+      }
+    },
     "/api/v1/evidence": {
       "post": {
         "operationId": "lookup_evidence_api_v1_evidence_post",

@@ -3,6 +3,7 @@ import type { components } from "@repurposemap/api-client";
 
 import { apiClient } from "./api.js";
 import { CandidateList } from "./components/CandidateList.js";
+import { DiseaseBiologyPanel } from "./components/DiseaseBiologyPanel.js";
 import { EvidencePanel } from "./components/EvidencePanel.js";
 import { QueryForm } from "./components/QueryForm.js";
 import { StatusPanel } from "./components/StatusPanel.js";
@@ -57,6 +58,8 @@ export function App() {
         {queryState.phase === "error" && <p className="error">{queryState.message}</p>}
         {queryState.phase === "done" && <CandidateList result={queryState.result} />}
       </section>
+
+      <DiseaseBiologyPanel />
 
       <EvidencePanel />
 

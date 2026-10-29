@@ -20,6 +20,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from repurposemap.biology import DiseaseBiologyModule, DiseaseMatch
 from repurposemap.evidence import EvidenceBundle, EvidenceSource
 
 # --------------------------------------------------------------------------
@@ -204,3 +205,32 @@ class EvidenceLookupResponse(BaseModel):
     bundle: EvidenceBundle
     source_status: list[SourceLookupStatus]
     disclaimer: str = "Research evidence lookup. Presence of a record is not proof of efficacy or safety."
+
+
+# --------------------------------------------------------------------------
+# Live today: /api/v1/disease-biology
+# --------------------------------------------------------------------------
+
+
+class DiseaseBiologyQuery(BaseModel):
+    """A request to look up the disease-biology module for one disease.
+    Exactly one of ``disease_name``/``disease_id`` should be given --
+    ``disease_name`` is resolved to an Open Targets ID first (see
+    ``DiseaseBiologyResponse.resolved_from``); ``disease_id`` (an EFO or
+    MONDO ID) skips that resolution step."""
+
+    disease_name: str | None = None
+    disease_id: str | None = None
+    max_targets: int = Field(default=10, ge=1, le=50)
+
+
+class DiseaseBiologyResponse(BaseModel):
+    """What ``POST /api/v1/disease-biology`` returns. ``resolved_from`` is
+    set only when ``disease_name`` was given and had to be resolved to an
+    Open Targets ID first -- it lists the top candidate matches Open
+    Targets' own search returned, so a caller can see what else the name
+    could have meant, not just the one picked."""
+
+    module: DiseaseBiologyModule
+    resolved_from: list[DiseaseMatch] | None = None
+    disclaimer: str = "Research evidence integration from Open Targets. Association with a gene is not a causal claim."

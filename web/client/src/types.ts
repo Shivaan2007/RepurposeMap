@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/api/v1/disease-biology": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Lookup Disease Biology */
+        post: operations["lookup_disease_biology_api_v1_disease_biology_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/evidence": {
         parameters: {
             query?: never;
@@ -136,6 +153,80 @@ export interface components {
             title: string;
             /** Url */
             url?: string | null;
+        };
+        /**
+         * DiseaseBiologyModule
+         * @description What Open Targets reports for one disease: its own description,
+         *     plus the targets most strongly associated with it, ranked by genetic
+         *     evidence. ``total_associated_targets`` is Open Targets' total match
+         *     count, independent of how many are returned in ``targets``.
+         */
+        DiseaseBiologyModule: {
+            /** Disease Description */
+            disease_description?: string | null;
+            /** Disease Id */
+            disease_id: string;
+            /** Disease Name */
+            disease_name: string;
+            /** Retrieved At */
+            retrieved_at: string;
+            /** Targets */
+            targets?: components["schemas"]["TargetAssociation"][];
+            /** Total Associated Targets */
+            total_associated_targets: number;
+        };
+        /**
+         * DiseaseBiologyQuery
+         * @description A request to look up the disease-biology module for one disease.
+         *     Exactly one of ``disease_name``/``disease_id`` should be given --
+         *     ``disease_name`` is resolved to an Open Targets ID first (see
+         *     ``DiseaseBiologyResponse.resolved_from``); ``disease_id`` (an EFO or
+         *     MONDO ID) skips that resolution step.
+         */
+        DiseaseBiologyQuery: {
+            /** Disease Id */
+            disease_id?: string | null;
+            /** Disease Name */
+            disease_name?: string | null;
+            /**
+             * Max Targets
+             * @default 10
+             */
+            max_targets: number;
+        };
+        /**
+         * DiseaseBiologyResponse
+         * @description What ``POST /api/v1/disease-biology`` returns. ``resolved_from`` is
+         *     set only when ``disease_name`` was given and had to be resolved to an
+         *     Open Targets ID first -- it lists the top candidate matches Open
+         *     Targets' own search returned, so a caller can see what else the name
+         *     could have meant, not just the one picked.
+         */
+        DiseaseBiologyResponse: {
+            /**
+             * Disclaimer
+             * @default Research evidence integration from Open Targets. Association with a gene is not a causal claim.
+             */
+            disclaimer: string;
+            module: components["schemas"]["DiseaseBiologyModule"];
+            /** Resolved From */
+            resolved_from?: components["schemas"]["DiseaseMatch"][] | null;
+        };
+        /**
+         * DiseaseMatch
+         * @description One candidate disease returned when resolving a free-text name to
+         *     an Open Targets disease ID (EFO or MONDO).
+         */
+        DiseaseMatch: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Search Score
+             * @description Open Targets' own search relevance score, not a biological score
+             */
+            search_score: number;
         };
         /**
          * DiseaseQuery
@@ -328,6 +419,18 @@ export interface components {
             ready_for_inference: boolean;
         };
         /**
+         * Pathway
+         * @description One Reactome pathway a target participates in.
+         */
+        Pathway: {
+            /** Pathway */
+            pathway: string;
+            /** Pathway Id */
+            pathway_id: string;
+            /** Top Level Term */
+            top_level_term: string;
+        };
+        /**
          * Provenance
          * @description Dataset/source provenance -- only fields knowable without touching
          *     the raw file (see ``repurposemap.adapters.primekg.PrimeKGFingerprint``,
@@ -461,6 +564,35 @@ export interface components {
             model: components["schemas"]["ModelStatus"];
             model_provenance?: components["schemas"]["ModelProvenanceInfo"] | null;
         };
+        /**
+         * TargetAssociation
+         * @description One gene/protein target associated with the disease, with Open
+         *     Targets' own evidence-integration scores. ``genetic_association_score``
+         *     is ``None`` when Open Targets has no genetic-evidence datatype score
+         *     for this target/disease pair -- never defaulted to 0, which would
+         *     read as "evidence against" rather than "no genetic evidence datatype
+         *     scored".
+         */
+        TargetAssociation: {
+            /** Approved Name */
+            approved_name: string;
+            /** Approved Symbol */
+            approved_symbol: string;
+            /** Ensembl Id */
+            ensembl_id: string;
+            /**
+             * Genetic Association Score
+             * @description the 'genetic_association' datatype score (0-1), if Open Targets reports one
+             */
+            genetic_association_score?: number | null;
+            /**
+             * Overall Score
+             * @description Open Targets' overall association score (0-1), across all datatypes
+             */
+            overall_score: number;
+            /** Pathways */
+            pathways?: components["schemas"]["Pathway"][];
+        };
         /** ValidationError */
         ValidationError: {
             /** Context */
@@ -483,6 +615,39 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    lookup_disease_biology_api_v1_disease_biology_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DiseaseBiologyQuery"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiseaseBiologyResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     lookup_evidence_api_v1_evidence_post: {
         parameters: {
             query?: never;

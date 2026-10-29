@@ -6,6 +6,8 @@
 
 import type { components } from "./types.js";
 
+type DiseaseBiologyQuery = components["schemas"]["DiseaseBiologyQuery"];
+type DiseaseBiologyResponse = components["schemas"]["DiseaseBiologyResponse"];
 type DiseaseQuery = components["schemas"]["DiseaseQuery"];
 type EvidenceLookupResponse = components["schemas"]["EvidenceLookupResponse"];
 type EvidenceQuery = components["schemas"]["EvidenceQuery"];
@@ -80,6 +82,21 @@ export class RepurposeMapClient {
    */
   lookupEvidence(query: EvidenceQuery): Promise<EvidenceLookupResponse> {
     return this.request<EvidenceLookupResponse>("/api/v1/evidence", {
+      method: "POST",
+      body: JSON.stringify(query),
+    });
+  }
+
+  /**
+   * A real, synchronous lookup of the genes most strongly associated
+   * with a disease (ranked by genetic evidence), via Open Targets.
+   * Unlike `lookupEvidence`, a real failure throws `RepurposeMapApiError`
+   * (404 for an unresolvable name/unknown ID, 502 for an Open Targets
+   * failure) rather than returning 200 with an empty module -- there is
+   * only one source here, so there is no partial result to report.
+   */
+  lookupDiseaseBiology(query: DiseaseBiologyQuery): Promise<DiseaseBiologyResponse> {
+    return this.request<DiseaseBiologyResponse>("/api/v1/disease-biology", {
       method: "POST",
       body: JSON.stringify(query),
     });

@@ -8,12 +8,12 @@ Python research engine -> FastAPI + Pydantic -> OpenAPI
     -> generated TypeScript client -> future React research workspace
 ```
 
-Three real endpoints exist today (`/health`, `/api/v1/system/info`,
-`POST /api/v1/evidence`), plus a stubbed `POST /api/v1/rank` that always
-reports `model_status: "not_available"`. There is no trained model wired
-in yet -- see "Plugging in a real model" below. `/api/v1/evidence` is
-real but synchronous -- see "Evidence/safety domain" below for what that
-means and why.
+Four real endpoints exist today (`/health`, `/api/v1/system/info`,
+`POST /api/v1/evidence`, `POST /api/v1/disease-biology`), plus a stubbed
+`POST /api/v1/rank` that always reports `model_status: "not_available"`.
+There is no trained model wired in yet -- see "Plugging in a real model"
+below. The two real lookup endpoints are synchronous -- see "Evidence/safety
+domain" and "Disease biology domain" below for what that means and why.
 
 ## Running the API locally
 
@@ -116,6 +116,29 @@ infrastructure exists in this repo -- it does not yet, so this is a
 deliberate stepping stone, not the final design. The frontend's
 `EvidencePanel` (`web/app/src/components/EvidencePanel.tsx`) is a thin,
 synchronous caller of the same endpoint.
+
+## Disease biology domain
+
+`repurposemap.biology` defines typed contracts (`DiseaseBiologyModule`,
+`TargetAssociation`, `Pathway`, `DiseaseMatch`) and a live Open Targets
+Platform adapter (`OpenTargetsAdapter`) for PLAN.md's researcher-workflow
+step 1 ("What goes wrong in this disease?"): the genes most strongly
+associated with a disease, ranked by genetic evidence, with their
+Reactome pathways. No API key is required.
+
+`POST /api/v1/disease-biology` takes exactly one of `disease_name` /
+`disease_id` (an EFO or MONDO ID) plus `max_targets`. A `disease_name` is
+resolved to an ID first via Open Targets' own full-text search; the top
+candidates it considered are returned in `resolved_from` so a caller can
+see what else the name could have meant, not just the one picked. Unlike
+`/api/v1/evidence` (four independent sources, so a partial result is the
+normal case), this endpoint has one source: a resolution/lookup failure
+raises a real HTTP error (`404` for an unresolvable name or unknown ID,
+`502` for an Open Targets failure) rather than returning `200` with an
+empty module. **This call is synchronous** for the same reason
+`/api/v1/evidence` is -- see that section above. The frontend's
+`DiseaseBiologyPanel` (`web/app/src/components/DiseaseBiologyPanel.tsx`)
+is a thin, synchronous caller of the same endpoint.
 
 `repurposemap.hypothesis.RepurposingHypothesis` shows how a model score,
 explanation paths, an evidence bundle, safety flags and provenance will
