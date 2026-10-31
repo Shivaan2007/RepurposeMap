@@ -147,6 +147,26 @@ export interface components {
         };
         /** ClinicalTrialEvidence */
         ClinicalTrialEvidence: {
+            /**
+             * Completion Date
+             * @description statusModule.completionDateStruct.date, copied as reported -- not reformatted
+             */
+            completion_date?: string | null;
+            /**
+             * Condition Names
+             * @description conditionsModule.conditions, as reported
+             */
+            condition_names?: string[];
+            /**
+             * Enrollment
+             * @description designModule.enrollmentInfo.count, as reported
+             */
+            enrollment?: number | null;
+            /**
+             * Intervention Names
+             * @description armsInterventionsModule intervention names, as reported
+             */
+            intervention_names?: string[];
             /** Nct Id */
             nct_id: string;
             /** Phase */
@@ -160,10 +180,25 @@ export interface components {
              * @description the source's own identifier, e.g. a PMID or NCT number -- never fabricated
              */
             source_id: string;
+            /**
+             * Sponsor
+             * @description sponsorCollaboratorsModule.leadSponsor.name, as reported
+             */
+            sponsor?: string | null;
+            /**
+             * Start Date
+             * @description statusModule.startDateStruct.date, copied as reported -- not reformatted
+             */
+            start_date?: string | null;
             /** Status */
             status?: string | null;
             /** @default unknown */
             strength: components["schemas"]["EvidenceStrength"];
+            /**
+             * Study Type
+             * @description ClinicalTrials.gov's own designModule.studyType, copied as reported
+             */
+            study_type?: string | null;
             /** Summary */
             summary?: string | null;
             /** Title */
@@ -519,12 +554,38 @@ export interface components {
          * SafetyEvidence
          * @description One raw safety signal from DailyMed/openFDA, before it is
          *     distilled into an API-facing ``repurposemap.api.schemas.SafetyFlag``.
-         *     Never a dosing recommendation or clinical judgment -- a pointer to a
-         *     real external record only.
+         *     Never a dosing recommendation or clinical judgment, never a safety
+         *     score, and never an inferred contraindication beyond what the
+         *     source's own label text says -- a pointer to a real external record
+         *     only.
          */
         SafetyEvidence: {
-            /** Description */
+            /**
+             * Adverse Event Context
+             * @description the label's own adverse_reactions text, copied as reported, when the source provides it
+             */
+            adverse_event_context?: string | null;
+            /**
+             * Boxed Warning Present
+             * @description true only if the label's own boxed_warning section was non-empty
+             * @default false
+             */
+            boxed_warning_present: boolean;
+            /**
+             * Contraindication Text
+             * @description the label's own contraindications text, copied as reported
+             */
+            contraindication_text?: string | null;
+            /**
+             * Description
+             * @description a human-readable summary of whichever section below was found, kept for backward compatibility
+             */
             description: string;
+            /**
+             * Drug Name
+             * @description the query drug name this record was retrieved for
+             */
+            drug_name?: string | null;
             /** Retrieved At */
             retrieved_at?: string | null;
             source: components["schemas"]["EvidenceSource"];
@@ -532,6 +593,11 @@ export interface components {
             source_id: string;
             /** Url */
             url?: string | null;
+            /**
+             * Warning Text
+             * @description the label's own warnings/warnings_and_cautions text, copied as reported
+             */
+            warning_text?: string | null;
         };
         /**
          * SafetyFlag

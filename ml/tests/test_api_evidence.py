@@ -102,6 +102,36 @@ def test_one_source_failing_does_not_drop_the_others(client):
     assert by_source["clinical_trials"]["succeeded"] is True
 
 
+@pytest.mark.parametrize(
+    "failing_dependency,error,other_dependencies",
+    [
+        (get_clinicaltrials_adapter, ClinicalTrialsError("CT.gov is down"), None),
+        (get_openfda_adapter, OpenFDAError("openFDA is down"), None),
+        (get_dailymed_adapter, DailyMedError("DailyMed is down"), None),
+    ],
+)
+def test_each_single_source_can_fail_in_isolation(client, failing_dependency, error, other_dependencies):
+    from repurposemap.evidence import EvidenceSource
+
+    app.dependency_overrides[get_pubmed_adapter] = _override(_StubAdapter([demo_pubmed()]))
+    app.dependency_overrides[get_clinicaltrials_adapter] = _override(_StubAdapter([demo_trial()]))
+    app.dependency_overrides[get_openfda_adapter] = _override(_StubAdapter([demo_safety(EvidenceSource.OPENFDA, "FDA-1")]))
+    app.dependency_overrides[get_dailymed_adapter] = _override(_StubAdapter([demo_safety(EvidenceSource.DAILYMED, "DM-1")]))
+    app.dependency_overrides[failing_dependency] = _override(_StubAdapter(error=error))
+
+    response = client.post("/api/v1/evidence", json={"drug_name": "Drug A", "disease_name": "Disease B"})
+    assert response.status_code == 200
+    body = response.json()
+
+    by_source = {s["source"]: s for s in body["source_status"]}
+    failed_sources = [source for source, status in by_source.items() if not status["succeeded"]]
+    assert len(failed_sources) == 1
+    assert by_source[failed_sources[0]]["error"] == str(error)
+    # pubmed is always independent of the three others, and never affected
+    assert by_source["pubmed"]["succeeded"] is True
+    assert body["bundle"]["pubmed"] != []
+
+
 def test_every_source_failing_still_returns_200_with_all_failures_reported(client):
     app.dependency_overrides[get_pubmed_adapter] = _override(_StubAdapter(error=PubMedError("down")))
     app.dependency_overrides[get_clinicaltrials_adapter] = _override(_StubAdapter(error=ClinicalTrialsError("down")))
@@ -114,6 +144,41 @@ def test_every_source_failing_still_returns_200_with_all_failures_reported(clien
 
     assert body["bundle"]["pubmed"] == [] and body["bundle"]["clinical_trials"] == [] and body["bundle"]["safety"] == []
     assert all(not s["succeeded"] and s["error"] == "down" for s in body["source_status"])
+
+
+def test_all_sources_legitimately_empty_is_not_mistaken_for_a_failure(client):
+    app.dependency_overrides[get_pubmed_adapter] = _override(_StubAdapter([]))
+    app.dependency_overrides[get_clinicaltrials_adapter] = _override(_StubAdapter([]))
+    app.dependency_overrides[get_openfda_adapter] = _override(_StubAdapter([]))
+    app.dependency_overrides[get_dailymed_adapter] = _override(_StubAdapter([]))
+
+    response = client.post("/api/v1/evidence", json={"drug_name": "Drug A", "disease_name": "Disease B"})
+    assert response.status_code == 200
+    body = response.json()
+
+    assert body["bundle"]["pubmed"] == [] and body["bundle"]["clinical_trials"] == [] and body["bundle"]["safety"] == []
+    # every source still reports success -- an empty bundle here means "nothing found", not "lookup failed"
+    assert all(s["succeeded"] and s["error"] is None for s in body["source_status"])
+
+
+def test_duplicate_records_from_a_source_are_passed_through_as_reported(client):
+    """Each adapter/source is a pass-through of what the real API returned; this
+    endpoint never deduplicates, since two identical-looking records could be
+    genuinely distinct source entries (e.g. two revisions of the same label)."""
+
+    from repurposemap.evidence import EvidenceSource
+
+    duplicate_trial = demo_trial("NCT90000001")
+    app.dependency_overrides[get_pubmed_adapter] = _override(_StubAdapter([]))
+    app.dependency_overrides[get_clinicaltrials_adapter] = _override(_StubAdapter([duplicate_trial, duplicate_trial]))
+    app.dependency_overrides[get_openfda_adapter] = _override(_StubAdapter([]))
+    app.dependency_overrides[get_dailymed_adapter] = _override(_StubAdapter([]))
+
+    response = client.post("/api/v1/evidence", json={"drug_name": "Drug A", "disease_name": "Disease B"})
+    assert response.status_code == 200
+    body = response.json()
+
+    assert [r["nct_id"] for r in body["bundle"]["clinical_trials"]] == ["NCT90000001", "NCT90000001"]
 
 
 def test_max_results_is_forwarded_to_every_adapter(client):

@@ -100,6 +100,24 @@ def _first_phase(phases: object) -> str | None:
     return None
 
 
+def _string_list(value: object, key: str) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    out: list[str] = []
+    for item in value:
+        entry = item.get(key) if isinstance(item, dict) else item
+        if isinstance(entry, str) and entry:
+            out.append(entry)
+    return out
+
+
+def _date_struct(value: object) -> str | None:
+    if isinstance(value, dict):
+        date = value.get("date")
+        return date if isinstance(date, str) else None
+    return None
+
+
 _STUDY_TYPE_STRENGTH = {
     "INTERVENTIONAL": EvidenceStrength.CONTROLLED_TRIAL,
     "OBSERVATIONAL": EvidenceStrength.OBSERVATIONAL,
@@ -134,11 +152,19 @@ def parse_studies_json(body: bytes, *, retrieved_at: str) -> tuple[list[Clinical
         identification = protocol.get("identificationModule") or {}
         status_module = protocol.get("statusModule") or {}
         design_module = protocol.get("designModule") or {}
+        conditions_module = protocol.get("conditionsModule") or {}
+        arms_module = protocol.get("armsInterventionsModule") or {}
+        sponsor_module = protocol.get("sponsorCollaboratorsModule") or {}
 
         nct_id = identification.get("nctId")
         title = identification.get("briefTitle")
         if not nct_id or not title:
             continue  # without an NCT ID and a title there is nothing to cite
+
+        study_type = design_module.get("studyType")
+        enrollment_info = design_module.get("enrollmentInfo") or {}
+        enrollment = enrollment_info.get("count")
+        lead_sponsor = sponsor_module.get("leadSponsor") or {}
 
         records.append(
             ClinicalTrialEvidence(
@@ -149,7 +175,14 @@ def parse_studies_json(body: bytes, *, retrieved_at: str) -> tuple[list[Clinical
                 retrieved_at=retrieved_at,
                 status=status_module.get("overallStatus"),
                 phase=_first_phase(design_module.get("phases")),
-                strength=classify_strength(design_module.get("studyType")),
+                strength=classify_strength(study_type),
+                study_type=study_type if isinstance(study_type, str) else None,
+                intervention_names=_string_list(arms_module.get("interventions"), "name"),
+                condition_names=_string_list(conditions_module.get("conditions"), "condition"),
+                start_date=_date_struct(status_module.get("startDateStruct")),
+                completion_date=_date_struct(status_module.get("completionDateStruct")),
+                enrollment=enrollment if isinstance(enrollment, int) else None,
+                sponsor=lead_sponsor.get("name") if isinstance(lead_sponsor.get("name"), str) else None,
             )
         )
 

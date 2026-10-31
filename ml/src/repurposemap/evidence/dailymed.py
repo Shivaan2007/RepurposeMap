@@ -96,7 +96,7 @@ def _description(title: str, published_date: str | None) -> str:
     return f"{title} (published {published_date})" if published_date else title
 
 
-def parse_spls_json(body: bytes, *, retrieved_at: str) -> tuple[list[SafetyEvidence], int]:
+def parse_spls_json(body: bytes, *, retrieved_at: str, drug_name: str | None = None) -> tuple[list[SafetyEvidence], int]:
     """Parse a ``/spls.json`` response. Deterministic: document order, no network."""
 
     try:
@@ -121,6 +121,7 @@ def parse_spls_json(body: bytes, *, retrieved_at: str) -> tuple[list[SafetyEvide
             SafetyEvidence(
                 source=EvidenceSource.DAILYMED,
                 source_id=set_id,
+                drug_name=drug_name,
                 description=_description(title, entry.get("published_date")),
                 url=DAILYMED_LABEL_URL.format(set_id=set_id),
                 retrieved_at=retrieved_at,
@@ -165,7 +166,7 @@ class DailyMedAdapter:
     def search_with_provenance(self, query: DailyMedQuery) -> DailyMedSearchResult:
         body = self._get({"drug_name": query.drug_name, "pagesize": str(query.max_results)})
         retrieved_at = self._now().astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-        records, total_count = parse_spls_json(body, retrieved_at=retrieved_at)
+        records, total_count = parse_spls_json(body, retrieved_at=retrieved_at, drug_name=query.drug_name)
         return DailyMedSearchResult(drug_name=query.drug_name, total_count=total_count, records=records, retrieved_at=retrieved_at)
 
     def search(self, drug_name: str, max_results: int = 10) -> list[SafetyEvidence]:

@@ -81,6 +81,46 @@
       },
       "ClinicalTrialEvidence": {
         "properties": {
+          "completion_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "statusModule.completionDateStruct.date, copied as reported -- not reformatted",
+            "title": "Completion Date"
+          },
+          "condition_names": {
+            "description": "conditionsModule.conditions, as reported",
+            "items": {
+              "type": "string"
+            },
+            "title": "Condition Names",
+            "type": "array"
+          },
+          "enrollment": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "designModule.enrollmentInfo.count, as reported",
+            "title": "Enrollment"
+          },
+          "intervention_names": {
+            "description": "armsInterventionsModule intervention names, as reported",
+            "items": {
+              "type": "string"
+            },
+            "title": "Intervention Names",
+            "type": "array"
+          },
           "nct_id": {
             "title": "Nct Id",
             "type": "string"
@@ -116,6 +156,30 @@
             "title": "Source Id",
             "type": "string"
           },
+          "sponsor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "sponsorCollaboratorsModule.leadSponsor.name, as reported",
+            "title": "Sponsor"
+          },
+          "start_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "statusModule.startDateStruct.date, copied as reported -- not reformatted",
+            "title": "Start Date"
+          },
           "status": {
             "anyOf": [
               {
@@ -130,6 +194,18 @@
           "strength": {
             "$ref": "#/components/schemas/EvidenceStrength",
             "default": "unknown"
+          },
+          "study_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "ClinicalTrials.gov's own designModule.studyType, copied as reported",
+            "title": "Study Type"
           },
           "summary": {
             "anyOf": [
@@ -854,11 +930,54 @@
         "type": "object"
       },
       "SafetyEvidence": {
-        "description": "One raw safety signal from DailyMed/openFDA, before it is\ndistilled into an API-facing ``repurposemap.api.schemas.SafetyFlag``.\nNever a dosing recommendation or clinical judgment -- a pointer to a\nreal external record only.",
+        "description": "One raw safety signal from DailyMed/openFDA, before it is\ndistilled into an API-facing ``repurposemap.api.schemas.SafetyFlag``.\nNever a dosing recommendation or clinical judgment, never a safety\nscore, and never an inferred contraindication beyond what the\nsource's own label text says -- a pointer to a real external record\nonly.",
         "properties": {
+          "adverse_event_context": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the label's own adverse_reactions text, copied as reported, when the source provides it",
+            "title": "Adverse Event Context"
+          },
+          "boxed_warning_present": {
+            "default": false,
+            "description": "true only if the label's own boxed_warning section was non-empty",
+            "title": "Boxed Warning Present",
+            "type": "boolean"
+          },
+          "contraindication_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the label's own contraindications text, copied as reported",
+            "title": "Contraindication Text"
+          },
           "description": {
+            "description": "a human-readable summary of whichever section below was found, kept for backward compatibility",
             "title": "Description",
             "type": "string"
+          },
+          "drug_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the query drug name this record was retrieved for",
+            "title": "Drug Name"
           },
           "retrieved_at": {
             "anyOf": [
@@ -888,6 +1007,18 @@
               }
             ],
             "title": "Url"
+          },
+          "warning_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the label's own warnings/warnings_and_cautions text, copied as reported",
+            "title": "Warning Text"
           }
         },
         "required": [

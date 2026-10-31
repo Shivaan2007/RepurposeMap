@@ -69,17 +69,35 @@ class ClinicalTrialEvidence(EvidenceRecord):
     nct_id: str
     phase: str | None = None
     status: str | None = None
+    study_type: str | None = Field(default=None, description="ClinicalTrials.gov's own designModule.studyType, copied as reported")
+    intervention_names: list[str] = Field(default_factory=list, description="armsInterventionsModule intervention names, as reported")
+    condition_names: list[str] = Field(default_factory=list, description="conditionsModule.conditions, as reported")
+    start_date: str | None = Field(default=None, description="statusModule.startDateStruct.date, copied as reported -- not reformatted")
+    completion_date: str | None = Field(
+        default=None, description="statusModule.completionDateStruct.date, copied as reported -- not reformatted"
+    )
+    enrollment: int | None = Field(default=None, description="designModule.enrollmentInfo.count, as reported")
+    sponsor: str | None = Field(default=None, description="sponsorCollaboratorsModule.leadSponsor.name, as reported")
 
 
 class SafetyEvidence(BaseModel):
     """One raw safety signal from DailyMed/openFDA, before it is
     distilled into an API-facing ``repurposemap.api.schemas.SafetyFlag``.
-    Never a dosing recommendation or clinical judgment -- a pointer to a
-    real external record only."""
+    Never a dosing recommendation or clinical judgment, never a safety
+    score, and never an inferred contraindication beyond what the
+    source's own label text says -- a pointer to a real external record
+    only."""
 
     source: EvidenceSource
     source_id: str
-    description: str
+    drug_name: str | None = Field(default=None, description="the query drug name this record was retrieved for")
+    description: str = Field(description="a human-readable summary of whichever section below was found, kept for backward compatibility")
+    boxed_warning_present: bool = Field(default=False, description="true only if the label's own boxed_warning section was non-empty")
+    warning_text: str | None = Field(default=None, description="the label's own warnings/warnings_and_cautions text, copied as reported")
+    contraindication_text: str | None = Field(default=None, description="the label's own contraindications text, copied as reported")
+    adverse_event_context: str | None = Field(
+        default=None, description="the label's own adverse_reactions text, copied as reported, when the source provides it"
+    )
     url: str | None = None
     retrieved_at: str | None = None
 

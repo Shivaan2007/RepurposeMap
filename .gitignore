@@ -31,3 +31,9 @@ htmlcov/
 .idea/
 .vscode/
 .DS_Store
+
+# Local Kaggle operational scratch (checkpoints, kernel archives, downloads --
+# never committed; see ml/RGCN_RUNBOOK.md)
+kaggle_resume_download/
+kaggle_rgcn_search_kernel/
+resume_gate_staging/

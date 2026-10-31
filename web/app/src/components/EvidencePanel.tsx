@@ -186,9 +186,17 @@ function ClinicalTrialItem({ record }: { record: ClinicalTrialEvidence }) {
       ) : (
         record.title
       )}
+      {record.nct_id ? ` (${record.nct_id})` : ""}
       {record.status ? ` -- ${record.status}` : ""}
       {record.phase ? ` (${record.phase})` : ""}
       {record.strength !== "unknown" ? <span className="score-chip">{record.strength}</span> : null}
+      {record.sponsor || record.enrollment != null ? (
+        <p className="hint">
+          {record.sponsor ? `Sponsor: ${record.sponsor}` : ""}
+          {record.sponsor && record.enrollment != null ? " -- " : ""}
+          {record.enrollment != null ? `Enrollment: ${record.enrollment}` : ""}
+        </p>
+      ) : null}
     </li>
   );
 }
@@ -204,6 +212,8 @@ function SafetyItem({ record }: { record: SafetyEvidence }) {
       ) : (
         record.description
       )}
+      {record.boxed_warning_present ? <span className="score-chip safety-flag">boxed warning</span> : null}
+      {record.contraindication_text ? <p className="hint">Contraindications: {record.contraindication_text}</p> : null}
     </li>
   );
 }

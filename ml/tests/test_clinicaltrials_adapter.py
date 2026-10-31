@@ -41,6 +41,29 @@ def demo_study(nct_id, *, title="DEMO study of Drug A in Disease B", status="REC
     }
 
 
+def demo_study_full(nct_id):
+    """A DEMO study (synthetic, invented) exercising every Task-1-required field."""
+
+    return {
+        "protocolSection": {
+            "identificationModule": {"nctId": nct_id, "briefTitle": "DEMO full study of Drug A in Disease B"},
+            "statusModule": {
+                "overallStatus": "COMPLETED",
+                "startDateStruct": {"date": "2024-01"},
+                "completionDateStruct": {"date": "2025-06"},
+            },
+            "designModule": {
+                "phases": ["PHASE3"],
+                "studyType": "INTERVENTIONAL",
+                "enrollmentInfo": {"count": 240},
+            },
+            "conditionsModule": {"conditions": ["DEMO Disease B"]},
+            "armsInterventionsModule": {"interventions": [{"type": "DRUG", "name": "DEMO Drug A"}]},
+            "sponsorCollaboratorsModule": {"leadSponsor": {"name": "DEMO Sponsor Inc."}},
+        }
+    }
+
+
 class FakeFetcher:
     def __init__(self, *replies):
         self.replies, self.urls = list(replies), []
@@ -171,3 +194,32 @@ def test_rate_limit_is_surfaced_with_retry_after():
 def test_invalid_timeout_is_rejected():
     with pytest.raises(ValueError):
         ClinicalTrialsAdapter(timeout_s=0)
+
+
+def test_all_task1_required_fields_are_parsed():
+    fetcher = FakeFetcher(studies_json([demo_study_full("NCT90000099")]))
+    [record] = make_adapter(fetcher).search("Drug A", "Disease B", max_results=1)
+    assert record.nct_id == "NCT90000099"
+    assert record.title == "DEMO full study of Drug A in Disease B"
+    assert record.status == "COMPLETED"
+    assert record.phase == "PHASE3"
+    assert record.study_type == "INTERVENTIONAL"
+    assert record.intervention_names == ["DEMO Drug A"]
+    assert record.condition_names == ["DEMO Disease B"]
+    assert record.start_date == "2024-01"
+    assert record.completion_date == "2025-06"
+    assert record.enrollment == 240
+    assert record.sponsor == "DEMO Sponsor Inc."
+    assert record.url == "https://clinicaltrials.gov/study/NCT90000099"
+    assert record.retrieved_at == RETRIEVED
+
+
+def test_missing_optional_modules_leave_new_fields_empty_not_fabricated():
+    fetcher = FakeFetcher(studies_json([demo_study("NCT90000003")]))
+    [record] = make_adapter(fetcher).search("Drug A", "Disease B", max_results=1)
+    assert record.intervention_names == []
+    assert record.condition_names == []
+    assert record.start_date is None
+    assert record.completion_date is None
+    assert record.enrollment is None
+    assert record.sponsor is None

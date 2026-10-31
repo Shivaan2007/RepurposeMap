@@ -171,3 +171,30 @@ def test_rate_limit_is_surfaced_with_retry_after():
 def test_invalid_timeout_is_rejected():
     with pytest.raises(ValueError):
         OpenFDALabelAdapter(timeout_s=0)
+
+
+def test_normalized_safety_fields_are_split_out_from_each_label_section():
+    label = demo_label(
+        "DEMO-ID-1",
+        boxed_warning=("DEMO boxed warning text.",),
+        warnings=("DEMO general warning text.",),
+        contraindications=("DEMO contraindication text.",),
+        adverse_reactions=("DEMO adverse reaction text.",),
+    )
+    fetcher = FakeFetcher(labels_json([label]))
+    [record] = make_adapter(fetcher).search("Drug A")
+    assert record.drug_name == "Drug A"
+    assert record.boxed_warning_present is True
+    assert record.warning_text == "DEMO general warning text."
+    assert record.contraindication_text == "DEMO contraindication text."
+    assert record.adverse_event_context == "DEMO adverse reaction text."
+
+
+def test_no_boxed_warning_is_reported_as_false_not_omitted():
+    label = demo_label("DEMO-ID-2", boxed_warning=None, warnings=("DEMO warning only.",))
+    fetcher = FakeFetcher(labels_json([label]))
+    [record] = make_adapter(fetcher).search("Drug A")
+    assert record.boxed_warning_present is False
+    assert record.warning_text == "DEMO warning only."
+    assert record.contraindication_text is None
+    assert record.adverse_event_context is None

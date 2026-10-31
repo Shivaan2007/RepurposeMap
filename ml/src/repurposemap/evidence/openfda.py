@@ -116,8 +116,14 @@ def _description(label: dict) -> str:
     return "No boxed warning, contraindication, warnings or adverse-reactions text in this label."
 
 
-def parse_labels_json(body: bytes, *, retrieved_at: str) -> tuple[list[SafetyEvidence], int]:
-    """Parse a ``/drug/label.json`` response. Deterministic: document order, no network."""
+def parse_labels_json(body: bytes, *, retrieved_at: str, drug_name: str | None = None) -> tuple[list[SafetyEvidence], int]:
+    """Parse a ``/drug/label.json`` response. Deterministic: document order, no network.
+
+    Each factual label section (boxed warning, warnings, contraindications,
+    adverse reactions) is kept in its own field rather than only the
+    combined ``description`` -- this is normalization of the source's own
+    fields, never a derived safety score or an inferred contraindication.
+    """
 
     try:
         payload = json.loads(body)
@@ -139,11 +145,20 @@ def parse_labels_json(body: bytes, *, retrieved_at: str) -> tuple[list[SafetyEvi
 
         openfda = label.get("openfda") or {}
         set_id = _first(openfda.get("spl_set_id")) or _first(openfda.get("set_id"))
+        boxed_warning = _first(label.get("boxed_warning"))
+        warnings = _first(label.get("warnings")) or _first(label.get("warnings_and_cautions"))
+        contraindications = _first(label.get("contraindications"))
+        adverse_reactions = _first(label.get("adverse_reactions"))
         records.append(
             SafetyEvidence(
                 source=EvidenceSource.OPENFDA,
                 source_id=source_id,
+                drug_name=drug_name,
                 description=_description(label),
+                boxed_warning_present=bool(boxed_warning),
+                warning_text=warnings,
+                contraindication_text=contraindications,
+                adverse_event_context=adverse_reactions,
                 url=DAILYMED_LABEL_URL.format(set_id=set_id) if set_id else None,
                 retrieved_at=retrieved_at,
             )
@@ -200,7 +215,7 @@ class OpenFDALabelAdapter:
         retrieved_at = self._now().astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         if body is None:
             return DrugLabelSearchResult(search_term=query.search_term, total_count=0, records=[], retrieved_at=retrieved_at)
-        records, total_count = parse_labels_json(body, retrieved_at=retrieved_at)
+        records, total_count = parse_labels_json(body, retrieved_at=retrieved_at, drug_name=query.drug_name)
         return DrugLabelSearchResult(search_term=query.search_term, total_count=total_count, records=records, retrieved_at=retrieved_at)
 
     def search(self, drug_name: str, max_results: int = 10) -> list[SafetyEvidence]:
