@@ -201,6 +201,12 @@ class OpenTargetsAdapter:
             raise OpenTargetsNotFoundError(f"Open Targets has no disease with ID {efo_id!r}")
 
         associated = disease.get("associatedTargets") or {}
+        total_associated_targets = associated.get("count")
+        if not isinstance(total_associated_targets, int):
+            # Missing or malformed, never defaulted to 0 -- that would be
+            # indistinguishable from "zero associated targets", a real and
+            # different fact Open Targets does sometimes report.
+            raise OpenTargetsParseError("'disease.associatedTargets.count' was missing or not an integer")
         rows = associated.get("rows") or []
         targets = []
         for row in rows:
@@ -224,7 +230,7 @@ class OpenTargetsAdapter:
             disease_id=disease["id"],
             disease_name=disease["name"],
             disease_description=disease.get("description"),
-            total_associated_targets=associated.get("count", 0),
+            total_associated_targets=total_associated_targets,
             targets=targets,
             retrieved_at=self._now().astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         )

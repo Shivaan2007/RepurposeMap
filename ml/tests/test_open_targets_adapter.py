@@ -130,6 +130,26 @@ def test_get_disease_biology_reports_none_not_zero_when_no_genetic_score():
     assert module.targets[0].genetic_association_score is None
 
 
+def test_get_disease_biology_raises_rather_than_defaulting_a_missing_count_to_zero():
+    """A missing/malformed 'count' must never silently become 0 -- that is
+    indistinguishable from the real, different fact of zero associated
+    targets, which Open Targets does sometimes legitimately report."""
+
+    response = graphql_response(
+        {
+            "disease": {
+                "id": "MONDO_0000001",
+                "name": "demo disease",
+                "description": "A demo disease.",
+                "associatedTargets": {"rows": []},  # no 'count' key at all
+            }
+        }
+    )
+    fetcher = FakeFetcher(response)
+    with pytest.raises(OpenTargetsParseError, match="count"):
+        make_adapter(fetcher).get_disease_biology("MONDO_0000001")
+
+
 def test_get_disease_biology_raises_not_found_for_a_missing_disease():
     fetcher = FakeFetcher(graphql_response({"disease": None}))
     with pytest.raises(OpenTargetsNotFoundError, match="MONDO_9999999"):
