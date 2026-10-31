@@ -128,6 +128,62 @@ def test_final_flag_interpretation(tmp_path):
     assert is_model_available(records) is False
 
 
+def test_validation_search_record_alone_is_not_eligible_or_available(tmp_path):
+    """A validation-search record, on its own, must never be mistaken for
+    an eligible final model -- this isolates that specific risk rather
+    than relying only on the real committed R-GCN/TransE files."""
+
+    search_only = tmp_path / "search.json"
+    search_only.write_text(json.dumps({
+        "stage": "R-GCN validation search",
+        "purpose": "3-config validation search",
+        "generated_at": "2026-10-28T00:00:00Z",
+        "provenance": {"source_commit": "deadbeef"},
+        "safety_and_protocol": {
+            "final_training_performed": False,
+            "locked_test_evaluation_performed": False,
+            "three_config_search_performed": True,
+        },
+    }))
+    records = load_experiments(tmp_path)
+    assert records[0].kind == ExperimentKind.VALIDATION_SEARCH
+    assert records[0].is_final_training is False
+
+    eligibility = get_model_eligibility(records)
+    assert eligibility.eligible is False
+    assert is_model_available(records) is False
+
+
+def test_unknown_or_top_level_flags_outside_safety_and_protocol_are_ignored(tmp_path):
+    """Classification reads only the safety_and_protocol block. A stray
+    top-level field that happens to share a name with a real flag (e.g.
+    from a future, unrelated artifact schema) must never silently become
+    a final-training or eligibility claim."""
+
+    decoy = tmp_path / "decoy.json"
+    decoy.write_text(json.dumps({
+        "stage": "some future artifact kind",
+        "purpose": "not a training run at all",
+        "generated_at": "2026-10-29T00:00:00Z",
+        "provenance": {"source_commit": "deadbeef"},
+        # top-level decoys, deliberately NOT inside safety_and_protocol
+        "final_training_performed": True,
+        "is_final_training": True,
+        "locked_test_evaluation_performed": True,
+        "safety_and_protocol": {
+            "final_training_performed": False,
+            "locked_test_evaluation_performed": False,
+            "three_config_search_performed": False,
+        },
+    }))
+    records = load_experiments(tmp_path)
+    assert records[0].status == ExperimentStatus.VALID
+    assert records[0].is_final_training is False
+    assert records[0].locked_test_evaluation_performed is False
+    assert records[0].kind == ExperimentKind.DEVELOPMENT
+    assert get_model_eligibility(records).eligible is False
+
+
 def test_safe_provenance_extraction_exposes_no_locked_test_labels():
     for record in REPO_EXPERIMENTS:
         dumped = record.model_dump()
