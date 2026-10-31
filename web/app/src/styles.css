@@ -335,6 +335,38 @@ dd.unavailable {
   resize: vertical;
 }
 
+.comparison-drug-row {
+  align-items: flex-end;
+  margin-bottom: 0.5rem;
+}
+
+.comparison-form-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.comparison-table {
+  width: 100%;
+  margin-top: 1rem;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.comparison-table th,
+.comparison-table td {
+  border: 1px solid var(--border);
+  padding: 0.5rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.comparison-table th:first-child,
+.comparison-table td:first-child {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
 .page-footer {
   margin-top: 2.5rem;
   border-top: 1px solid var(--border);

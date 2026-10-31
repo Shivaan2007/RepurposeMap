@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { components } from "@repurposemap/api-client";
 
 import { apiClient } from "./api.js";
+import { CandidateComparisonPanel } from "./components/CandidateComparisonPanel.js";
 import { CandidateList } from "./components/CandidateList.js";
 import { DiseaseBiologyPanel } from "./components/DiseaseBiologyPanel.js";
 import { EvidencePanel } from "./components/EvidencePanel.js";
@@ -68,6 +69,8 @@ export function App() {
       <EvidencePanel />
 
       <HypothesisNotebookPanel />
+
+      <CandidateComparisonPanel />
 
       <footer className="page-footer">
         <p>Research hypothesis ranking. Not a treatment recommendation. Every output requires expert review.</p>
