@@ -15,8 +15,10 @@ export function CandidateList({ result }: CandidateListProps) {
           <strong>No ranking model is available yet.</strong>
         </p>
         <p className="hint">
-          Final TransE training has not completed and no eligible checkpoint is configured. This page will show ranked
-          candidates once a model is wired in -- it never substitutes a mock or random ranking.
+          TransE final training and its one locked-test evaluation are complete, and an R-GCN validation search is in
+          progress -- but no R-GCN final model has been selected or trained yet, and no eligible checkpoint is configured
+          for ranking. This page will show ranked candidates once a model is wired in -- it never substitutes a mock or
+          random ranking.
         </p>
       </div>
     );

@@ -32,7 +32,7 @@ flowchart LR
     G --> H[TypeScript client + React research workspace]
 ```
 
-Built today: everything up to the ranking for the path, popularity and TransE models, the typed API, and the React workspace shell. R-GCN training is in progress (see Project status). Explanation paths exist for the path baseline only. Evidence and safety exist as typed contracts, not live lookups.
+Built today: everything up to the ranking for the path, popularity and TransE models, the typed API, and the React workspace shell. R-GCN's validation search is in progress (see Project status). Explanation paths exist for the path baseline only. Evidence and safety are live lookups across PubMed, ClinicalTrials.gov, openFDA and DailyMed, wired into the API and UI (see "Evidence/safety domain" below) -- disease biology and target scorecard (Open Targets) are live as well.
 
 See [API.md](API.md) for the FastAPI / OpenAPI / TypeScript boundary in detail.
 
@@ -63,8 +63,8 @@ See [API.md](API.md) for the FastAPI / OpenAPI / TypeScript boundary in detail.
 
 **In progress / not yet complete**
 
-- R-GCN validation search (3 predeclared configs x 3 epochs, about 43 GPU-hours projected): not run yet; no R-GCN result exists
-- R-GCN final training and the one locked-test evaluation: not done. They follow the frozen protocol, and selection is on validation only; the locked test used above has now been observed once for TransE and must not become a tuning set for this or any future model
+- R-GCN validation search (3 predeclared configs x 3 epochs, about 43 GPU-hours projected): in progress on Kaggle GPU, checkpointed and resumable across sessions. No validation-selection result exists yet, so there is still no R-GCN performance number to report
+- R-GCN final training and the one locked-test evaluation: not started, and will not start until the validation search above finishes. They follow the frozen protocol, and selection is on validation only; the locked test used above has now been observed once for TransE and must not become a tuning set for this or any future model
 
 **Planned**
 
@@ -97,8 +97,8 @@ On a controlled 100-disease, 498-pair benchmark (seed 42), the path baseline sco
 
 Not implemented yet, as of this writing:
 
-- **No trained or evaluated R-GCN yet.** The model, the sampled trainer and the Kaggle runner exist and have been profiled on real PrimeKG for feasibility (speed and memory only, not accuracy). The validation search, final training and locked-test evaluation have not been run, so there are no R-GCN performance numbers.
-- Evidence lookup is partial: a PubMed adapter exists (search results only, no evidence labelling) but is not wired into the API or the UI. There is no ClinicalTrials.gov, DailyMed or openFDA lookup and no real drug safety information -- only typed contracts for those (`repurposemap.evidence`).
+- **No trained or evaluated R-GCN yet.** The model, the sampled trainer and the Kaggle runner have been profiled on real PrimeKG for feasibility (speed and memory only, not accuracy), and the 3-config validation search is actively running. Final training and the locked-test evaluation have not started, so there are still no R-GCN performance numbers.
+- Evidence/safety lookup is real but synchronous and uncached: PubMed, ClinicalTrials.gov, openFDA and DailyMed are all wired into `POST /api/v1/evidence` and `EvidencePanel` (see above), but each request queries all four sources in-process rather than through the background-job layer `PLAN.md`'s tech stack calls for.
 - The React frontend's ranking view (`web/app`) exists and queries the real `/api/v1/rank` endpoint, but since no model is available yet it only ever shows the honest unavailable/empty state there -- see "Project status" above and [API.md](API.md). The evidence lookup view is real and live.
 
 ## Evaluation protocol
