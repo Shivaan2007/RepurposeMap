@@ -179,12 +179,19 @@ def _parse_experiment_file(path: Path) -> ModelProvenance:
 def load_experiments(experiments_dir: Path | None = None) -> list[ModelProvenance]:
     """Parse every ``*.json`` file directly inside ``experiments_dir``
     (default: ``ml/experiments``). Non-recursive, and never follows a
-    path outside that one directory."""
+    path outside that one directory. A ``*_TEMPLATE.json`` file (e.g.
+    ``rgcn_sampled_validation_search_TEMPLATE.json``) is skipped -- it is
+    an unfilled result scaffold, never a real experiment record, and
+    must never be reported as VALID provenance."""
 
     directory = experiments_dir if experiments_dir is not None else EXPERIMENTS_DIR
     if not directory.is_dir():
         return []
-    return [_parse_experiment_file(path) for path in sorted(directory.glob("*.json")) if path.is_file()]
+    return [
+        _parse_experiment_file(path)
+        for path in sorted(directory.glob("*.json"))
+        if path.is_file() and "_TEMPLATE" not in path.stem
+    ]
 
 
 def get_most_recent_completed_stage(records: list[ModelProvenance]) -> str | None:

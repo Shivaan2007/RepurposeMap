@@ -184,6 +184,18 @@ def test_unknown_or_top_level_flags_outside_safety_and_protocol_are_ignored(tmp_
     assert get_model_eligibility(records).eligible is False
 
 
+def test_template_result_files_are_never_loaded_as_real_experiments():
+    """An unfilled result scaffold (e.g. rgcn_sampled_validation_search_TEMPLATE.json)
+    must never be parsed as a VALID provenance record -- it has no real
+    measurements, only null placeholders."""
+
+    template_names = [path.name for path in EXPERIMENTS_DIR.glob("*_TEMPLATE.json")]
+    assert template_names, "expected at least the R-GCN result template to exist in ml/experiments"
+    loaded_names = {record.experiment_file for record in REPO_EXPERIMENTS}
+    for template_name in template_names:
+        assert template_name not in loaded_names
+
+
 def test_safe_provenance_extraction_exposes_no_locked_test_labels():
     for record in REPO_EXPERIMENTS:
         dumped = record.model_dump()

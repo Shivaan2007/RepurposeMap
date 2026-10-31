@@ -1,0 +1,91 @@
+{
+  "_is_template": true,
+  "_fill_instructions": "Copy this file to rgcn_sampled_validation_search_<short-commit-sha>.json once the frozen 3-config search in ml/RGCN_EVALUATION_PROTOCOL.md has fully finished (all three configs, all three epochs each, on the pinned source commit). Replace every null below with the real, measured value. Never fill a value you have not actually measured -- an incomplete search stays incomplete, it does not get placeholder numbers. Do not touch or read any locked-test file to fill this template; every metric here comes only from the validation split.",
+  "stage": "R-GCN sampled validation search",
+  "purpose": "hyperparameter/model selection on validation diseases only; not a final/locked-test result",
+  "generated_at": null,
+  "provenance": {
+    "source_commit": "0f23fe3631e276f36a8ba1e481da2beb634b6ccf",
+    "export_fingerprint": "8e41f866f9fb90b0017b9056c1eb69b585004e01e65e6c6e4d17b9dbf16cb1aa",
+    "primekg_sha256": "0a5a010fcd88dcec572a573d98c26c1c244a11567092b6161d3ded611cfb5c69",
+    "locked_test_manifest_fingerprint": null,
+    "archive_sha256": "bd26185f5db0ee0f5918936649c9f371d663034fad7bfff63939e3e9d1782085"
+  },
+  "environment": {
+    "platform": "Kaggle kernel",
+    "gpu_detected": null,
+    "device_actually_used": null,
+    "peak_gpu_memory_mb": null,
+    "internet_enabled": false
+  },
+  "safety_and_protocol": {
+    "final_training_performed": false,
+    "locked_test_evaluation_performed": false,
+    "three_config_search_performed": null
+  },
+  "search": {
+    "rule": "1) highest validation MRR; 2) if the absolute MRR difference is <= 0.0005, highest macro AP; 3) if still tied, smaller model (fewer parameters).",
+    "fanout_hop1": 15,
+    "fanout_hop2": 10,
+    "epochs_per_config": 3,
+    "triples_used": "tuning_triples only",
+    "configs": [
+      {"name": "rgcn-base", "hidden_dim": 64, "num_bases": 8, "num_layers": 2},
+      {"name": "rgcn-wide", "hidden_dim": 128, "num_bases": 8, "num_layers": 2},
+      {"name": "rgcn-moreBases", "hidden_dim": 64, "num_bases": 30, "num_layers": 2}
+    ],
+    "all_configs_ran_full_3_epoch_budget": null,
+    "nan_or_inf_detected": null,
+    "results": [
+      {
+        "name": "rgcn-base",
+        "hidden_dim": 64,
+        "num_bases": 8,
+        "epochs": [
+          {
+            "epoch": null,
+            "train_loss": null,
+            "epoch_seconds": null,
+            "hits_at_1": null,
+            "hits_at_3": null,
+            "hits_at_10": null,
+            "mrr": null,
+            "macro_auprc": null,
+            "micro_auprc": null
+          }
+        ],
+        "best_epoch": null,
+        "best_val_mrr": null,
+        "best_val_macro_auprc": null,
+        "total_runtime_s": null
+      },
+      {
+        "name": "rgcn-wide",
+        "hidden_dim": 128,
+        "num_bases": 8,
+        "epochs": [],
+        "best_epoch": null,
+        "best_val_mrr": null,
+        "best_val_macro_auprc": null,
+        "total_runtime_s": null
+      },
+      {
+        "name": "rgcn-moreBases",
+        "hidden_dim": 64,
+        "num_bases": 30,
+        "epochs": [],
+        "best_epoch": null,
+        "best_val_mrr": null,
+        "best_val_macro_auprc": null,
+        "total_runtime_s": null
+      }
+    ]
+  },
+  "selection": {
+    "winner": null,
+    "winner_best_val_mrr": null,
+    "winner_best_val_macro_auprc": null,
+    "rule_applied": null,
+    "notes": null
+  }
+}
