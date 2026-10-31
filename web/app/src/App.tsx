@@ -5,6 +5,7 @@ import { apiClient } from "./api.js";
 import { CandidateList } from "./components/CandidateList.js";
 import { DiseaseBiologyPanel } from "./components/DiseaseBiologyPanel.js";
 import { EvidencePanel } from "./components/EvidencePanel.js";
+import { HypothesisNotebookPanel } from "./components/HypothesisNotebookPanel.js";
 import { QueryForm } from "./components/QueryForm.js";
 import { StatusPanel } from "./components/StatusPanel.js";
 import { TargetScorecardPanel } from "./components/TargetScorecardPanel.js";
@@ -65,6 +66,8 @@ export function App() {
       <TargetScorecardPanel />
 
       <EvidencePanel />
+
+      <HypothesisNotebookPanel />
 
       <footer className="page-footer">
         <p>Research hypothesis ranking. Not a treatment recommendation. Every output requires expert review.</p>
