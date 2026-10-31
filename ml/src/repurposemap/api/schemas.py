@@ -118,19 +118,28 @@ class EvidenceSummary(BaseModel):
 
 class ExplanationStep(BaseModel):
     """One hop of an explanation path, mirroring
-    ``repurposemap.scoring.path_quality``'s own path representation."""
+    ``repurposemap.graph.paths.PathStep``'s own representation -- source
+    and target node *type* (e.g. "drug", "gene/protein", "disease") is
+    carried through unchanged, never inferred or guessed here."""
 
     source_id: str
     source_name: str
+    source_type: str
     relation: str
+    display_relation: str | None = None
     target_id: str
     target_name: str
+    target_type: str
 
 
 class ExplanationPath(BaseModel):
     """A full mechanistic path from drug to disease, as the CLI's
     ``explain-paths``/``rank-drugs`` commands already compute -- a
-    hypothesis to review, not evidence of efficacy."""
+    hypothesis to review, not evidence of efficacy. Graph connectivity
+    between a drug and a disease is not itself evidence of efficacy, and
+    ``path_score`` (when present) is the heuristic defined in
+    ``repurposemap.scoring.path_quality``, not a probability or a model
+    confidence."""
 
     steps: list[ExplanationStep]
     path_score: float | None = None

@@ -73,19 +73,34 @@ function CandidateRow({ candidate }: { candidate: CandidateDrug }) {
       </section>
 
       <section className="candidate-section">
-        <h4>Explanation path</h4>
+        <h4>Explanation paths</h4>
         {explanationPaths.length === 0 ? (
           <p className="hint">No explanation path recorded.</p>
         ) : (
-          explanationPaths.map((path, index) => (
-            <ol key={index} className="explanation-path">
-              {(path.steps ?? []).map((step, stepIndex) => (
-                <li key={stepIndex}>
-                  {step.source_name} --[{step.relation}]--&gt; {step.target_name}
-                </li>
-              ))}
-            </ol>
-          ))
+          <>
+            {explanationPaths.slice(0, 4).map((path, index) => {
+              const steps = (path.steps ?? []).slice(0, 4);
+              return (
+                <ol key={index} className="explanation-path">
+                  <li>
+                    {steps[0] ? `${steps[0].source_name} (${steps[0].source_type})` : null}
+                  </li>
+                  {steps.map((step, stepIndex) => (
+                    <li key={stepIndex}>
+                      --[{step.display_relation ?? step.relation}]--&gt; {step.target_name} ({step.target_type})
+                    </li>
+                  ))}
+                  {path.path_score != null ? (
+                    <li className="hint">path quality score (heuristic, not a probability): {path.path_score.toFixed(3)}</li>
+                  ) : null}
+                </ol>
+              );
+            })}
+            <p className="hint">
+              Graph connectivity is not evidence of efficacy. A path shows that these entities and relations exist in
+              PrimeKG, not that the drug treats the disease.
+            </p>
+          </>
         )}
       </section>
 

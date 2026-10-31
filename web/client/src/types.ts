@@ -383,7 +383,11 @@ export interface components {
          * ExplanationPath
          * @description A full mechanistic path from drug to disease, as the CLI's
          *     ``explain-paths``/``rank-drugs`` commands already compute -- a
-         *     hypothesis to review, not evidence of efficacy.
+         *     hypothesis to review, not evidence of efficacy. Graph connectivity
+         *     between a drug and a disease is not itself evidence of efficacy, and
+         *     ``path_score`` (when present) is the heuristic defined in
+         *     ``repurposemap.scoring.path_quality``, not a probability or a model
+         *     confidence.
          */
         ExplanationPath: {
             /** Path Score */
@@ -394,19 +398,27 @@ export interface components {
         /**
          * ExplanationStep
          * @description One hop of an explanation path, mirroring
-         *     ``repurposemap.scoring.path_quality``'s own path representation.
+         *     ``repurposemap.graph.paths.PathStep``'s own representation -- source
+         *     and target node *type* (e.g. "drug", "gene/protein", "disease") is
+         *     carried through unchanged, never inferred or guessed here.
          */
         ExplanationStep: {
+            /** Display Relation */
+            display_relation?: string | null;
             /** Relation */
             relation: string;
             /** Source Id */
             source_id: string;
             /** Source Name */
             source_name: string;
+            /** Source Type */
+            source_type: string;
             /** Target Id */
             target_id: string;
             /** Target Name */
             target_name: string;
+            /** Target Type */
+            target_type: string;
         };
         /** HTTPValidationError */
         HTTPValidationError: {

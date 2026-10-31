@@ -567,7 +567,7 @@
         "type": "object"
       },
       "ExplanationPath": {
-        "description": "A full mechanistic path from drug to disease, as the CLI's\n``explain-paths``/``rank-drugs`` commands already compute -- a\nhypothesis to review, not evidence of efficacy.",
+        "description": "A full mechanistic path from drug to disease, as the CLI's\n``explain-paths``/``rank-drugs`` commands already compute -- a\nhypothesis to review, not evidence of efficacy. Graph connectivity\nbetween a drug and a disease is not itself evidence of efficacy, and\n``path_score`` (when present) is the heuristic defined in\n``repurposemap.scoring.path_quality``, not a probability or a model\nconfidence.",
         "properties": {
           "path_score": {
             "anyOf": [
@@ -595,8 +595,19 @@
         "type": "object"
       },
       "ExplanationStep": {
-        "description": "One hop of an explanation path, mirroring\n``repurposemap.scoring.path_quality``'s own path representation.",
+        "description": "One hop of an explanation path, mirroring\n``repurposemap.graph.paths.PathStep``'s own representation -- source\nand target node *type* (e.g. \"drug\", \"gene/protein\", \"disease\") is\ncarried through unchanged, never inferred or guessed here.",
         "properties": {
+          "display_relation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Relation"
+          },
           "relation": {
             "title": "Relation",
             "type": "string"
@@ -609,6 +620,10 @@
             "title": "Source Name",
             "type": "string"
           },
+          "source_type": {
+            "title": "Source Type",
+            "type": "string"
+          },
           "target_id": {
             "title": "Target Id",
             "type": "string"
@@ -616,14 +631,20 @@
           "target_name": {
             "title": "Target Name",
             "type": "string"
+          },
+          "target_type": {
+            "title": "Target Type",
+            "type": "string"
           }
         },
         "required": [
           "source_id",
           "source_name",
+          "source_type",
           "relation",
           "target_id",
-          "target_name"
+          "target_name",
+          "target_type"
         ],
         "title": "ExplanationStep",
         "type": "object"
