@@ -185,6 +185,20 @@ is now technically possible; what remains is hosting configuration
 (actually standing up two services pointed at each other), not missing
 application code.
 
+## V1 smoke test
+
+`scripts/smoke_test.sh [base_url]` (default `http://localhost:8000`) checks,
+against a real running backend: `/health` and `/api/v1/system/info` answer,
+`/openapi.json` is servable, CORS headers are present for an allowed origin
+and absent for a disallowed one, and -- the honesty check -- `POST
+/api/v1/rank` still reports `model_status: "not_available"` rather than a
+fabricated ranking. Run it any time after starting the backend (see
+"Backend" above):
+
+```bash
+./scripts/smoke_test.sh
+```
+
 ## Local cross-origin smoke test
 
 Reproduces what a browser sends when the frontend and API are on

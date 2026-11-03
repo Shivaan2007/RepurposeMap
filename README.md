@@ -34,7 +34,12 @@ flowchart LR
 
 Built today: everything up to the ranking for the path, popularity and TransE models, the typed API, and the React workspace shell. R-GCN's validation search is in progress (see Project status). Explanation paths exist for the path baseline only. Evidence and safety are live lookups across PubMed, ClinicalTrials.gov, openFDA and DailyMed, wired into the API and UI (see "Evidence/safety domain" below) -- disease biology and target scorecard (Open Targets) are live as well.
 
-See [API.md](API.md) for the FastAPI / OpenAPI / TypeScript boundary in detail.
+See [API.md](API.md) for the FastAPI / OpenAPI / TypeScript boundary in
+detail, [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full-stack
+layer breakdown, [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for hosting a
+split deployment, [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md) for a live walkthrough
+of what's runnable today, and [V1_RELEASE_CHECKLIST.md](V1_RELEASE_CHECKLIST.md)
+for an honest status of every V1 feature against PLAN.md.
 
 ## Project status
 
@@ -295,11 +300,21 @@ RepurposeMap/
 ├── pyproject.toml          # package metadata, dependencies, pytest settings
 ├── README.md
 ├── API.md                  # FastAPI / OpenAPI / TypeScript client boundary
+├── DEMO.md                 # local run instructions + deployment-readiness notes
+├── V1_RELEASE_CHECKLIST.md # honest per-feature status against PLAN.md
 ├── openapi.json             # exported OpenAPI schema (generated, committed)
+├── docs/
+│   ├── ARCHITECTURE.md     # full-stack layer breakdown
+│   ├── DEPLOYMENT.md       # split-deployment + serving-strategy notes
+│   └── DEMO_SCRIPT.md      # live walkthrough script, current state only
+├── scripts/
+│   └── smoke_test.sh       # post-deploy/post-start health+CORS+honesty checks
 ├── data/
 │   ├── raw/                # real datasets such as PrimeKG (gitignored)
 │   └── sample/             # synthetic demo data (committed)
-├── web/client/              # generated TypeScript client + hand-written wrapper
+├── web/
+│   ├── app/                 # React research workspace (Vite)
+│   └── client/              # generated TypeScript client + hand-written wrapper
 └── ml/
     ├── README.md           # graph exploration, scoring, and evaluation details
     ├── experiments/         # versioned JSON result/profile artifacts
@@ -356,9 +371,8 @@ RepurposeMap generates research hypotheses for expert review. It does not prescr
 
 ## Roadmap
 
-These are planned, not implemented:
-
-1. Relational graph neural network (R-GCN) for drug-disease link prediction, motivated by the final TransE result below — selected on training/validation only, never on the now-spent locked test.
-2. Supporting evidence from PubMed, ClinicalTrials.gov, DailyMed and openFDA.
-3. Drug safety information.
-4. React research workspace, built against the generated TypeScript client in `web/client/`.
+1. Relational graph neural network (R-GCN) for drug-disease link prediction, motivated by the final TransE result above — selected on training/validation only, never on the now-spent locked test. **In progress**: validation search running on Kaggle GPU (see "Project status").
+2. Supporting evidence from PubMed, ClinicalTrials.gov, DailyMed and openFDA. **Done** — see "Evidence and safety domain" in "Project status" and [API.md](API.md#evidencesafety-domain).
+3. Drug safety information. **Done** — the same evidence domain above surfaces openFDA/DailyMed label warnings and contraindications.
+4. React research workspace, built against the generated TypeScript client in `web/client/`. **Done** — see `web/app`.
+5. Not yet started: a background-job layer (Redis + RQ) and a database (Postgres) to move evidence lookups off the request path; wiring a real model into `POST /api/v1/rank`; an evidence-brief export beyond the Markdown download that exists today.
