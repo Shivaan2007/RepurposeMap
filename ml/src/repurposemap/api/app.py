@@ -12,7 +12,9 @@ export, and the generated TypeScript client).
 from __future__ import annotations
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
+from repurposemap.api.cors import get_allowed_origins
 from repurposemap.api.disease_biology import router as disease_biology_router
 from repurposemap.api.evidence import router as evidence_router
 from repurposemap.api.health import router as health_router
@@ -30,6 +32,13 @@ def create_app() -> FastAPI:
             "Explainable drug-repurposing research API. Every ranking output is a "
             "research hypothesis for expert review, never a treatment recommendation."
         ),
+    )
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=get_allowed_origins(),
+        allow_credentials=False,
+        allow_methods=["GET", "POST"],
+        allow_headers=["content-type"],
     )
     app.include_router(health_router)
     app.include_router(system_info_router)

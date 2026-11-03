@@ -26,14 +26,20 @@ htmlcov/
 # Local secrets and environment settings
 .env
 .env.*
+!.env.example
+!**/.env.example
 
 # Editors and OS files
 .idea/
 .vscode/
 .DS_Store
 
+# Claude Code session state -- never committed
+.claude/
+
 # Local Kaggle operational scratch (checkpoints, kernel archives, downloads --
 # never committed; see ml/RGCN_RUNBOOK.md)
 kaggle_resume_download/
 kaggle_rgcn_search_kernel/
 resume_gate_staging/
+kaggle_rgcn_v6_recovery/
