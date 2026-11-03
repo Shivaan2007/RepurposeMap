@@ -16,6 +16,16 @@ reported in ``source_status`` with its real error message -- never
 silently turned into "zero results", which would be indistinguishable
 from a genuine empty answer. This endpoint never ranks, scores, or labels
 a candidate; it only returns what each source reported, as reported.
+
+Each source's lookup is wrapped twice: once for its own typed error
+(``PubMedError``/``ClinicalTrialsError``/``OpenFDAError``/``DailyMedError``),
+for a real, named failure mode with a clear message, and once more for any
+other exception, reported with ``type(error).__name__`` rather than a
+typed error's message. The second catch exists so a bug or an unanticipated
+failure mode in one adapter still can't 500 the whole request and drop the
+other three sources' real results -- it is a defense-in-depth backstop, not
+a substitute for adding a proper typed error when a new real failure mode
+is found.
 """
 
 from __future__ import annotations
@@ -75,24 +85,42 @@ def lookup_evidence(
         statuses.append(SourceLookupStatus(source=EvidenceSource.PUBMED, succeeded=True))
     except PubMedError as error:
         statuses.append(SourceLookupStatus(source=EvidenceSource.PUBMED, succeeded=False, error=str(error)))
+    except Exception as error:  # noqa: BLE001 -- backstop, see module docstring
+        statuses.append(
+            SourceLookupStatus(source=EvidenceSource.PUBMED, succeeded=False, error=f"{type(error).__name__}: {error}")
+        )
 
     try:
         bundle.clinical_trials = clinicaltrials.search(query.drug_name, query.disease_name, max_results=query.max_results)
         statuses.append(SourceLookupStatus(source=EvidenceSource.CLINICAL_TRIALS, succeeded=True))
     except ClinicalTrialsError as error:
         statuses.append(SourceLookupStatus(source=EvidenceSource.CLINICAL_TRIALS, succeeded=False, error=str(error)))
+    except Exception as error:  # noqa: BLE001 -- backstop, see module docstring
+        statuses.append(
+            SourceLookupStatus(
+                source=EvidenceSource.CLINICAL_TRIALS, succeeded=False, error=f"{type(error).__name__}: {error}"
+            )
+        )
 
     try:
         safety.extend(openfda.search(query.drug_name, max_results=query.max_results))
         statuses.append(SourceLookupStatus(source=EvidenceSource.OPENFDA, succeeded=True))
     except OpenFDAError as error:
         statuses.append(SourceLookupStatus(source=EvidenceSource.OPENFDA, succeeded=False, error=str(error)))
+    except Exception as error:  # noqa: BLE001 -- backstop, see module docstring
+        statuses.append(
+            SourceLookupStatus(source=EvidenceSource.OPENFDA, succeeded=False, error=f"{type(error).__name__}: {error}")
+        )
 
     try:
         safety.extend(dailymed.search(query.drug_name, max_results=query.max_results))
         statuses.append(SourceLookupStatus(source=EvidenceSource.DAILYMED, succeeded=True))
     except DailyMedError as error:
         statuses.append(SourceLookupStatus(source=EvidenceSource.DAILYMED, succeeded=False, error=str(error)))
+    except Exception as error:  # noqa: BLE001 -- backstop, see module docstring
+        statuses.append(
+            SourceLookupStatus(source=EvidenceSource.DAILYMED, succeeded=False, error=f"{type(error).__name__}: {error}")
+        )
 
     bundle.safety = safety
     bundle.generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")

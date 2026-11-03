@@ -146,6 +146,33 @@ def test_every_source_failing_still_returns_200_with_all_failures_reported(clien
     assert all(not s["succeeded"] and s["error"] == "down" for s in body["source_status"])
 
 
+def test_an_unexpected_exception_in_one_source_does_not_500_the_whole_request(client):
+    """A bug or unanticipated failure mode in one adapter -- anything that
+    isn't that adapter's own typed error -- must still be caught and
+    reported per-source, not propagate into a 500 that drops the other
+    three sources' real results."""
+
+    from repurposemap.evidence import EvidenceSource
+
+    app.dependency_overrides[get_pubmed_adapter] = _override(_StubAdapter(error=RuntimeError("unexpected bug")))
+    app.dependency_overrides[get_clinicaltrials_adapter] = _override(_StubAdapter([demo_trial()]))
+    app.dependency_overrides[get_openfda_adapter] = _override(_StubAdapter([demo_safety(EvidenceSource.OPENFDA, "FDA-1")]))
+    app.dependency_overrides[get_dailymed_adapter] = _override(_StubAdapter([demo_safety(EvidenceSource.DAILYMED, "DM-1")]))
+
+    response = client.post("/api/v1/evidence", json={"drug_name": "Drug A", "disease_name": "Disease B"})
+    assert response.status_code == 200
+    body = response.json()
+
+    by_source = {s["source"]: s for s in body["source_status"]}
+    assert by_source["pubmed"]["succeeded"] is False
+    assert by_source["pubmed"]["error"] == "RuntimeError: unexpected bug"
+    # the other three sources' real results are still present, unaffected
+    assert [r["nct_id"] for r in body["bundle"]["clinical_trials"]] == ["NCT90000001"]
+    assert by_source["clinical_trials"]["succeeded"] is True
+    assert by_source["openfda"]["succeeded"] is True
+    assert by_source["dailymed"]["succeeded"] is True
+
+
 def test_all_sources_legitimately_empty_is_not_mistaken_for_a_failure(client):
     app.dependency_overrides[get_pubmed_adapter] = _override(_StubAdapter([]))
     app.dependency_overrides[get_clinicaltrials_adapter] = _override(_StubAdapter([]))
