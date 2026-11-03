@@ -54,7 +54,14 @@ function saveEntries(entries: HypothesisEntry[]): void {
   }
 }
 
-export function HypothesisNotebookPanel() {
+interface HypothesisNotebookPanelProps {
+  /** Disease name from the main query above -- pre-fills the "add
+   * hypothesis" field on each new search, but stays independently
+   * editable afterward. */
+  initialDiseaseName?: string;
+}
+
+export function HypothesisNotebookPanel({ initialDiseaseName }: HypothesisNotebookPanelProps = {}) {
   const [entries, setEntries] = useState<HypothesisEntry[]>([]);
   const [drugName, setDrugName] = useState("");
   const [diseaseName, setDiseaseName] = useState("");
@@ -64,6 +71,10 @@ export function HypothesisNotebookPanel() {
     setEntries(loadEntries());
     setLoaded(true);
   }, []);
+
+  useEffect(() => {
+    if (initialDiseaseName) setDiseaseName(initialDiseaseName);
+  }, [initialDiseaseName]);
 
   useEffect(() => {
     if (loaded) saveEntries(entries);

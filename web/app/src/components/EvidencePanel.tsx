@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import type { components } from "@repurposemap/api-client";
 
@@ -22,10 +22,20 @@ const SOURCE_LABEL: Record<string, string> = {
   dailymed: "DailyMed",
 };
 
-export function EvidencePanel() {
+interface EvidencePanelProps {
+  /** Disease name from the main query above -- pre-fills this panel's own
+   * field on each new search, but stays independently editable afterward. */
+  initialDiseaseName?: string;
+}
+
+export function EvidencePanel({ initialDiseaseName }: EvidencePanelProps = {}) {
   const [drugName, setDrugName] = useState("");
   const [diseaseName, setDiseaseName] = useState("");
   const [state, setState] = useState<LookupState>({ phase: "idle" });
+
+  useEffect(() => {
+    if (initialDiseaseName) setDiseaseName(initialDiseaseName);
+  }, [initialDiseaseName]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -85,12 +95,100 @@ export function EvidencePanel() {
 
       {state.phase === "loading" && <p className="hint">Querying PubMed, ClinicalTrials.gov, openFDA and DailyMed...</p>}
       {state.phase === "error" && <p className="error">{state.message}</p>}
-      {state.phase === "done" && <EvidenceResult result={state.result} />}
+      {state.phase === "done" && <EvidenceResult result={state.result} drugName={drugName} diseaseName={diseaseName} />}
     </section>
   );
 }
 
-function EvidenceResult({ result }: { result: EvidenceLookupResponse }) {
+function buildEvidenceBriefMarkdown(
+  result: EvidenceLookupResponse,
+  drugName: string,
+  diseaseName: string,
+): string {
+  const pubmed = result.bundle.pubmed ?? [];
+  const clinicalTrials = result.bundle.clinical_trials ?? [];
+  const safety = result.bundle.safety ?? [];
+  const lines: string[] = [];
+
+  lines.push(`# Evidence brief: ${drugName} for ${diseaseName}`);
+  lines.push("");
+  lines.push(`Generated ${new Date().toISOString()} by RepurposeMap. ${result.disclaimer}`);
+  lines.push("");
+  lines.push("## Source status");
+  for (const status of result.source_status) {
+    const label = SOURCE_LABEL[status.source] ?? status.source;
+    lines.push(`- ${label}: ${status.succeeded ? "ok" : `failed (${status.error ?? "unknown error"})`}`);
+  }
+
+  lines.push("");
+  lines.push(`## Literature (PubMed) -- ${pubmed.length}`);
+  if (pubmed.length === 0) {
+    lines.push("No matching papers.");
+  } else {
+    for (const record of pubmed) {
+      const parts = [record.journal, record.publication_date, record.strength !== "unknown" ? record.strength : null].filter(
+        Boolean,
+      );
+      const suffix = parts.length > 0 ? ` (${parts.join(", ")})` : "";
+      lines.push(`- [${record.title}](${record.url ?? ""})${suffix}`);
+    }
+  }
+
+  lines.push("");
+  lines.push(`## Clinical trials -- ${clinicalTrials.length}`);
+  if (clinicalTrials.length === 0) {
+    lines.push("No matching trials.");
+  } else {
+    for (const record of clinicalTrials) {
+      const parts = [record.nct_id, record.status, record.phase, record.strength !== "unknown" ? record.strength : null].filter(
+        Boolean,
+      );
+      const suffix = parts.length > 0 ? ` (${parts.join(", ")})` : "";
+      lines.push(`- [${record.title}](${record.url ?? ""})${suffix}`);
+    }
+  }
+
+  lines.push("");
+  lines.push(`## Safety (openFDA / DailyMed) -- ${safety.length}`);
+  if (safety.length === 0) {
+    lines.push("No matching labels.");
+  } else {
+    for (const record of safety) {
+      const label = SOURCE_LABEL[record.source] ?? record.source;
+      const warning = record.boxed_warning_present ? " **boxed warning**" : "";
+      lines.push(`- ${label}: ${record.description}${warning}`);
+      if (record.contraindication_text) {
+        lines.push(`  - Contraindications: ${record.contraindication_text}`);
+      }
+    }
+  }
+
+  lines.push("");
+  lines.push(
+    "_Research hypothesis only, not a treatment recommendation. A record's presence is not proof of efficacy or safety -- see each item's own source._",
+  );
+  return lines.join("\n");
+}
+
+function downloadMarkdown(filename: string, markdown: string): void {
+  const blob = new Blob([markdown], { type: "text/markdown" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+function EvidenceResult({
+  result,
+  drugName,
+  diseaseName,
+}: {
+  result: EvidenceLookupResponse;
+  drugName: string;
+  diseaseName: string;
+}) {
   const pubmed = result.bundle.pubmed ?? [];
   const clinicalTrials = result.bundle.clinical_trials ?? [];
   const safety = result.bundle.safety ?? [];
@@ -107,6 +205,16 @@ function EvidenceResult({ result }: { result: EvidenceLookupResponse }) {
             {SOURCE_LABEL[status.source] ?? status.source}: {status.succeeded ? "ok" : "failed"}
           </span>
         ))}
+        <button
+          type="button"
+          className="notebook-remove"
+          onClick={() => {
+            const slug = `${drugName}-${diseaseName}`.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+            downloadMarkdown(`evidence-brief-${slug}.md`, buildEvidenceBriefMarkdown(result, drugName, diseaseName));
+          }}
+        >
+          Download brief (Markdown)
+        </button>
       </div>
 
       <EvidenceSection title="Literature (PubMed)">

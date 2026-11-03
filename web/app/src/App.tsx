@@ -24,6 +24,7 @@ export function App() {
   const [systemInfo, setSystemInfo] = useState<SystemInfoResponse | null>(null);
   const [systemInfoError, setSystemInfoError] = useState<string | null>(null);
   const [queryState, setQueryState] = useState<QueryState>({ phase: "idle" });
+  const [sharedDiseaseName, setSharedDiseaseName] = useState("");
 
   useEffect(() => {
     apiClient
@@ -33,6 +34,7 @@ export function App() {
   }, []);
 
   async function handleSubmit(diseaseName: string) {
+    setSharedDiseaseName(diseaseName);
     setQueryState({ phase: "loading" });
     try {
       const result = await apiClient.rankCandidates({ disease_name: diseaseName, top_k: 10 });
@@ -62,15 +64,15 @@ export function App() {
         {queryState.phase === "done" && <CandidateList result={queryState.result} />}
       </section>
 
-      <DiseaseBiologyPanel />
+      <DiseaseBiologyPanel initialDiseaseName={sharedDiseaseName} />
 
       <TargetScorecardPanel />
 
-      <EvidencePanel />
+      <EvidencePanel initialDiseaseName={sharedDiseaseName} />
 
-      <HypothesisNotebookPanel />
+      <HypothesisNotebookPanel initialDiseaseName={sharedDiseaseName} />
 
-      <CandidateComparisonPanel />
+      <CandidateComparisonPanel initialDiseaseName={sharedDiseaseName} />
 
       <footer className="page-footer">
         <p>Research hypothesis ranking. Not a treatment recommendation. Every output requires expert review.</p>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import type { components } from "@repurposemap/api-client";
 
@@ -15,9 +15,19 @@ type LookupState =
   | { phase: "error"; message: string }
   | { phase: "done"; result: DiseaseBiologyResponse };
 
-export function DiseaseBiologyPanel() {
+interface DiseaseBiologyPanelProps {
+  /** Disease name from the main query above -- pre-fills this panel's own
+   * field on each new search, but stays independently editable afterward. */
+  initialDiseaseName?: string;
+}
+
+export function DiseaseBiologyPanel({ initialDiseaseName }: DiseaseBiologyPanelProps = {}) {
   const [diseaseName, setDiseaseName] = useState("");
   const [state, setState] = useState<LookupState>({ phase: "idle" });
+
+  useEffect(() => {
+    if (initialDiseaseName) setDiseaseName(initialDiseaseName);
+  }, [initialDiseaseName]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

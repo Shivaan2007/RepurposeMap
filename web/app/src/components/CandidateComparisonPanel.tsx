@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 
 import { apiClient } from "../api.js";
@@ -33,10 +33,20 @@ interface ComparisonColumn {
   state: ColumnState;
 }
 
-export function CandidateComparisonPanel() {
+interface CandidateComparisonPanelProps {
+  /** Disease name from the main query above -- pre-fills this panel's own
+   * field on each new search, but stays independently editable afterward. */
+  initialDiseaseName?: string;
+}
+
+export function CandidateComparisonPanel({ initialDiseaseName }: CandidateComparisonPanelProps = {}) {
   const [diseaseName, setDiseaseName] = useState("");
   const [drugInputs, setDrugInputs] = useState<string[]>(["", ""]);
   const [columns, setColumns] = useState<ComparisonColumn[] | null>(null);
+
+  useEffect(() => {
+    if (initialDiseaseName) setDiseaseName(initialDiseaseName);
+  }, [initialDiseaseName]);
 
   function updateDrugInput(index: number, value: string) {
     setDrugInputs((prev) => prev.map((existing, i) => (i === index ? value : existing)));
