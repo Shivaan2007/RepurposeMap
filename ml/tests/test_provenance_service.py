@@ -235,3 +235,33 @@ def test_get_most_recent_completed_stage_returns_latest_valid_stage():
     stage = get_most_recent_completed_stage(REPO_EXPERIMENTS)
     assert stage is not None
     assert any(r.stage == stage for r in REPO_EXPERIMENTS)
+
+
+def test_eligibility_picks_the_most_recent_final_training_record_not_the_first_filename(tmp_path):
+    """Once a second final-training record exists (e.g. R-GCN's,
+    alongside today's TransE one), eligibility must report the most
+    recently generated one -- not whichever file sorts first
+    alphabetically, which `load_experiments` otherwise iterates in."""
+
+    def _final(generated_at: str) -> dict:
+        return {
+            "stage": "final training",
+            "purpose": "final training",
+            "generated_at": generated_at,
+            "provenance": {"source_commit": "deadbeef"},
+            "safety_and_protocol": {
+                "final_training_performed": True,
+                "locked_test_evaluation_performed": True,
+                "three_config_search_performed": True,
+            },
+        }
+
+    # "a_earlier.json" sorts before "z_later.json" alphabetically, but is
+    # the older record -- the bug this test guards against would pick it.
+    (tmp_path / "a_earlier.json").write_text(json.dumps(_final("2026-10-01T00:00:00Z")))
+    (tmp_path / "z_later.json").write_text(json.dumps(_final("2026-11-01T00:00:00Z")))
+
+    records = load_experiments(tmp_path)
+    eligibility = get_model_eligibility(records)
+    assert eligibility.eligible is True
+    assert eligibility.final_training_experiment_file == "z_later.json"

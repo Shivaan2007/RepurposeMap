@@ -215,7 +215,11 @@ def get_model_eligibility(records: list[ModelProvenance]) -> ModelEligibility:
     if not final_candidates:
         return ModelEligibility(eligible=False, reason="no final-training experiment record found")
 
-    chosen = final_candidates[0]
+    # Pick the most recently generated one, not the alphabetically-first
+    # file -- `load_experiments` sorts by filename, which has no relation
+    # to recency once more than one final-training record exists (e.g.
+    # once an R-GCN final-training record joins today's sole TransE one).
+    chosen = max(final_candidates, key=lambda r: r.generated_at or "")
     return ModelEligibility(eligible=True, reason="a final-training experiment record was found", final_training_experiment_file=chosen.experiment_file)
 
 
