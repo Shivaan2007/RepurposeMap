@@ -130,7 +130,8 @@ function buildEvidenceBriefMarkdown(
         Boolean,
       );
       const suffix = parts.length > 0 ? ` (${parts.join(", ")})` : "";
-      lines.push(`- [${record.title}](${record.url ?? ""})${suffix}`);
+      const titleMarkdown = record.url ? `[${record.title}](${record.url})` : record.title;
+      lines.push(`- ${titleMarkdown}${suffix}`);
     }
   }
 
@@ -144,7 +145,8 @@ function buildEvidenceBriefMarkdown(
         Boolean,
       );
       const suffix = parts.length > 0 ? ` (${parts.join(", ")})` : "";
-      lines.push(`- [${record.title}](${record.url ?? ""})${suffix}`);
+      const titleMarkdown = record.url ? `[${record.title}](${record.url})` : record.title;
+      lines.push(`- ${titleMarkdown}${suffix}`);
     }
   }
 
