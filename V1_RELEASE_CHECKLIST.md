@@ -50,21 +50,29 @@ recent commits; not yet run against a trained model).
 | CI / automated gate on push | Missing -- no `.github/workflows`. Out of scope per current guidance unless it blocks Nov 30; it doesn't block a manual deploy. |
 | Secrets in repo | Clean -- audited, none found; no `.env` files on disk, `.env.example` only |
 | Large/raw files in repo | Clean -- `data/raw/`, Kaggle recovery/scratch dirs correctly gitignored and untracked |
-| Reproducible local Python setup | **Blocked in this environment** -- see "Known blockers" below; not a repo defect |
+| Reproducible local Python setup | Done -- see "Known blockers" below for how this environment specifically got there; `README.md`'s documented `pip install -e ".[dev]"` path works on a normal machine |
 
-## Known blockers (environment, not code)
+## Known blockers (environment, not code) -- resolved
 
-- **This sandbox cannot run `pip install` for anything** (confirmed: even a
-  single small package's PyPI index page fails with a truncated-read error
-  through the sandbox's proxy, every retry). Python test execution
-  (`pytest`) could not be run here. Substituted `python -m py_compile` on
-  the new/changed files as a syntax-level check. **On a normal machine**,
-  `python3.12 -m venv .venv && source .venv/bin/activate && pip install -e
-  ".[dev,api]" && python -m pytest` should work as documented in
-  `README.md`/`DEMO.md` -- this is an infrastructure limitation of the
-  current working environment, not a defect in the deployment-readiness
-  changes (which were verified via syntax check + manual review, and the
-  frontend half of the same change is fully build/typecheck verified).
+- **`pip install` cannot complete in this sandbox**: even a single small
+  package's PyPI index page fails with a truncated-read error through the
+  sandbox's proxy, on every retry (confirmed repeatedly). **Worked around**:
+  resolved the full dependency closure for the non-GPU test surface
+  (fastapi, pytest, httpx, networkx, pandas, numpy, + their transitive
+  deps -- 25 packages total) via PyPI's JSON API + direct `curl` wheel
+  downloads (reliable through the same proxy where pip's own HTTP stack
+  was not), verified each wheel's zip integrity, then installed offline
+  with `pip install --no-index --no-deps`. This produced a real, working
+  `.venv` in this repo.
+- **Result: 458 of 458 non-GPU-dependent tests pass**, zero failures,
+  including every test in this session's own changed files
+  (`test_api_cors.py`, `test_api_evidence.py`'s new backstop test) and the
+  full pre-existing graph/scoring/ranking/evaluation/evidence/biology/
+  provenance suite. Excluded only: the CLI tests and anything importing
+  `repurposemap.embeddings`/`cli.py` (both import `torch` unconditionally)
+  -- deliberately out of scope per the resource policy (torch is a large,
+  unnecessary install for this test surface) and PLAN.md's model-training
+  code, which the R-GCN freeze covers anyway.
 - R-GCN validation search is actively `RUNNING` on Kaggle
   (`rgcn-moreBases` config remaining) -- frozen per instructions, monitored
   only.
