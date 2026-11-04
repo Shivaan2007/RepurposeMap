@@ -114,6 +114,22 @@ def test_resolve_failure_is_also_a_502(client):
     assert response.status_code == 502
 
 
+def test_an_unanticipated_exception_in_resolve_is_a_502_not_an_unhandled_500(client):
+    stub = _StubAdapter(resolve_error=RuntimeError("unexpected bug"))
+    app.dependency_overrides[get_open_targets_adapter] = _override(stub)
+    response = client.post("/api/v1/disease-biology", json={"disease_name": "x"})
+    assert response.status_code == 502
+    assert "RuntimeError" in response.json()["detail"]
+
+
+def test_an_unanticipated_exception_in_the_biology_lookup_is_a_502_not_an_unhandled_500(client):
+    stub = _StubAdapter(biology_error=RuntimeError("unexpected bug"))
+    app.dependency_overrides[get_open_targets_adapter] = _override(stub)
+    response = client.post("/api/v1/disease-biology", json={"disease_id": "MONDO_0000001"})
+    assert response.status_code == 502
+    assert "RuntimeError" in response.json()["detail"]
+
+
 def test_max_targets_is_forwarded(client):
     stub = _StubAdapter(module=demo_module())
     app.dependency_overrides[get_open_targets_adapter] = _override(stub)

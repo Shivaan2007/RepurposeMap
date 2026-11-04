@@ -12,6 +12,12 @@ resolved via Open Targets' own search; if it resolves to nothing, or the
 resolved/given ID does not exist in Open Targets, this returns a 404 with
 a clear reason -- never an empty-but-200 "module" that looks like a real,
 empty result.
+
+Each Open Targets call is also wrapped in a backstop for any exception
+beyond its own typed ``OpenTargetsError``/``OpenTargetsNotFoundError`` (a
+malformed response shape the adapter didn't anticipate, for example),
+reported as a 502 with ``type(error).__name__`` rather than surfacing as
+an unhandled 500 -- same reasoning as ``evidence.py``'s own backstop.
 """
 
 from __future__ import annotations
@@ -43,6 +49,10 @@ def lookup_disease_biology(
             resolved_from = open_targets.resolve_disease(query.disease_name, max_results=5)
         except OpenTargetsError as error:
             raise HTTPException(status_code=502, detail=f"Open Targets disease search failed: {error}") from error
+        except Exception as error:  # noqa: BLE001 -- backstop, see module docstring
+            raise HTTPException(
+                status_code=502, detail=f"Open Targets disease search failed: {type(error).__name__}: {error}"
+            ) from error
         if not resolved_from:
             raise HTTPException(status_code=404, detail=f"Open Targets found no disease matching {query.disease_name!r}")
         efo_id = resolved_from[0].id
@@ -53,5 +63,9 @@ def lookup_disease_biology(
         raise HTTPException(status_code=404, detail=str(error)) from error
     except OpenTargetsError as error:
         raise HTTPException(status_code=502, detail=f"Open Targets disease-biology lookup failed: {error}") from error
+    except Exception as error:  # noqa: BLE001 -- backstop, see module docstring
+        raise HTTPException(
+            status_code=502, detail=f"Open Targets disease-biology lookup failed: {type(error).__name__}: {error}"
+        ) from error
 
     return DiseaseBiologyResponse(module=module, resolved_from=resolved_from)

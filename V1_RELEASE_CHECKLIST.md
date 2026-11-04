@@ -64,15 +64,18 @@ recent commits; not yet run against a trained model).
   was not), verified each wheel's zip integrity, then installed offline
   with `pip install --no-index --no-deps`. This produced a real, working
   `.venv` in this repo.
-- **Result: 458 of 458 non-GPU-dependent tests pass**, zero failures,
-  including every test in this session's own changed files
-  (`test_api_cors.py`, `test_api_evidence.py`'s new backstop test) and the
-  full pre-existing graph/scoring/ranking/evaluation/evidence/biology/
-  provenance suite. Excluded only: the CLI tests and anything importing
-  `repurposemap.embeddings`/`cli.py` (both import `torch` unconditionally)
-  -- deliberately out of scope per the resource policy (torch is a large,
-  unnecessary install for this test surface) and PLAN.md's model-training
-  code, which the R-GCN freeze covers anyway.
+- **Result: 533 passed, 12 skipped, 0 failed** across the full non-GPU
+  test surface, including every test in this session's own changed files
+  (`test_api_cors.py`, `test_api_evidence.py`'s backstop test,
+  `test_provenance_service.py`'s most-recent-final-training-record test)
+  and the full pre-existing graph/scoring/ranking/evaluation/evidence/
+  biology/provenance suite. Excluded only: files that `import torch`
+  unconditionally (`cli.py`, `test_cli.py`, `test_primekg_cli.py`,
+  `test_scoring_cli.py`, `test_rgcn_cli.py`, `test_rgcn_sampling.py`,
+  `test_transe_cli.py`, and the `embeddings/` package) -- deliberately out
+  of scope per the resource policy (torch is a large, unnecessary install
+  for this test surface) and PLAN.md's model-training code, which the
+  R-GCN freeze covers anyway.
 - R-GCN validation search is actively `RUNNING` on Kaggle
   (`rgcn-moreBases` config remaining) -- frozen per instructions, monitored
   only.

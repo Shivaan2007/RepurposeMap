@@ -113,6 +113,22 @@ def test_resolve_failure_is_also_a_502(client):
     assert response.status_code == 502
 
 
+def test_an_unanticipated_exception_in_resolve_is_a_502_not_an_unhandled_500(client):
+    stub = _StubAdapter(resolve_error=RuntimeError("unexpected bug"))
+    app.dependency_overrides[get_open_targets_adapter] = _override(stub)
+    response = client.post("/api/v1/target-scorecard", json={"gene_symbol": "x"})
+    assert response.status_code == 502
+    assert "RuntimeError" in response.json()["detail"]
+
+
+def test_an_unanticipated_exception_in_the_scorecard_lookup_is_a_502_not_an_unhandled_500(client):
+    stub = _StubAdapter(scorecard_error=RuntimeError("unexpected bug"))
+    app.dependency_overrides[get_open_targets_adapter] = _override(stub)
+    response = client.post("/api/v1/target-scorecard", json={"ensembl_id": "ENSG_DEMO_1"})
+    assert response.status_code == 502
+    assert "RuntimeError" in response.json()["detail"]
+
+
 def test_target_scorecard_endpoint_never_touches_primekg(client, monkeypatch):
     import repurposemap.adapters.primekg as primekg_module
 

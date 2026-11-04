@@ -10,7 +10,8 @@ docstring. Follows the same name-resolution and error-shape convention
 as that router: exactly one of ``gene_symbol``/``ensembl_id`` must be
 given, a name is resolved via Open Targets' own search, and a real
 failure raises 404/502 rather than returning 200 with an empty
-scorecard.
+scorecard. Also follows the same backstop convention for any exception
+beyond the typed ``OpenTargetsError``/``OpenTargetsNotFoundError``.
 """
 
 from __future__ import annotations
@@ -42,6 +43,10 @@ def lookup_target_scorecard(
             resolved_from = open_targets.resolve_target(query.gene_symbol, max_results=5)
         except OpenTargetsError as error:
             raise HTTPException(status_code=502, detail=f"Open Targets target search failed: {error}") from error
+        except Exception as error:  # noqa: BLE001 -- backstop, see module docstring
+            raise HTTPException(
+                status_code=502, detail=f"Open Targets target search failed: {type(error).__name__}: {error}"
+            ) from error
         if not resolved_from:
             raise HTTPException(status_code=404, detail=f"Open Targets found no target matching {query.gene_symbol!r}")
         ensembl_id = resolved_from[0].id
@@ -52,5 +57,9 @@ def lookup_target_scorecard(
         raise HTTPException(status_code=404, detail=str(error)) from error
     except OpenTargetsError as error:
         raise HTTPException(status_code=502, detail=f"Open Targets target-scorecard lookup failed: {error}") from error
+    except Exception as error:  # noqa: BLE001 -- backstop, see module docstring
+        raise HTTPException(
+            status_code=502, detail=f"Open Targets target-scorecard lookup failed: {type(error).__name__}: {error}"
+        ) from error
 
     return TargetScorecardResponse(scorecard=scorecard, resolved_from=resolved_from)
