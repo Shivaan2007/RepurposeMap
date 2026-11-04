@@ -4,7 +4,7 @@ RepurposeMap is an explainable drug-repurposing research system. It:
 
 - ranks existing drugs as candidates for a disease over a biomedical knowledge graph (PrimeKG)
 - explains why a candidate is suggested using the biological graph paths that connect it to the disease
-- is designed to later attach literature, trial and safety evidence to each candidate (not implemented yet)
+- attaches literature, trial and safety evidence to a drug/disease pair today via live PubMed, ClinicalTrials.gov, openFDA and DailyMed lookups (see "Evidence and safety domain" below) -- this part does not depend on the ranking model existing yet
 - is **research decision-support only, not clinical treatment advice**
 
 Every output is a **research hypothesis that requires expert review**.
@@ -367,7 +367,7 @@ Experiment artifacts (dataset provenance, git commit, config, metrics, runtime) 
 
 ## Scientific scope
 
-RepurposeMap generates research hypotheses for expert review. It does not prescribe drugs, recommend doses, or claim clinical efficacy for any candidate. Planned evidence and safety lookups (PubMed, ClinicalTrials.gov, DailyMed, openFDA) will surface research context for a reviewer, not a clinical verdict.
+RepurposeMap generates research hypotheses for expert review. It does not prescribe drugs, recommend doses, or claim clinical efficacy for any candidate. Live evidence and safety lookups (PubMed, ClinicalTrials.gov, DailyMed, openFDA) surface research context for a reviewer, not a clinical verdict.
 
 ## Roadmap
 
@@ -375,4 +375,4 @@ RepurposeMap generates research hypotheses for expert review. It does not prescr
 2. Supporting evidence from PubMed, ClinicalTrials.gov, DailyMed and openFDA. **Done** — see "Evidence and safety domain" in "Project status" and [API.md](API.md#evidencesafety-domain).
 3. Drug safety information. **Done** — the same evidence domain above surfaces openFDA/DailyMed label warnings and contraindications.
 4. React research workspace, built against the generated TypeScript client in `web/client/`. **Done** — see `web/app`.
-5. Not yet started: a background-job layer (Redis + RQ) and a database (Postgres) to move evidence lookups off the request path; wiring a real model into `POST /api/v1/rank`; an evidence-brief export beyond the Markdown download that exists today.
+5. Not yet started: a background-job layer (Redis + RQ) and a database (Postgres) to move evidence lookups off the request path; wiring a real model into `POST /api/v1/rank`. **Partially done**: a one-click Markdown evidence-brief export exists in `EvidencePanel` today; no other export format is planned ahead of a real model existing.
