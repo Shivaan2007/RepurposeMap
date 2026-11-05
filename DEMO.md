@@ -94,6 +94,14 @@ VITE_API_BASE_URL=https://<backend-domain>
 No real domains or secrets are committed anywhere in this repo -- the
 above is illustrative only.
 
+**Ready-made blueprint files** (no domains or secrets, generic on
+purpose): `render.yaml` at the repo root for the backend, and
+`web/app/vercel.json` for the frontend. Point Render/Vercel at this repo
+and connect them to each other via `REPURPOSEMAP_CORS_ORIGINS` /
+`VITE_API_BASE_URL` as above. Neither file has been exercised against a
+real Render/Vercel account from this environment -- only inspected for
+correctness against the commands and env vars documented here.
+
 ## What you can actually do in the demo
 
 - **Evidence lookup**: enter a real drug and disease/condition name --

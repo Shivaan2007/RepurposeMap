@@ -1,0 +1,21 @@
+# Render Blueprint for RepurposeMap's backend API.
+#
+# Deploys the lightweight, model-free API service documented in
+# docs/DEPLOYMENT.md -- no PrimeKG file, no checkpoint, no GPU needed
+# (see "Startup and memory" in that doc: ~0.3s startup, ~46 MB RSS).
+#
+# After the first deploy, set REPURPOSEMAP_CORS_ORIGINS in the Render
+# dashboard to the deployed frontend's real origin (see DEMO.md's
+# "Example split-deployment configuration" -- no real domain is
+# hardcoded here on purpose).
+services:
+  - type: web
+    name: repurposemap-api
+    runtime: python
+    plan: free
+    buildCommand: pip install -e ".[api]"
+    startCommand: uvicorn repurposemap.api.app:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: REPURPOSEMAP_CORS_ORIGINS
+        sync: false
