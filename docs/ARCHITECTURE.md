@@ -68,6 +68,17 @@ and `V1_RELEASE_CHECKLIST.md`). Wiring a real model in means replacing this
 one function's body; the contract, frontend rendering (`CandidateList.tsx`),
 and `RepurposingHypothesis` assembly point are already shaped for it.
 
+**Offline research/evaluation vs. online serving/demo:** these are the same
+thing today, because there is nothing yet to separate -- every committed
+experiment artifact (`ml/experiments/*.json`) holds aggregate metrics only,
+never a per-disease ranked candidate list, so there is no real ranking data
+to serve either live or precomputed. Once a model is trained and
+locked-test-evaluated, `docs/DEPLOYMENT.md`'s "Serving strategy" section lays
+out the two options (a precomputed per-disease bundle, or live inference) and
+why the precomputed bundle is the right default for a cheap V1 host -- but
+until then, this split is a documented plan, not two actually-different
+code paths.
+
 ## Directory map
 
 ```

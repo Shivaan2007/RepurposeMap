@@ -51,6 +51,9 @@ recent commits; not yet run against a trained model).
 | Secrets in repo | Clean -- audited, none found; no `.env` files on disk, `.env.example` only |
 | Large/raw files in repo | Clean -- `data/raw/`, Kaggle recovery/scratch dirs correctly gitignored and untracked |
 | Reproducible local Python setup | Done -- see "Known blockers" below for how this environment specifically got there; `README.md`'s documented `pip install -e ".[dev]"` path works on a normal machine |
+| Deployment config files | Done -- `render.yaml` (backend) and `web/app/vercel.json` (frontend), generic, no domains or secrets. Inspected for correctness, not yet exercised against a real Render/Vercel account |
+| Deployment smoke test | Done -- `scripts/smoke_test.sh` covers health, system-info, CORS (allowed/disallowed), OpenAPI servability, rank-stub honesty, evidence/disease-biology honest-failure (never an unhandled 500), and a no-secrets-exposed check |
+| Precomputed demo ranking data | Blocked, not a code gap -- every committed experiment artifact holds aggregate metrics only, never a per-disease candidate list, so there is nothing real to precompute from yet. See "Serving strategy" in `docs/DEPLOYMENT.md` |
 
 ## Known blockers (environment, not code) -- resolved
 
