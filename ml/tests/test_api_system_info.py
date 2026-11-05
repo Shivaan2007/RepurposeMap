@@ -58,3 +58,17 @@ def test_system_info_keeps_inference_ineligible_without_a_configured_checkpoint(
     assert model_provenance["inference_eligible"] is False
     assert model_provenance["most_recent_completed_stage"] is not None
     assert body["model"]["available"] is False
+
+
+def test_eligibility_reason_explains_inference_eligible_not_the_more_permissive_record_eligibility():
+    # A final-training record (TransE) exists and is eligible on its own
+    # terms, but inference_eligible is False because no checkpoint is
+    # configured. The reason text must say so -- it must never read like
+    # a plain confirmation that would contradict inference_eligible=False.
+    client = TestClient(app)
+    body = client.get("/api/v1/system/info").json()
+
+    model_provenance = body["model_provenance"]
+    assert model_provenance["inference_eligible"] is False
+    reason = model_provenance["eligibility_reason"]
+    assert "no checkpoint is explicitly configured" in reason

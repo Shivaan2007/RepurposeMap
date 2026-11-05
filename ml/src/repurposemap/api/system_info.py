@@ -19,7 +19,7 @@ from fastapi import APIRouter
 from repurposemap.api.schemas import ModelProvenanceInfo, ModelStatus, Provenance, SystemInfoResponse
 from repurposemap.api.version import API_VERSION, APPLICATION_NAME
 from repurposemap.provenance import get_model_eligibility, get_most_recent_completed_stage, load_experiments
-from repurposemap.provenance.service import is_model_available
+from repurposemap.provenance.service import CONFIGURED_CHECKPOINT, is_model_available
 
 # Mirrors PrimeKGFingerprint's defaults (repurposemap.adapters.primekg) --
 # recorded by hand because PrimeKG's distribution does not embed them.
@@ -39,10 +39,23 @@ def get_system_info() -> SystemInfoResponse:
 
     model = ModelStatus(available=available, model_type=None, ready_for_inference=available)
     provenance = Provenance(source=PRIMEKG_SOURCE, retrieved_date=PRIMEKG_RETRIEVED_DATE, version=None)
+    # `inference_eligible` is `available`, which needs an eligible record
+    # AND a configured checkpoint -- the reason text must explain that
+    # exact boolean, not the more permissive `eligibility.eligible`
+    # (which ignores the checkpoint). Reporting eligibility.reason here
+    # unconditionally previously produced a self-contradicting pair, e.g.
+    # inference_eligible=False next to "a final-training experiment
+    # record was found" -- true, but not why inference is still False.
+    if not eligibility.eligible:
+        eligibility_reason = eligibility.reason
+    elif CONFIGURED_CHECKPOINT is None:
+        eligibility_reason = f"{eligibility.reason}, but no checkpoint is explicitly configured for inference yet"
+    else:
+        eligibility_reason = eligibility.reason
     model_provenance = ModelProvenanceInfo(
         most_recent_completed_stage=get_most_recent_completed_stage(experiment_records),
         inference_eligible=available,
-        eligibility_reason=eligibility.reason,
+        eligibility_reason=eligibility_reason,
     )
     return SystemInfoResponse(
         application=APPLICATION_NAME,
