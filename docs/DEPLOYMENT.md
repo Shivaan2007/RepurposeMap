@@ -28,9 +28,9 @@ future wired-in `/api/v1/rank` would need that. This means today's deployable
 service:
 
 - Starts in well under a second (no 4M-edge graph parse, no model checkpoint
-  load).
+  load). Measured: ~0.3s to import `repurposemap.api.app:app`.
 - Has a small, roughly constant memory footprint regardless of PrimeKG's
-  size on disk.
+  size on disk. Measured: ~46 MB peak RSS at import time.
 - Needs no data file shipped with the container at all -- `data/raw/` is
   gitignored and irrelevant to the live service as it stands.
 
@@ -79,6 +79,17 @@ a model is selected, in order of preference for a free/cheap V1 host:
 Neither is implemented, because no final model exists yet to build either
 from. This section exists so the decision is made once, deliberately, when
 that model lands -- not improvised under deadline pressure.
+
+**Why option 1 cannot be built early, even as a placeholder:** every
+committed experiment artifact in `ml/experiments/` (TransE's final
+locked-test result included) holds only aggregate metrics (Hits@k, MRR,
+AP) -- none holds a per-disease ranked candidate list. There is no real
+per-disease ranking data anywhere in this repo today to put into a
+"precomputed bundle," demo-disease selection (picking 2-3 diseases to
+showcase) included. Writing one now would mean fabricating candidate
+rankings, which this project does not do. This is also why choosing demo
+diseases ahead of a trained model is not a task that can be completed
+honestly yet -- it is blocked on the same thing live inference is.
 
 ## Suggested split-deployment layout
 
