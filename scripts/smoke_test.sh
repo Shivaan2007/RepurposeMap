@@ -71,6 +71,47 @@ rank_response=$(curl -s -X POST "$BASE_URL/api/v1/rank" \
 model_status=$(echo "$rank_response" | python3 -c "import json,sys; print(json.load(sys.stdin).get('model_status', ''))" 2>/dev/null || echo "parse_error")
 check "POST /api/v1/rank reports model_status=not_available" "$model_status" "not_available"
 
+# 7. The evidence endpoint makes real outbound calls to four external
+#    services -- never required to succeed in a smoke test (a source or
+#    the network itself may be down), but it must fail honestly (a 4xx/5xx
+#    with a clear reason) rather than crash unhandled. Only an unhandled
+#    500 fails this check; 200 (sources answered, possibly with some
+#    source_status failures) and 502 (every real adapter's own typed
+#    error path) are both acceptable.
+status=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE_URL/api/v1/evidence" \
+  -H "Content-Type: application/json" \
+  -d '{"drug_name": "smoke-test-drug", "disease_name": "smoke-test-disease", "max_results": 1}')
+if [ "$status" = "200" ] || [ "$status" = "502" ]; then
+  echo "OK   POST /api/v1/evidence answers honestly (got $status, not an unhandled crash)"
+else
+  echo "FAIL POST /api/v1/evidence returned $status -- expected 200 or 502"
+  FAILURES=$((FAILURES + 1))
+fi
+
+# 8. Same honesty check for disease-biology (also a live external call).
+status=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE_URL/api/v1/disease-biology" \
+  -H "Content-Type: application/json" \
+  -d '{"disease_name": "smoke-test-disease"}')
+if [ "$status" = "200" ] || [ "$status" = "404" ] || [ "$status" = "502" ]; then
+  echo "OK   POST /api/v1/disease-biology answers honestly (got $status, not an unhandled crash)"
+else
+  echo "FAIL POST /api/v1/disease-biology returned $status -- expected 200, 404 or 502"
+  FAILURES=$((FAILURES + 1))
+fi
+
+# 9. No secret-shaped values leak in the two static metadata responses.
+#    This is a cheap pattern check, not a substitute for the repo-level
+#    secrets audit in V1_RELEASE_CHECKLIST.md.
+for route in "/api/v1/system/info" "/openapi.json"; do
+  body=$(curl -s "$BASE_URL$route")
+  if echo "$body" | grep -qiE '"(api_key|secret|password|access_token)"\s*:\s*"[^"]'; then
+    echo "FAIL GET $route appears to expose a secret-shaped field"
+    FAILURES=$((FAILURES + 1))
+  else
+    echo "OK   GET $route exposes no secret-shaped field"
+  fi
+done
+
 echo
 if [ "$FAILURES" -eq 0 ]; then
   echo "All checks passed."
