@@ -8,13 +8,17 @@ Python research engine -> FastAPI + Pydantic -> OpenAPI
     -> generated TypeScript client -> future React research workspace
 ```
 
-Five real endpoints exist today (`/health`, `/api/v1/system/info`,
+Seven real endpoints exist today: `/health`, `/api/v1/system/info`,
 `POST /api/v1/evidence`, `POST /api/v1/disease-biology`,
-`POST /api/v1/target-scorecard`), plus a stubbed `POST /api/v1/rank` that
-always reports `model_status: "not_available"`. There is no trained model
-wired in yet -- see "Plugging in a real model" below. The three real
-lookup endpoints are synchronous -- see "Evidence/safety domain" and
-"Disease biology domain" below for what that means and why.
+`POST /api/v1/target-scorecard`, `POST /api/v1/rank`, and
+`GET /api/v1/rank/diseases`. `POST /api/v1/rank` is backed by the
+precomputed serving mechanism (`repurposemap.serving`) rather than live
+model inference -- see "Precomputed ranking serving" below. There is no
+trained model wired in yet, and `data/serving/` is empty today, so in
+practice this endpoint still always reports `model_status:
+"not_available"`. The evidence/biology/scorecard lookup endpoints are
+synchronous -- see "Evidence/safety domain" and "Disease biology domain"
+below for what that means and why.
 
 ## Running the API locally
 
@@ -50,25 +54,44 @@ regenerating; only `src/types.ts` is meant to be replaced by the generator.
 Re-export `openapi.json` first if you've changed anything in
 `ml/src/repurposemap/api/schemas.py`.
 
-## Plugging in a real model
+## Precomputed ranking serving
 
-`GET /api/v1/system/info` and `POST /api/v1/rank` both report model
-availability honestly rather than guessing. Wiring in a real model means:
+`POST /api/v1/rank` (`ml/src/repurposemap/api/ranking.py`) is backed by
+`repurposemap.serving`, not live model inference:
 
-1. Implementing a scoring function with the same shape the disease-based
-   evaluation harness already uses (`repurposemap.evaluation.disease_eval`
-   for the path baseline, `repurposemap.evaluation.transe_baseline` for a
-   trained TransE checkpoint).
-2. Updating `ModelStatus` in `system_info.py` to reflect the real model
-   that's loaded.
-3. Replacing `rank_candidates`'s body in `ranking.py` with an actual call
-   into that scoring function, filling in `CandidateDrug`/`CandidateScore`/
-   `ExplanationPath` from its real output -- the contract in `schemas.py`
-   is already shaped for either baseline.
+1. `repurposemap.serving.schemas.CandidateRankingBundle` is the on-disk
+   contract for one disease's precomputed ranking -- ranked candidates,
+   ranking-method/provenance, candidate-universe description, and an
+   explicit `generated_at`.
+2. `repurposemap.serving.loader` reads validated bundles from
+   `data/serving/*.json` (one file per disease, named `<disease_id>.json`).
+   A missing or malformed file is reported honestly, never silently
+   substituted.
+3. `repurposemap.serving.export_rankings` is the offline CLI that builds
+   a bundle from an already-ranked, already-approved candidate list and
+   writes it to `data/serving/` -- it never computes or re-ranks
+   anything itself (`python -m repurposemap.serving.export_rankings --help`).
+4. The router matches a request's `disease_id` or `disease_name` against
+   bundles in `data/serving/` by exact match only (case-insensitive for
+   names) -- never a fuzzy guess at which bundle a free-text name means.
 
-Until then, `rank_candidates` stays a stub. It must keep returning
-`model_status: "not_available"` with an empty candidate list rather than a
-mock or random ranking.
+`data/serving/` is empty today (only a `.gitkeep`): no committed
+experiment artifact anywhere holds a real per-disease ranked candidate
+list yet (see `docs/ARCHITECTURE.md`). So in practice, every request to
+`/api/v1/rank` today still returns `model_status: "not_available"`,
+`serving_mode: "not_available"`, with an empty candidate list --
+exactly the same honest response this endpoint has always returned,
+just now backed by a real mechanism with nothing to serve yet rather
+than a hardcoded stub. `GET /api/v1/rank/diseases` lists whichever
+diseases do have a bundle, so a caller can discover this without a
+failed query first.
+
+Once a real model exists and passes its locked-test evaluation, wiring
+it in means running `export_rankings.py` against its approved ranking
+output for the demo diseases chosen for deployment -- no code change to
+`ranking.py` itself is needed. `ModelStatus` in `system_info.py` is a
+separate signal (whether a trained checkpoint is configured for
+inference) and is unaffected by whether a serving bundle exists.
 
 Model availability is reported honestly end-to-end: `GET
 /api/v1/system/info` calls `repurposemap.provenance.load_experiments()`

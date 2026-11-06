@@ -115,15 +115,21 @@ correctness against the commands and env vars documented here.
 - **Hypothesis notebook**: track drug/disease ideas locally (this
   browser's `localStorage` only -- never sent to the server, lost if site
   data is cleared, not shared across devices).
-- **Ranking** (the top query form): always returns `model_status:
+- **Ranking** (the top query form): backed by a real precomputed-serving
+  mechanism (`repurposemap.serving`), but `data/serving/` holds no real
+  bundles yet, so every query still returns `model_status:
   "not_available"` with an empty candidate list. This is correct, current
-  behavior -- see "Known limitations".
+  behavior -- see "Known limitations" and `API.md`'s "Precomputed ranking
+  serving" section.
 
 ## Known limitations
 
-- **No model is available yet.** `POST /api/v1/rank` is an intentional
-  stub until a real R-GCN (or TransE) model is wired in -- see API.md's
-  "Plugging in a real model" section. It never fabricates a ranking.
+- **No precomputed ranking data exists yet.** `POST /api/v1/rank` is
+  backed by a real serving mechanism (`repurposemap.serving`), but
+  `data/serving/` is empty until a real R-GCN (or TransE) model is
+  trained, locked-test-evaluated, and exported for specific demo
+  diseases -- see API.md's "Precomputed ranking serving" section. It
+  never fabricates a ranking.
 - **The evidence/biology endpoints are synchronous.** Each request calls
   up to four external APIs in-process on the request thread, so a slow or
   rate-limited source adds directly to response latency. PLAN.md calls
@@ -198,9 +204,12 @@ application code.
 `scripts/smoke_test.sh [base_url]` (default `http://localhost:8000`) checks,
 against a real running backend: `/health` and `/api/v1/system/info` answer,
 `/openapi.json` is servable, CORS headers are present for an allowed origin
-and absent for a disallowed one, and -- the honesty check -- `POST
-/api/v1/rank` still reports `model_status: "not_available"` rather than a
-fabricated ranking. Run it any time after starting the backend (see
+and absent for a disallowed one, `GET /api/v1/rank/diseases` answers (an
+empty list is fine), `POST /api/v1/rank` reports `model_status:
+"not_available"` honestly when no precomputed bundle exists rather than a
+fabricated ranking, the evidence/disease-biology endpoints fail honestly
+rather than crashing, and no secret-shaped field leaks from the two static
+metadata responses. Run it any time after starting the backend (see
 "Backend" above):
 
 ```bash

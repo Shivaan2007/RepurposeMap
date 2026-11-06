@@ -49,8 +49,9 @@ require inbound webhooks or special firewall allowances beyond that.
 
 ## Serving strategy once a model exists (R-GCN or TransE)
 
-No model is wired in yet, so this section is a plan, not a shipped feature --
-labeled that way deliberately rather than describing it as done.
+No model is wired in yet, but the **mechanism** for option 1 below is now
+built and shipped (`repurposemap.serving`) -- what's still missing is real
+data to put into it, not code.
 
 Full live inference means loading PrimeKG (4M+ edges) and a trained
 checkpoint into the API process's memory, which is a materially heavier
@@ -58,38 +59,43 @@ deploy than today's (likely >1GB+ depending on final embedding
 dimensions, vs. today's near-zero graph footprint). Two honest options once
 a model is selected, in order of preference for a free/cheap V1 host:
 
-1. **Precomputed candidate bundle (recommended for V1).** Offline, after the
-   final model is trained and locked-test-evaluated, run inference once for
-   every disease the demo supports and write the ranked candidates +
-   explanation paths to a static file (JSON keyed by disease ID). The live
-   API serves lookups from that file -- no graph, no model weights, no
-   GPU, in the request path. This must be clearly labeled in the UI and
-   docs as **precomputed, not live inference** (e.g. "ranked offline on
-   <date>, not recomputed per request") so it is never mistaken for a live
-   model serving arbitrary new diseases. This is the "transparent
-   precomputed demo bundle, clearly separated from offline research
-   evaluation" approach -- honest about being a snapshot, not a simulation
-   of live inference.
+1. **Precomputed candidate bundle (recommended for V1, mechanism done).**
+   Offline, after the final model is trained and locked-test-evaluated, run
+   inference once for every disease the demo supports and export the ranked
+   candidates + explanation paths as a `CandidateRankingBundle` JSON file
+   under `data/serving/` via `python -m repurposemap.serving.export_rankings`
+   (`API.md`'s "Precomputed ranking serving" section). The live API
+   (`POST /api/v1/rank`, `GET /api/v1/rank/diseases`) serves lookups from
+   those files -- no graph, no model weights, no GPU, in the request path.
+   This is clearly labeled in the UI and the response itself as
+   **precomputed, not live inference**: `RankingResponse.serving_mode`
+   is `"precomputed"`, carrying `ranking_method`, `candidate_universe`, and
+   `generated_at`, so it is never mistaken for a live model serving
+   arbitrary new diseases. This is the "transparent precomputed demo
+   bundle, clearly separated from offline research evaluation" approach --
+   honest about being a snapshot, not a simulation of live inference.
 2. **Live inference.** Only once the precomputed bundle is insufficient
    (e.g. a reviewer wants to query a disease outside the precomputed set).
    Needs a host with enough memory for the graph + checkpoint, which likely
    means moving off a free tier. Not required for a V1 demo of the core
-   workflow.
+   workflow, and nothing in this repo builds toward it yet.
 
-Neither is implemented, because no final model exists yet to build either
-from. This section exists so the decision is made once, deliberately, when
-that model lands -- not improvised under deadline pressure.
+Option 1's serving mechanism is implemented and tested; option 2 remains
+unimplemented, because no final model exists yet to build either from. This
+section exists so the decision is made once, deliberately, when that model
+lands -- not improvised under deadline pressure.
 
-**Why option 1 cannot be built early, even as a placeholder:** every
-committed experiment artifact in `ml/experiments/` (TransE's final
-locked-test result included) holds only aggregate metrics (Hits@k, MRR,
-AP) -- none holds a per-disease ranked candidate list. There is no real
-per-disease ranking data anywhere in this repo today to put into a
-"precomputed bundle," demo-disease selection (picking 2-3 diseases to
-showcase) included. Writing one now would mean fabricating candidate
-rankings, which this project does not do. This is also why choosing demo
-diseases ahead of a trained model is not a task that can be completed
-honestly yet -- it is blocked on the same thing live inference is.
+**Why `data/serving/` holds nothing real yet, even with the mechanism
+built:** every committed experiment artifact in `ml/experiments/`
+(TransE's final locked-test result included) holds only aggregate metrics
+(Hits@k, MRR, AP) -- none holds a per-disease ranked candidate list. There
+is no real per-disease ranking data anywhere in this repo today to export
+into a bundle, demo-disease selection (picking 2-3 diseases to showcase)
+included. Running the exporter against invented input would mean
+fabricating candidate rankings, which this project does not do. This is
+also why choosing demo diseases ahead of a trained model is not a task
+that can be completed honestly yet -- it is blocked on the same thing live
+inference is.
 
 ## Suggested split-deployment layout
 

@@ -11,8 +11,8 @@ available" rather than a fake result), or **Missing**.
 | Feature | Status | Notes |
 |---|---|---|
 | Disease search | Partial | `repurposemap.graph.search` does exact/fuzzy entity matching over the loaded graph; Open Targets name resolution (with `resolved_from` alternates) backs `/api/v1/disease-biology` and `/api/v1/target-scorecard`. No dedicated rare-disease-synonym table beyond what PrimeKG/Open Targets already encode. |
-| Ranked candidates | **Stubbed** | `POST /api/v1/rank` always returns `model_status: "not_available"` with an empty candidate list. Correctly honest -- blocked on the R-GCN validation search (in progress on Kaggle; see "R-GCN status" below), not a code gap. |
-| Reasoning paths | Partial | `graph/paths.py` + `scoring/path_quality.py` implement path-finding and a heuristic path-quality score; `RankingResponse.ExplanationPath` schema is wired end-to-end in the frontend (`CandidateList.tsx`). Not independently exercisable without a real ranking result, since it's reached only through the stubbed `/rank` endpoint. |
+| Ranked candidates | **Mechanism done, no data yet** | `POST /api/v1/rank` is now backed by a real precomputed-serving mechanism (`repurposemap.serving`, `GET /api/v1/rank/diseases` for discovery) rather than a hardcoded stub, but `data/serving/` is empty -- every request still honestly returns `model_status: "not_available"`. Correctly blocked on the R-GCN validation search (in progress on Kaggle; see "R-GCN status" below) and TransE not having been chosen as the demo model either, not a code gap. |
+| Reasoning paths | Partial | `graph/paths.py` + `scoring/path_quality.py` implement path-finding and a heuristic path-quality score; `RankingResponse.ExplanationPath` schema is wired end-to-end in the frontend (`CandidateList.tsx`) and in the serving bundle schema (`ExplanationPathRecord`). Not independently exercisable without a real ranking result, since `/rank` has nothing in `data/serving/` to serve yet. |
 | Evidence check | Partial | Real PubMed + ClinicalTrials.gov adapters exist and are labeled by a deterministic, source-controlled-vocabulary `EvidenceStrength` (`unknown` / `case_report` / `observational` / `controlled_trial` / `systematic_review`). This is a different, finer taxonomy than PLAN.md's three-way "Novel / Some early evidence / Already tested" -- the three-way label is not implemented. |
 | Safety check | Done | Real openFDA + DailyMed adapters; `boxed_warning_present` and `contraindication_text` are surfaced in both the API response and `EvidencePanel`. |
 | Triage shortlist | Missing | No code combines model score + evidence + safety into one ranked list. `repurposemap.hypothesis.RepurposingHypothesis` is a typed placeholder for this, documented as not yet wired to the ranking path (`API.md`). Blocked on ranked candidates existing at all. |
@@ -52,8 +52,9 @@ recent commits; not yet run against a trained model).
 | Large/raw files in repo | Clean -- `data/raw/`, Kaggle recovery/scratch dirs correctly gitignored and untracked |
 | Reproducible local Python setup | Done -- see "Known blockers" below for how this environment specifically got there; `README.md`'s documented `pip install -e ".[dev]"` path works on a normal machine |
 | Deployment config files | Done -- `render.yaml` (backend) and `web/app/vercel.json` (frontend), generic, no domains or secrets. Inspected for correctness, not yet exercised against a real Render/Vercel account |
-| Deployment smoke test | Done -- `scripts/smoke_test.sh` covers health, system-info, CORS (allowed/disallowed), OpenAPI servability, rank-stub honesty, evidence/disease-biology honest-failure (never an unhandled 500), and a no-secrets-exposed check |
-| Precomputed demo ranking data | Blocked, not a code gap -- every committed experiment artifact holds aggregate metrics only, never a per-disease candidate list, so there is nothing real to precompute from yet. See "Serving strategy" in `docs/DEPLOYMENT.md` |
+| Deployment smoke test | Done -- `scripts/smoke_test.sh` covers health, system-info, CORS (allowed/disallowed), OpenAPI servability, rank/rank-diseases honesty, evidence/disease-biology honest-failure (never an unhandled 500), and a no-secrets-exposed check |
+| Precomputed ranking serving mechanism | Done -- `repurposemap.serving` (schema, loader, offline exporter CLI), `POST /api/v1/rank` and `GET /api/v1/rank/diseases` wired to it end-to-end including the frontend, with tests. See `API.md`'s "Precomputed ranking serving" section |
+| Precomputed demo ranking data | Blocked, not a code gap -- every committed experiment artifact holds aggregate metrics only, never a per-disease candidate list, so `data/serving/` has nothing real to hold yet. Exporting one is a data step (`python -m repurposemap.serving.export_rankings`) once a model is trained and locked-test-evaluated, not a code change. See "Serving strategy" in `docs/DEPLOYMENT.md` |
 
 ## Known blockers (environment, not code) -- resolved
 
@@ -82,3 +83,34 @@ recent commits; not yet run against a trained model).
 - R-GCN validation search is actively `RUNNING` on Kaggle
   (`rgcn-moreBases` config remaining) -- frozen per instructions, monitored
   only.
+
+## Live deployment-day checklist
+
+Nothing below is marked done until actually exercised against a real
+Render/Vercel account -- `render.yaml`/`web/app/vercel.json` have only been
+inspected for correctness so far (see "Deployment config files" above).
+
+**Backend (Render)**
+- [ ] Render web service created from `render.yaml`
+- [ ] Repo connected, build succeeds (`pip install -e ".[api]"`)
+- [ ] `REPURPOSEMAP_CORS_ORIGINS` set to the real deployed frontend origin
+- [ ] `GET /health` live
+- [ ] `GET /api/v1/system/info` live
+- [ ] Evidence/biology endpoints can reach PubMed/ClinicalTrials.gov/openFDA/DailyMed/Open Targets (outbound internet works from the host)
+
+**Frontend (Vercel)**
+- [ ] Vercel project created from `web/app/vercel.json`
+- [ ] Repo connected, build succeeds (`npm install && npm run build`)
+- [ ] `VITE_API_BASE_URL` set to the real deployed backend origin
+- [ ] Frontend loads and renders `StatusPanel` without a console error
+
+**Integration**
+- [ ] CORS: a request from the deployed frontend origin to the deployed backend succeeds; a request from an arbitrary origin does not get the CORS header
+- [ ] `GET /api/v1/rank/diseases` answers (empty list is fine)
+- [ ] A supported-disease rank query returns `serving_mode: "precomputed"` once `data/serving/` has a real bundle; an unsupported one returns `model_status: "not_available"` honestly
+- [ ] Evidence/disease-biology/target-scorecard queries return real data for a real drug/disease/gene
+- [ ] A deliberately bad request (e.g. an empty disease name) renders an honest error in the UI, not a crash
+- [ ] No secret-shaped value appears in `/api/v1/system/info` or `/openapi.json` on the deployed host (`scripts/smoke_test.sh <deployed-backend-url>`)
+
+Run `./scripts/smoke_test.sh <deployed-backend-url>` against the real
+deployed backend once it's live, in addition to walking this list by hand.

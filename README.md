@@ -58,7 +58,7 @@ for an honest status of every V1 feature against PLAN.md.
 - Sampled R-GCN validation search and final-training code, Kaggle runner with a smoke mode ([ml/RGCN_RUNBOOK.md](ml/RGCN_RUNBOOK.md)), and a frozen evaluation protocol ([ml/RGCN_EVALUATION_PROTOCOL.md](ml/RGCN_EVALUATION_PROTOCOL.md))
 - Typed API foundation (FastAPI + Pydantic, OpenAPI export, generated TypeScript client)
 - Experiment/model provenance layer (`repurposemap.provenance`): reads `ml/experiments/*.json` and reports honest model-eligibility status through `GET /api/v1/system/info`, without loading PrimeKG or a checkpoint
-- React research workspace (`web/app`): disease-query UI over the generated TypeScript client, with system-status, candidate, evidence, explanation-path and safety panels (for the future ranking endpoint -- still "no model available" today, never a fake ranking), plus a live `EvidencePanel` for the real evidence lookup below
+- React research workspace (`web/app`): disease-query UI over the generated TypeScript client, with system-status, candidate, evidence, explanation-path and safety panels wired to the real `/api/v1/rank` + `/api/v1/rank/diseases` endpoints (backed by `repurposemap.serving`'s precomputed-bundle mechanism -- still "not available" today since no bundle exists yet, never a fake ranking), plus a live `EvidencePanel` for the real evidence lookup below
 - Evidence and safety domain (`repurposemap.evidence`): typed contracts and adapter interfaces, plus four live adapters -- PubMed (E-utilities esearch/efetch -> typed records with PMID, URL, journal, date, abstract and retrieval time; each record's `strength` is a coarse case-report/observational/controlled-trial/systematic-review label derived deterministically from PubMed's own publication-type vocabulary, never from the title or abstract text), ClinicalTrials.gov (API v2 `/studies` -> typed records with NCT ID, URL, status and phase, plus a `strength` from `designModule.studyType`), openFDA (Drug Label API -> typed safety records with the label's boxed-warning/contraindication/warnings text and a DailyMed cross-reference URL), and DailyMed (SPL API v2 `/spls.json` -> typed safety records with the label's own title and publication date). All four are tested against mocked responses only, never run against the live service from this repo's tests. None rates evidence for or against efficacy
 - Evidence/safety wired into the API and UI, synchronously: `POST /api/v1/evidence` queries all four sources in-process for one drug/disease pair and returns one `EvidenceBundle` plus a per-source `source_status` (a source failing never drops the others or gets reported as "zero matches"). Synchronous because the background-job infrastructure `PLAN.md`'s tech stack calls for this (Redis + RQ) doesn't exist in this repo yet -- see [API.md](API.md#evidencesafety-domain). The frontend's `EvidencePanel` is a thin caller of the same endpoint
 - Disease biology domain (`repurposemap.biology`): a live Open Targets Platform adapter for PLAN.md's researcher-workflow steps 1 and 2. Step 1 ("What goes wrong in this disease?"): the genes most strongly associated with a disease, ranked by genetic evidence, with their Reactome pathways -- `POST /api/v1/disease-biology` + `DiseaseBiologyPanel`. Step 2 ("Which proteins are worth hitting?"): one target's tractability, Open Targets' own prioritisation factors, and its highest-expressing tissues, with no disease context -- `POST /api/v1/target-scorecard` + `TargetScorecardPanel`. Both endpoints synchronous, same reason as evidence -- see [API.md](API.md#disease-biology-domain)
@@ -104,7 +104,7 @@ Not implemented yet, as of this writing:
 
 - **No trained or evaluated R-GCN yet.** The model, the sampled trainer and the Kaggle runner have been profiled on real PrimeKG for feasibility (speed and memory only, not accuracy), and the 3-config validation search is actively running. Final training and the locked-test evaluation have not started, so there are still no R-GCN performance numbers.
 - Evidence/safety lookup is real but synchronous and uncached: PubMed, ClinicalTrials.gov, openFDA and DailyMed are all wired into `POST /api/v1/evidence` and `EvidencePanel` (see above), but each request queries all four sources in-process rather than through the background-job layer `PLAN.md`'s tech stack calls for.
-- The React frontend's ranking view (`web/app`) exists and queries the real `/api/v1/rank` endpoint, but since no model is available yet it only ever shows the honest unavailable/empty state there -- see "Project status" above and [API.md](API.md). The evidence lookup view is real and live.
+- The React frontend's ranking view (`web/app`) exists and queries the real `/api/v1/rank` + `/api/v1/rank/diseases` endpoints, backed by a real precomputed-serving mechanism (`repurposemap.serving`), but since `data/serving/` holds no real bundle yet it only ever shows the honest unavailable/empty state there -- see "Project status" above and [API.md](API.md). The evidence lookup view is real and live.
 
 ## Evaluation protocol
 
@@ -328,8 +328,13 @@ RepurposeMap/
     │   ├── ranking/        # drug-ranking baseline
     │   ├── evaluation/     # held-out indication harness, metrics, TransE evaluation
     │   ├── embeddings/      # TransE model, training, export, locked-test manifest
-    │   └── api/             # FastAPI app, Pydantic schemas, routes
+    │   ├── api/             # FastAPI app, Pydantic schemas, routes
+    │   └── serving/         # precomputed ranking bundle schema, loader, offline exporter
     └── tests/              # pytest suite, fixtures and small test graphs
+
+data/
+├── raw/                    # large raw datasets (PrimeKG), gitignored, never committed
+└── serving/                # precomputed CandidateRankingBundle files, one per disease (empty today)
 ```
 
 ## Reproducibility
@@ -375,4 +380,4 @@ RepurposeMap generates research hypotheses for expert review. It does not prescr
 2. Supporting evidence from PubMed, ClinicalTrials.gov, DailyMed and openFDA. **Done** — see "Evidence and safety domain" in "Project status" and [API.md](API.md#evidencesafety-domain).
 3. Drug safety information. **Done** — the same evidence domain above surfaces openFDA/DailyMed label warnings and contraindications.
 4. React research workspace, built against the generated TypeScript client in `web/client/`. **Done** — see `web/app`.
-5. Not yet started: a background-job layer (Redis + RQ) and a database (Postgres) to move evidence lookups off the request path; wiring a real model into `POST /api/v1/rank`. **Partially done**: a one-click Markdown evidence-brief export exists in `EvidencePanel` today; no other export format is planned ahead of a real model existing.
+5. Not yet started: a background-job layer (Redis + RQ) and a database (Postgres) to move evidence lookups off the request path; exporting a real model's approved ranking output into `data/serving/` via `repurposemap.serving.export_rankings` (the mechanism for this now exists end-to-end, see [API.md](API.md); only the data step remains, blocked on a trained and locked-test-evaluated model). **Partially done**: a one-click Markdown evidence-brief export exists in `EvidencePanel` today; no other export format is planned ahead of a real model existing.
