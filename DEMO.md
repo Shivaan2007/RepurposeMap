@@ -138,10 +138,13 @@ correctness against the commands and env vars documented here.
 - **The hypothesis notebook has no server-side persistence.** It is a
   deliberate, documented limitation (see `HypothesisNotebookPanel.tsx`),
   not an oversight.
-- **R-GCN training is in progress, not complete.** The frozen 3-config
-  validation search runs on Kaggle; no final R-GCN model exists yet, so
-  the ranking stub's `model_status` will not change until that finishes
-  and a model is explicitly wired in.
+- **R-GCN final training is not complete.** The frozen 3-config
+  validation search on Kaggle is now complete (`rgcn-wide` selected on
+  validation MRR); no final R-GCN model exists yet, since final
+  training and the one locked-test evaluation have not started and
+  require explicit owner approval first. `model_status` will not
+  change until that finishes and a model's approved output is exported
+  via `repurposemap.serving.export_rankings`.
 
 ## Deployment readiness audit (audit only -- nothing below was deployed)
 

@@ -11,7 +11,7 @@ available" rather than a fake result), or **Missing**.
 | Feature | Status | Notes |
 |---|---|---|
 | Disease search | Partial | `repurposemap.graph.search` does exact/fuzzy entity matching over the loaded graph; Open Targets name resolution (with `resolved_from` alternates) backs `/api/v1/disease-biology` and `/api/v1/target-scorecard`. No dedicated rare-disease-synonym table beyond what PrimeKG/Open Targets already encode. |
-| Ranked candidates | **Mechanism done, no data yet** | `POST /api/v1/rank` is now backed by a real precomputed-serving mechanism (`repurposemap.serving`, `GET /api/v1/rank/diseases` for discovery) rather than a hardcoded stub, but `data/serving/` is empty -- every request still honestly returns `model_status: "not_available"`. Correctly blocked on the R-GCN validation search (in progress on Kaggle; see "R-GCN status" below) and TransE not having been chosen as the demo model either, not a code gap. |
+| Ranked candidates | **Mechanism done, no data yet** | `POST /api/v1/rank` is now backed by a real precomputed-serving mechanism (`repurposemap.serving`, `GET /api/v1/rank/diseases` for discovery) rather than a hardcoded stub, but `data/serving/` is empty -- every request still honestly returns `model_status: "not_available"`. R-GCN's validation search is now complete (`rgcn-wide` selected, see "Known blockers" below), but final training and the locked-test evaluation -- the step that would produce a real approved ranking to export -- have not started and require explicit owner approval. Not a code gap. |
 | Reasoning paths | Partial | `graph/paths.py` + `scoring/path_quality.py` implement path-finding and a heuristic path-quality score; `RankingResponse.ExplanationPath` schema is wired end-to-end in the frontend (`CandidateList.tsx`) and in the serving bundle schema (`ExplanationPathRecord`). Not independently exercisable without a real ranking result, since `/rank` has nothing in `data/serving/` to serve yet. |
 | Evidence check | Partial | Real PubMed + ClinicalTrials.gov adapters exist and are labeled by a deterministic, source-controlled-vocabulary `EvidenceStrength` (`unknown` / `case_report` / `observational` / `controlled_trial` / `systematic_review`). This is a different, finer taxonomy than PLAN.md's three-way "Novel / Some early evidence / Already tested" -- the three-way label is not implemented. |
 | Safety check | Done | Real openFDA + DailyMed adapters; `boxed_warning_present` and `contraindication_text` are surfaced in both the API response and `EvidencePanel`. |
@@ -80,9 +80,17 @@ recent commits; not yet run against a trained model).
   of scope per the resource policy (torch is a large, unnecessary install
   for this test surface) and PLAN.md's model-training code, which the
   R-GCN freeze covers anyway.
-- R-GCN validation search is actively `RUNNING` on Kaggle
-  (`rgcn-moreBases` config remaining) -- frozen per instructions, monitored
-  only.
+- R-GCN validation search is **complete** (Kaggle kernel
+  `shivaanbhalla/repurposemap-rgcn-validation-search`, version 8,
+  `KernelWorkerStatus.COMPLETE`). All three configs (`rgcn-base`,
+  `rgcn-wide`, `rgcn-moreBases`) ran their full 3/3-epoch budget, no
+  NaN/Inf detected, source-archive SHA-256 verified against the frozen
+  commit's expected hash. Applying the frozen selection rule, `rgcn-wide`
+  wins on validation MRR (0.0392 vs. runner-up 0.0271, far past the
+  0.0005 tie-break threshold). See
+  `ml/experiments/rgcn_sampled_validation_search_0f23fe3.json` for the
+  full record. **Final training and the locked-test evaluation have not
+  started and require explicit owner approval before proceeding.**
 
 ## Live deployment-day checklist
 

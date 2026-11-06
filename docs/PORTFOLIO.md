@@ -94,9 +94,12 @@ no real ranking exists.
 **As of this draft**: TransE final training and its one locked-test
 evaluation are complete (see `README.md`'s results table) -- TransE did
 not outperform the path-quality baseline on the locked test. An R-GCN
-validation search (3 configs: base, wide, moreBases) is in progress on
-Kaggle; no R-GCN result exists yet. **Do not state an R-GCN result, a
-"final model," or a live-deployment claim in any portfolio material
+validation search (3 configs: base, wide, moreBases) is now complete on
+Kaggle -- `rgcn-wide` was selected on validation MRR -- but this is a
+validation-only result; final training and the one locked-test
+evaluation have not started and require explicit owner approval, so no
+R-GCN locked-test result exists yet. **Do not state an R-GCN locked-test
+result, a "final model," or a live-deployment claim in any portfolio material
 until both are actually true** -- update this section (and the resume
 bullets above) only once the locked-test evaluation for whichever model
 is selected has actually been run and approved.

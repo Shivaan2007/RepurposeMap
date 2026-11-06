@@ -1,0 +1,194 @@
+{
+  "stage": "R-GCN sampled validation search",
+  "purpose": "hyperparameter/model selection on validation diseases only; not a final/locked-test result",
+  "generated_at": "2026-11-06T00:43:00+00:00",
+  "provenance": {
+    "source_commit": "0f23fe3631e276f36a8ba1e481da2beb634b6ccf",
+    "export_fingerprint": "8e41f866f9fb90b0017b9056c1eb69b585004e01e65e6c6e4d17b9dbf16cb1aa",
+    "primekg_sha256": "0a5a010fcd88dcec572a573d98c26c1c244a11567092b6161d3ded611cfb5c69",
+    "locked_test_manifest_fingerprint": null,
+    "archive_sha256": "bd26185f5db0ee0f5918936649c9f371d663034fad7bfff63939e3e9d1782085"
+  },
+  "environment": {
+    "platform": "Kaggle kernel",
+    "gpu_detected": true,
+    "device_actually_used": "cuda",
+    "peak_gpu_memory_mb": null,
+    "internet_enabled": false
+  },
+  "safety_and_protocol": {
+    "final_training_performed": false,
+    "locked_test_evaluation_performed": false,
+    "three_config_search_performed": true
+  },
+  "search": {
+    "rule": "1) highest validation MRR; 2) if the absolute MRR difference is <= 0.0005, highest macro AP; 3) if still tied, smaller model (fewer parameters).",
+    "fanout_hop1": 15,
+    "fanout_hop2": 10,
+    "epochs_per_config": 3,
+    "triples_used": "tuning_triples only",
+    "configs": [
+      {
+        "name": "rgcn-base",
+        "hidden_dim": 64,
+        "num_bases": 8,
+        "num_layers": 2
+      },
+      {
+        "name": "rgcn-wide",
+        "hidden_dim": 128,
+        "num_bases": 8,
+        "num_layers": 2
+      },
+      {
+        "name": "rgcn-moreBases",
+        "hidden_dim": 64,
+        "num_bases": 30,
+        "num_layers": 2
+      }
+    ],
+    "all_configs_ran_full_3_epoch_budget": true,
+    "nan_or_inf_detected": false,
+    "results": [
+      {
+        "name": "rgcn-base",
+        "hidden_dim": 64,
+        "num_bases": 8,
+        "epochs": [
+          {
+            "epoch": 0,
+            "train_loss": 0.12520341232950324,
+            "epoch_seconds": 17419.692235699,
+            "hits_at_1": 0.002347417840375587,
+            "hits_at_3": 0.007042253521126761,
+            "hits_at_10": 0.01995305164319249,
+            "mrr": 0.013872513805032093,
+            "macro_auprc": 0.020734616605634613,
+            "micro_auprc": 0.009563679425065207
+          },
+          {
+            "epoch": 1,
+            "train_loss": 0.06796184393984356,
+            "epoch_seconds": 17840.663829592,
+            "hits_at_1": 0.008215962441314555,
+            "hits_at_3": 0.023474178403755867,
+            "hits_at_10": 0.05985915492957746,
+            "mrr": 0.027146194035188965,
+            "macro_auprc": 0.03628661094151391,
+            "micro_auprc": 0.012777886555887952
+          },
+          {
+            "epoch": 2,
+            "train_loss": 0.056602456058069496,
+            "epoch_seconds": 18183.093868464,
+            "hits_at_1": 0.004694835680751174,
+            "hits_at_3": 0.012910798122065728,
+            "hits_at_10": 0.056338028169014086,
+            "mrr": 0.023884885114273845,
+            "macro_auprc": 0.037457292517371,
+            "micro_auprc": 0.019214057501948354
+          }
+        ],
+        "best_epoch": 1,
+        "best_val_mrr": 0.027146194035188965,
+        "best_val_macro_auprc": 0.03628661094151391,
+        "total_runtime_s": 18189.514141636002
+      },
+      {
+        "name": "rgcn-wide",
+        "hidden_dim": 128,
+        "num_bases": 8,
+        "epochs": [
+          {
+            "epoch": 0,
+            "train_loss": 0.10573425877804943,
+            "epoch_seconds": 18495.905677883,
+            "hits_at_1": 0.007042253521126761,
+            "hits_at_3": 0.015258215962441314,
+            "hits_at_10": 0.04225352112676056,
+            "mrr": 0.022736321782729014,
+            "macro_auprc": 0.03325584680887105,
+            "micro_auprc": 0.018277080249406746
+          },
+          {
+            "epoch": 1,
+            "train_loss": 0.0578182397358697,
+            "epoch_seconds": 16881.183051656,
+            "hits_at_1": 0.012910798122065728,
+            "hits_at_3": 0.03403755868544601,
+            "hits_at_10": 0.07629107981220658,
+            "mrr": 0.03650463663598679,
+            "macro_auprc": 0.04927593938801387,
+            "micro_auprc": 0.024590249738598215
+          },
+          {
+            "epoch": 2,
+            "train_loss": 0.047951461946765306,
+            "epoch_seconds": 16861.261149389997,
+            "hits_at_1": 0.01056338028169014,
+            "hits_at_3": 0.03286384976525822,
+            "hits_at_10": 0.0892018779342723,
+            "mrr": 0.03916092943858829,
+            "macro_auprc": 0.05511481428207425,
+            "micro_auprc": 0.0352819874436811
+          }
+        ],
+        "best_epoch": 2,
+        "best_val_mrr": 0.03916092943858829,
+        "best_val_macro_auprc": 0.05511481428207425,
+        "total_runtime_s": 33750.596545609
+      },
+      {
+        "name": "rgcn-moreBases",
+        "hidden_dim": 64,
+        "num_bases": 30,
+        "epochs": [
+          {
+            "epoch": 0,
+            "train_loss": 0.12031530609684325,
+            "epoch_seconds": 17988.151762422,
+            "hits_at_1": 0.004694835680751174,
+            "hits_at_3": 0.017605633802816902,
+            "hits_at_10": 0.03873239436619718,
+            "mrr": 0.022707729150153795,
+            "macro_auprc": 0.0336009074506262,
+            "micro_auprc": 0.020078100916441872
+          },
+          {
+            "epoch": 1,
+            "train_loss": 0.06549416723751678,
+            "epoch_seconds": 17560.839774557004,
+            "hits_at_1": 0.002347417840375587,
+            "hits_at_3": 0.011737089201877934,
+            "hits_at_10": 0.0528169014084507,
+            "mrr": 0.02026657153740553,
+            "macro_auprc": 0.03225500262328343,
+            "micro_auprc": 0.01761268915656948
+          },
+          {
+            "epoch": 2,
+            "train_loss": 0.05394919266678626,
+            "epoch_seconds": 17503.630794484998,
+            "hits_at_1": 0.011737089201877934,
+            "hits_at_3": 0.014084507042253521,
+            "hits_at_10": 0.045774647887323945,
+            "mrr": 0.026654345155201535,
+            "macro_auprc": 0.03653310486410437,
+            "micro_auprc": 0.034723363132267454
+          }
+        ],
+        "best_epoch": 2,
+        "best_val_mrr": 0.026654345155201535,
+        "best_val_macro_auprc": 0.03653310486410437,
+        "total_runtime_s": 17511.375510809
+      }
+    ]
+  },
+  "selection": {
+    "winner": "rgcn-wide",
+    "winner_best_val_mrr": 0.03916092943858829,
+    "winner_best_val_macro_auprc": 0.05511481428207425,
+    "rule_applied": "1) highest validation MRR; 2) if the absolute MRR difference is <= 0.0005, highest macro AP; 3) if still tied, smaller embedding_dim.",
+    "notes": "rgcn-wide's validation MRR (0.03916) exceeds the runner-up (rgcn-base, 0.02715) by 0.01202, far above the 0.0005 tie-break threshold in the frozen rule -- selected outright on rule 1 (highest validation MRR), no tie-break needed. Independently verified against search_log.json's own self-reported selected_name during recovery, and the archive SHA-256 (bd26185f5db0ee0f5918936649c9f371d663034fad7bfff63939e3e9d1782085) was confirmed to match the frozen source commit's expected hash. This is a validation-search result only -- no final training or locked-test evaluation has been performed."
+  }
+}
