@@ -55,6 +55,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/rank/diseases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Rank Diseases */
+        get: operations["list_rank_diseases_api_v1_rank_diseases_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/system/info": {
         parameters: {
             query?: never;
@@ -542,11 +559,24 @@ export interface components {
         };
         /**
          * RankingResponse
-         * @description The future candidate-ranking response shape. ``model_status`` must
-         *     be ``"not_available"`` -- never silently substituted with a mock or
-         *     random ranking -- until a real, eligible model is explicitly wired in.
+         * @description The candidate-ranking response shape. ``model_status`` is
+         *     ``"ready"`` only when a precomputed serving bundle
+         *     (``repurposemap.serving``) exists for the requested disease --
+         *     never a live model inference result today, and never silently
+         *     substituted with a mock or random ranking otherwise.
+         *
+         *     ``serving_mode`` makes the provenance of a ``"ready"`` response
+         *     explicit: ``"precomputed"`` means every candidate here came from an
+         *     on-disk ``CandidateRankingBundle`` exported by
+         *     ``repurposemap.serving.export_rankings`` from an already-approved
+         *     ranking output, not from inference run during this request.
          */
         RankingResponse: {
+            /**
+             * Candidate Universe
+             * @description what set of drugs the ranking was computed over -- set only when serving_mode is 'precomputed'
+             */
+            candidate_universe?: string | null;
             /** Candidates */
             candidates?: components["schemas"]["CandidateDrug"][];
             /**
@@ -556,11 +586,27 @@ export interface components {
             disclaimer: string;
             disease_query: components["schemas"]["DiseaseQuery"];
             /**
+             * Generated At
+             * @description when the precomputed bundle was generated -- set only when serving_mode is 'precomputed'
+             */
+            generated_at?: string | null;
+            /**
              * Model Status
              * @enum {string}
              */
             model_status: "not_available" | "ready";
             provenance?: components["schemas"]["Provenance"] | null;
+            /**
+             * Ranking Method
+             * @description e.g. 'path_quality', 'transe', 'rgcn' -- set only when serving_mode is 'precomputed'
+             */
+            ranking_method?: string | null;
+            /**
+             * Serving Mode
+             * @default not_available
+             * @enum {string}
+             */
+            serving_mode: "not_available" | "precomputed";
         };
         /**
          * SafetyEvidence
@@ -645,6 +691,34 @@ export interface components {
             source: components["schemas"]["EvidenceSource"];
             /** Succeeded */
             succeeded: boolean;
+        };
+        /**
+         * SupportedDiseaseSummary
+         * @description One disease a precomputed ranking serving bundle exists for
+         *     today. Lets the frontend know in advance what ``POST /api/v1/rank``
+         *     can actually answer, instead of discovering it one failed query at
+         *     a time.
+         */
+        SupportedDiseaseSummary: {
+            /** Candidate Count */
+            candidate_count: number;
+            /** Disease Id */
+            disease_id: string;
+            /** Disease Name */
+            disease_name: string;
+            /** Ranking Method */
+            ranking_method: string;
+        };
+        /**
+         * SupportedDiseasesResponse
+         * @description What ``GET /api/v1/rank/diseases`` returns: every disease with a
+         *     valid serving bundle under ``data/serving/`` right now. An empty
+         *     list is an honest, expected answer -- not an error -- until a real
+         *     ranking output has been approved and exported.
+         */
+        SupportedDiseasesResponse: {
+            /** Diseases */
+            diseases?: components["schemas"]["SupportedDiseaseSummary"][];
         };
         /**
          * SystemInfoResponse
@@ -913,6 +987,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_rank_diseases_api_v1_rank_diseases_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportedDiseasesResponse"];
                 };
             };
         };

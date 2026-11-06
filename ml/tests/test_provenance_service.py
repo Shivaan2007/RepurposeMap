@@ -265,3 +265,42 @@ def test_eligibility_picks_the_most_recent_final_training_record_not_the_first_f
     eligibility = get_model_eligibility(records)
     assert eligibility.eligible is True
     assert eligibility.final_training_experiment_file == "z_later.json"
+
+
+def test_final_training_record_exposes_its_own_locked_test_metrics_as_evaluation_summary():
+    """The real committed TransE final-training record's
+    locked_test_evaluation.metrics block should be surfaced, not left
+    None -- this is the one place today's schema reports an unambiguous
+    metric set per record (see Part N / docs/ARCHITECTURE.md)."""
+
+    transe_final = next(r for r in REPO_EXPERIMENTS if r.kind == ExperimentKind.FINAL_TRAINING)
+    summary = transe_final.evaluation_summary
+    assert summary is not None
+    assert summary.hits_at_1 == 0.002
+    assert summary.hits_at_10 == 0.0161
+    assert summary.mrr == 0.01
+    assert summary.macro_ap == 0.014061
+    assert summary.micro_ap == 0.003054
+
+
+def test_validation_search_record_does_not_get_an_automatic_evaluation_summary(tmp_path):
+    """A validation-search record reports several configs' results side
+    by side -- picking "the winner" requires applying the frozen
+    selection rule explicitly, never automatically inferred here."""
+
+    search_record = {
+        "stage": "validation search",
+        "purpose": "validation search",
+        "generated_at": "2026-11-01T00:00:00Z",
+        "provenance": {"source_commit": "deadbeef"},
+        "safety_and_protocol": {
+            "final_training_performed": False,
+            "locked_test_evaluation_performed": False,
+            "three_config_search_performed": True,
+        },
+        "search": {"results": [{"name": "config-a", "mrr": 0.05}, {"name": "config-b", "mrr": 0.06}]},
+    }
+    (tmp_path / "search.json").write_text(json.dumps(search_record))
+    records = load_experiments(tmp_path)
+    assert records[0].kind == ExperimentKind.VALIDATION_SEARCH
+    assert records[0].evaluation_summary is None

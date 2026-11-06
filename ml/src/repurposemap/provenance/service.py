@@ -101,6 +101,38 @@ def _extract_training_configuration(payload: dict) -> TrainingConfiguration | No
     return None
 
 
+def _extract_evaluation_summary(payload: dict, kind: ExperimentKind) -> EvaluationSummary | None:
+    """Aggregate validation/locked-test metrics an experiment reported
+    about itself -- read only for ``FINAL_TRAINING`` records, from their
+    own ``locked_test_evaluation.metrics`` block (the one place today's
+    schema reports one unambiguous metric set per record).
+
+    Deliberately NOT extracted for ``VALIDATION_SEARCH`` records: a
+    search record reports several configs' results side by side, and
+    picking "the winner" requires applying the frozen selection rule
+    (see e.g. ``transe_stage_d_validation_search_606711d.json``'s own
+    ``search.rule`` field) -- a decision this read-only provenance layer
+    must not make silently or automatically. That selection stays a
+    documented, explicit step outside this module."""
+
+    if kind != ExperimentKind.FINAL_TRAINING:
+        return None
+    locked_test = payload.get("locked_test_evaluation")
+    if not isinstance(locked_test, dict):
+        return None
+    metrics = locked_test.get("metrics")
+    if not isinstance(metrics, dict):
+        return None
+    return EvaluationSummary(
+        hits_at_1=metrics.get("hits_at_1"),
+        hits_at_3=metrics.get("hits_at_3"),
+        hits_at_10=metrics.get("hits_at_10"),
+        mrr=metrics.get("mrr"),
+        macro_ap=metrics.get("macro_auprc"),
+        micro_ap=metrics.get("micro_auprc"),
+    )
+
+
 def _extract_dataset_provenance(payload: dict) -> DatasetProvenance | None:
     provenance = payload.get("provenance")
     if not isinstance(provenance, dict):
@@ -171,7 +203,7 @@ def _parse_experiment_file(path: Path) -> ModelProvenance:
         is_final_training=is_final_training,
         locked_test_evaluation_performed=locked_test_evaluation_performed,
         training_configuration=_extract_training_configuration(payload),
-        evaluation_summary=None,
+        evaluation_summary=_extract_evaluation_summary(payload, kind),
         dataset_provenance=_extract_dataset_provenance(payload),
     )
 

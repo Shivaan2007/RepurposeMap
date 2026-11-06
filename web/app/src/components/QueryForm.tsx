@@ -1,5 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
+import type { components } from "@repurposemap/api-client";
+
+import { apiClient } from "../api.js";
+
+type SupportedDiseaseSummary = components["schemas"]["SupportedDiseaseSummary"];
 
 interface QueryFormProps {
   onSubmit: (diseaseName: string) => void;
@@ -8,6 +13,14 @@ interface QueryFormProps {
 
 export function QueryForm({ onSubmit, disabled }: QueryFormProps) {
   const [diseaseName, setDiseaseName] = useState("");
+  const [supportedDiseases, setSupportedDiseases] = useState<SupportedDiseaseSummary[] | null>(null);
+
+  useEffect(() => {
+    apiClient
+      .listSupportedDiseases()
+      .then((response) => setSupportedDiseases(response.diseases ?? []))
+      .catch(() => setSupportedDiseases([]));
+  }, []);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -34,6 +47,13 @@ export function QueryForm({ onSubmit, disabled }: QueryFormProps) {
           Analyze hypothesis
         </button>
       </div>
+      {supportedDiseases !== null && (
+        <p className="hint">
+          {supportedDiseases.length === 0
+            ? "No disease has a precomputed ranking bundle deployed yet -- any query will honestly report ranked candidates as not available."
+            : `Diseases with a precomputed ranking available today: ${supportedDiseases.map((d) => d.disease_name).join(", ")}.`}
+        </p>
+      )}
     </form>
   );
 }

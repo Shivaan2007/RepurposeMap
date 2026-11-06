@@ -907,8 +907,20 @@
         "type": "object"
       },
       "RankingResponse": {
-        "description": "The future candidate-ranking response shape. ``model_status`` must\nbe ``\"not_available\"`` -- never silently substituted with a mock or\nrandom ranking -- until a real, eligible model is explicitly wired in.",
+        "description": "The candidate-ranking response shape. ``model_status`` is\n``\"ready\"`` only when a precomputed serving bundle\n(``repurposemap.serving``) exists for the requested disease --\nnever a live model inference result today, and never silently\nsubstituted with a mock or random ranking otherwise.\n\n``serving_mode`` makes the provenance of a ``\"ready\"`` response\nexplicit: ``\"precomputed\"`` means every candidate here came from an\non-disk ``CandidateRankingBundle`` exported by\n``repurposemap.serving.export_rankings`` from an already-approved\nranking output, not from inference run during this request.",
         "properties": {
+          "candidate_universe": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "what set of drugs the ranking was computed over -- set only when serving_mode is 'precomputed'",
+            "title": "Candidate Universe"
+          },
           "candidates": {
             "items": {
               "$ref": "#/components/schemas/CandidateDrug"
@@ -923,6 +935,18 @@
           },
           "disease_query": {
             "$ref": "#/components/schemas/DiseaseQuery"
+          },
+          "generated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "when the precomputed bundle was generated -- set only when serving_mode is 'precomputed'",
+            "title": "Generated At"
           },
           "model_status": {
             "enum": [
@@ -941,6 +965,27 @@
                 "type": "null"
               }
             ]
+          },
+          "ranking_method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "e.g. 'path_quality', 'transe', 'rgcn' -- set only when serving_mode is 'precomputed'",
+            "title": "Ranking Method"
+          },
+          "serving_mode": {
+            "default": "not_available",
+            "enum": [
+              "not_available",
+              "precomputed"
+            ],
+            "title": "Serving Mode",
+            "type": "string"
           }
         },
         "required": [
@@ -1107,6 +1152,49 @@
           "succeeded"
         ],
         "title": "SourceLookupStatus",
+        "type": "object"
+      },
+      "SupportedDiseaseSummary": {
+        "description": "One disease a precomputed ranking serving bundle exists for\ntoday. Lets the frontend know in advance what ``POST /api/v1/rank``\ncan actually answer, instead of discovering it one failed query at\na time.",
+        "properties": {
+          "candidate_count": {
+            "title": "Candidate Count",
+            "type": "integer"
+          },
+          "disease_id": {
+            "title": "Disease Id",
+            "type": "string"
+          },
+          "disease_name": {
+            "title": "Disease Name",
+            "type": "string"
+          },
+          "ranking_method": {
+            "title": "Ranking Method",
+            "type": "string"
+          }
+        },
+        "required": [
+          "disease_id",
+          "disease_name",
+          "ranking_method",
+          "candidate_count"
+        ],
+        "title": "SupportedDiseaseSummary",
+        "type": "object"
+      },
+      "SupportedDiseasesResponse": {
+        "description": "What ``GET /api/v1/rank/diseases`` returns: every disease with a\nvalid serving bundle under ``data/serving/`` right now. An empty\nlist is an honest, expected answer -- not an error -- until a real\nranking output has been approved and exported.",
+        "properties": {
+          "diseases": {
+            "items": {
+              "$ref": "#/components/schemas/SupportedDiseaseSummary"
+            },
+            "title": "Diseases",
+            "type": "array"
+          }
+        },
+        "title": "SupportedDiseasesResponse",
         "type": "object"
       },
       "SystemInfoResponse": {
@@ -1552,6 +1640,24 @@
           }
         },
         "summary": "Rank Candidates"
+      }
+    },
+    "/api/v1/rank/diseases": {
+      "get": {
+        "operationId": "list_rank_diseases_api_v1_rank_diseases_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupportedDiseasesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Rank Diseases"
       }
     },
     "/api/v1/system/info": {

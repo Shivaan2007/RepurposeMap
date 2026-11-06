@@ -13,6 +13,7 @@ type EvidenceLookupResponse = components["schemas"]["EvidenceLookupResponse"];
 type EvidenceQuery = components["schemas"]["EvidenceQuery"];
 type HealthResponse = components["schemas"]["HealthResponse"];
 type RankingResponse = components["schemas"]["RankingResponse"];
+type SupportedDiseasesResponse = components["schemas"]["SupportedDiseasesResponse"];
 type SystemInfoResponse = components["schemas"]["SystemInfoResponse"];
 type TargetScorecardQuery = components["schemas"]["TargetScorecardQuery"];
 type TargetScorecardResponse = components["schemas"]["TargetScorecardResponse"];
@@ -64,15 +65,26 @@ export class RepurposeMapClient {
   }
 
   /**
-   * Always returns `model_status: "not_available"` with an empty
-   * candidate list until a real model is wired into the server --
-   * this client never fabricates a ranking locally either.
+   * `model_status: "ready"` with `serving_mode: "precomputed"` only when
+   * a precomputed serving bundle exists on the server for the requested
+   * disease -- see `listSupportedDiseases` to discover which diseases
+   * that's true for today. Otherwise returns `model_status:
+   * "not_available"` with an empty candidate list; this client never
+   * fabricates a ranking locally either way.
    */
   rankCandidates(query: DiseaseQuery): Promise<RankingResponse> {
     return this.request<RankingResponse>("/api/v1/rank", {
       method: "POST",
       body: JSON.stringify(query),
     });
+  }
+
+  /**
+   * Every disease a precomputed ranking serving bundle exists for right
+   * now. An empty list is an honest, expected answer -- not an error.
+   */
+  listSupportedDiseases(): Promise<SupportedDiseasesResponse> {
+    return this.request<SupportedDiseasesResponse>("/api/v1/rank/diseases");
   }
 
   /**

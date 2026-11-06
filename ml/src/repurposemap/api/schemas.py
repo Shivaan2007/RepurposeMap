@@ -167,15 +167,48 @@ class CandidateDrug(BaseModel):
 
 
 class RankingResponse(BaseModel):
-    """The future candidate-ranking response shape. ``model_status`` must
-    be ``"not_available"`` -- never silently substituted with a mock or
-    random ranking -- until a real, eligible model is explicitly wired in."""
+    """The candidate-ranking response shape. ``model_status`` is
+    ``"ready"`` only when a precomputed serving bundle
+    (``repurposemap.serving``) exists for the requested disease --
+    never a live model inference result today, and never silently
+    substituted with a mock or random ranking otherwise.
+
+    ``serving_mode`` makes the provenance of a ``"ready"`` response
+    explicit: ``"precomputed"`` means every candidate here came from an
+    on-disk ``CandidateRankingBundle`` exported by
+    ``repurposemap.serving.export_rankings`` from an already-approved
+    ranking output, not from inference run during this request."""
 
     disease_query: DiseaseQuery
     candidates: list[CandidateDrug] = Field(default_factory=list)
     model_status: Literal["not_available", "ready"]
+    serving_mode: Literal["not_available", "precomputed"] = "not_available"
+    ranking_method: str | None = Field(default=None, description="e.g. 'path_quality', 'transe', 'rgcn' -- set only when serving_mode is 'precomputed'")
+    candidate_universe: str | None = Field(default=None, description="what set of drugs the ranking was computed over -- set only when serving_mode is 'precomputed'")
+    generated_at: str | None = Field(default=None, description="when the precomputed bundle was generated -- set only when serving_mode is 'precomputed'")
     provenance: Provenance | None = None
     disclaimer: str = "Research hypothesis ranking. Not a treatment recommendation."
+
+
+class SupportedDiseaseSummary(BaseModel):
+    """One disease a precomputed ranking serving bundle exists for
+    today. Lets the frontend know in advance what ``POST /api/v1/rank``
+    can actually answer, instead of discovering it one failed query at
+    a time."""
+
+    disease_id: str
+    disease_name: str
+    ranking_method: str
+    candidate_count: int
+
+
+class SupportedDiseasesResponse(BaseModel):
+    """What ``GET /api/v1/rank/diseases`` returns: every disease with a
+    valid serving bundle under ``data/serving/`` right now. An empty
+    list is an honest, expected answer -- not an error -- until a real
+    ranking output has been approved and exported."""
+
+    diseases: list[SupportedDiseaseSummary] = Field(default_factory=list)
 
 
 # --------------------------------------------------------------------------

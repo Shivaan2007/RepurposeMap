@@ -12,13 +12,14 @@ export function CandidateList({ result }: CandidateListProps) {
     return (
       <div className="candidates-empty">
         <p>
-          <strong>No ranking model is available yet.</strong>
+          <strong>Ranked candidates are not available for this disease in the current deployed dataset.</strong>
         </p>
         <p className="hint">
           TransE final training and its one locked-test evaluation are complete, and an R-GCN validation search is in
-          progress -- but no R-GCN final model has been selected or trained yet, and no eligible checkpoint is configured
-          for ranking. This page will show ranked candidates once a model is wired in -- it never substitutes a mock or
-          random ranking.
+          progress -- but no R-GCN final model has been selected or trained yet. Separately, no precomputed ranking
+          bundle has been exported for this disease yet (see <code>GET /api/v1/rank/diseases</code> for the current
+          list). This page will show ranked candidates once either exists -- it never substitutes a mock or random
+          ranking.
         </p>
       </div>
     );
@@ -31,6 +32,13 @@ export function CandidateList({ result }: CandidateListProps) {
 
   return (
     <div className="candidate-table">
+      {result.serving_mode === "precomputed" && (
+        <p className="hint ranking-provenance">
+          <strong>Precomputed ranking</strong> -- method: {result.ranking_method ?? "unknown"}; candidate universe:{" "}
+          {result.candidate_universe ?? "unspecified"}; generated: {result.generated_at ?? "unknown"}. Not a live
+          model inference result.
+        </p>
+      )}
       {candidates.map((candidate) => (
         <CandidateRow key={candidate.drug_id} candidate={candidate} />
       ))}
