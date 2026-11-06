@@ -24,10 +24,16 @@ yet. Say this is deliberate: "this never fakes a model being ready."
 ## 3. Search a disease
 
 Type a disease into the main query (e.g. "pulmonary arterial
-hypertension") and submit. The result panel explains, plainly, that no
-ranking model is available yet and why (TransE's locked test is spent,
-R-GCN's validation search is in progress) -- not an empty table with no
-explanation.
+hypertension") and submit. The result panel explains, plainly, that
+ranked candidates are not available for this disease in the current
+deployed dataset -- not an empty table with no explanation. Point out
+the list of diseases with a deployed ranking bundle shown above the
+query box (empty today, via `GET /api/v1/rank/diseases`) -- the UI
+tells you in advance what it can actually answer, rather than making
+you find out by a failed query. [DEMO DISEASE]: once a real model's
+approved ranking output is exported for a chosen demo disease, this
+step becomes the actual candidate-list walkthrough -- see
+`docs/DEPLOYMENT.md`'s "Serving strategy."
 
 ## 4. Disease biology (real, live data)
 
@@ -70,15 +76,16 @@ be mistaken for a shared/multi-device feature.
 
 ## 9. Close on R-GCN status
 
-"The missing piece is ranking itself -- an R-GCN validation search is
-actively running on Kaggle right now [give current config/status from
-`V1_RELEASE_CHECKLIST.md`]. Everything downstream of a real ranking --
-reasoning paths, the triage shortlist -- is schema-complete and
-frontend-wired, waiting on that one piece."
+"The missing piece is ranking data itself -- an R-GCN validation search
+is actively running on Kaggle right now [give current config/status from
+`V1_RELEASE_CHECKLIST.md`]. The serving mechanism that will carry a real
+model's output into this exact UI is already built and tested
+(`repurposemap.serving`); what's missing is [FINAL MODEL]'s approved
+ranking output to export into it."
 
 ## What NOT to demo yet
 
-- Ranked candidates with scores (stubbed, will show "not available").
+- Ranked candidates with scores (no precomputed bundle exists yet, will show "not available").
 - A results/KPI page (doesn't exist -- no model results to publish).
 - PDF/BibTeX/RIS export (only Markdown export exists).
 - Masked case-study replay as a finished result (harness infrastructure
