@@ -355,6 +355,7 @@ python -m repurposemap evaluate-baseline --source primekg --test-diseases 100 --
 
 # TransE Stage D export (triples + validation-only package; see ml/README.md and
 # ml/src/repurposemap/embeddings/export.py for the locked-test manifest split)
+# needs the "ml" extra (torch) in addition to "dev": pip install -e ".[dev,ml]"
 python -m repurposemap transe-export --help
 
 # API startup

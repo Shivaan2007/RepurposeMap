@@ -8,20 +8,35 @@ version = "0.1.0"
 description = "Explainable drug-repurposing research tool. Research hypotheses only, not treatment recommendations."
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = [
+dependencies = []
+
+[project.optional-dependencies]
+# The deployed API service (repurposemap.api) never imports torch, pandas,
+# or networkx -- confirmed by running it with none of the three installed.
+# Keeping them out of this extra matters: Render's free-tier build would
+# otherwise pull in torch's multi-GB wheel for a service that only needs
+# fastapi/uvicorn, contradicting the ~46 MB RSS / no-GPU deployment this
+# project documents (see docs/DEPLOYMENT.md).
+api = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+]
+# CLI commands and the embeddings/graph/scoring modules (search, path
+# explanation, TransE/R-GCN training) need the full ML stack.
+ml = [
     "pandas>=2.2",
     "networkx>=3.3",
     "torch>=2.2",
 ]
-
-[project.optional-dependencies]
+# Non-GPU test surface only: pytest + the graph/scoring deps it exercises,
+# deliberately without torch (see V1_RELEASE_CHECKLIST.md's "Known
+# blockers" section for why GPU/torch-importing tests are out of scope
+# here).
 dev = [
     "pytest>=8.0",
     "httpx>=0.27",
-]
-api = [
-    "fastapi>=0.115",
-    "uvicorn[standard]>=0.30",
+    "pandas>=2.2",
+    "networkx>=3.3",
 ]
 
 [tool.setuptools.packages.find]

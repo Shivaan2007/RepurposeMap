@@ -52,6 +52,7 @@ recent commits; not yet run against a trained model).
 | Large/raw files in repo | Clean -- `data/raw/`, Kaggle recovery/scratch dirs correctly gitignored and untracked |
 | Reproducible local Python setup | Done -- see "Known blockers" below for how this environment specifically got there; `README.md`'s documented `pip install -e ".[dev]"` path works on a normal machine |
 | Deployment config files | Done -- `render.yaml` (backend) and `web/app/vercel.json` (frontend), generic, no domains or secrets. Inspected for correctness, not yet exercised against a real Render/Vercel account |
+| Backend build dependency scope | **Fixed this session** -- `pyproject.toml`'s base `dependencies` previously included `torch`/`pandas`/`networkx` unconditionally, so Render's `pip install -e ".[api]"` would have pulled in a multi-GB torch install for a service that imports none of the three (confirmed by running `repurposemap.api.app` with none of them installed). Split into `api` (fastapi/uvicorn only, what's actually imported), `ml` (torch/pandas/networkx, for CLI/embeddings), and `dev` (pytest/httpx/pandas/networkx, no torch, for the non-GPU test surface). `python -m pytest` as documented in `README.md`'s "Setup"/"Run the tests" now genuinely passes clean (567 passed, 12 skipped, 0 failed) via a `collect_ignore` in `ml/tests/conftest.py` for the six torch-importing CLI test files when torch isn't installed, instead of erroring at collection. |
 | Deployment smoke test | Done -- `scripts/smoke_test.sh` covers health, system-info, CORS (allowed/disallowed), OpenAPI servability, rank/rank-diseases honesty, evidence/disease-biology honest-failure (never an unhandled 500), and a no-secrets-exposed check |
 | Precomputed ranking serving mechanism | Done -- `repurposemap.serving` (schema, loader, offline exporter CLI), `POST /api/v1/rank` and `GET /api/v1/rank/diseases` wired to it end-to-end including the frontend, with tests. See `API.md`'s "Precomputed ranking serving" section |
 | Precomputed demo ranking data | Blocked, not a code gap -- every committed experiment artifact holds aggregate metrics only, never a per-disease candidate list, so `data/serving/` has nothing real to hold yet. Exporting one is a data step (`python -m repurposemap.serving.export_rankings`) once a model is trained and locked-test-evaluated, not a code change. See "Serving strategy" in `docs/DEPLOYMENT.md` |
@@ -122,3 +123,60 @@ inspected for correctness so far (see "Deployment config files" above).
 
 Run `./scripts/smoke_test.sh <deployed-backend-url>` against the real
 deployed backend once it's live, in addition to walking this list by hand.
+
+## Release-closure materials (this session)
+
+Non-scientific V1 closure work done in parallel with the R-GCN final-training
+Kaggle run (monitored separately -- this session did not touch that run, its
+configs, or locked-test material).
+
+**DONE**
+- Fixed a genuine deployment blocker: `pyproject.toml` no longer forces
+  `torch`/`pandas`/`networkx` onto the `api` extra (see "Backend build
+  dependency scope" above). `python -m pytest` now passes clean as documented.
+- `docs/FINAL_RESULTS.md` -- final locked-test results page skeleton (path/
+  popularity/TransE rows copied from README's existing table, R-GCN row and
+  macro AP column as `TBD`, a statistical-significance placeholder section).
+  No fabricated numbers.
+- `docs/CASE_STUDY_TEMPLATE.md` -- reusable writeup structure for the 2-3
+  final masked case studies (disease, masked indication, model rank,
+  explanation paths, PubMed/ClinicalTrials.gov/DailyMed/openFDA/Open Targets
+  context, limitations). Explicitly gated: not to be filled in with real
+  content before a final, locked-test-approved model exists.
+- `docs/DEMO_MATERIALS.md` -- screenshot checklist, a 60-90s elevator-pitch
+  script, a 2-minute technical walkthrough script, and a GitHub project
+  description/topics draft.
+- `.gitignore` -- added `kaggle_rgcn_final_kernel/` and
+  `kaggle_rgcn_final_v*_recovery/` patterns so the final-training session's
+  local scratch dirs (kernel script, recovery logs/archives) can't be
+  accidentally swept into a commit; matches the existing pattern already in
+  place for the validation-search scratch dirs.
+
+**BLOCKED ON FINAL MODEL** (owner approval + Kaggle run completion required
+first, in the other session -- nothing here can proceed until then)
+- Filling in `docs/FINAL_RESULTS.md`'s R-GCN row and interpretation.
+- Running and filling in any real `docs/CASE_STUDY_TEMPLATE.md` copy.
+- Exporting a real ranking bundle into `data/serving/` (mechanism already
+  exists, see "Precomputed ranking serving mechanism" above).
+- Re-capturing the main-query screenshot in `docs/DEMO_MATERIALS.md` with a
+  real ranked result, and updating `docs/PORTFOLIO.md`'s "Results
+  placeholder" section.
+
+**OWNER ACTION REQUIRED**
+- Actually create the Render and Vercel projects and work through the "Live
+  deployment-day checklist" above -- nothing in this repo can self-verify a
+  real hosted deployment.
+- Decide, before `docs/FINAL_RESULTS.md` is filled in, whether to backfill
+  macro AP for the already-evaluated path/popularity/TransE locked-test rows
+  or leave them blank with a footnote (see that file's own note on this).
+- Pick the statistical-significance method for `docs/FINAL_RESULTS.md` §3
+  (a bootstrap-over-diseases approach is suggested there, not mandated).
+
+**OPTIONAL / V2**
+- CI gate on push (`.github/workflows`) -- out of scope per existing
+  guidance above unless it blocks the Nov 15 deadline.
+- PDF/BibTeX/RIS evidence-brief export formats beyond the existing Markdown
+  one.
+- A results/KPI page in the frontend itself, beyond the `docs/FINAL_RESULTS.md`
+  markdown skeleton -- not attempted this session; would be real new frontend
+  work, not closure of something already scaffolded.
