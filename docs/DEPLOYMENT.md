@@ -17,8 +17,13 @@ trained model exists.
 - **Health / status**: `GET /health` and `GET /api/v1/system/info` are both
   designed to answer instantly -- see "Startup and memory" below.
 - **No secrets required**: the four evidence/safety adapters and the Open
-  Targets adapter all work with no API key. `PUBMED_API_KEY` /
-  `OPENFDA_API_KEY` are optional, raise-throughput-only.
+  Targets adapter all work with no API key. `PubMedEUtilsAdapter` and
+  `OpenFDALabelAdapter` accept an optional `api_key` constructor argument
+  (raise-throughput-only, never required), but the API layer
+  (`ml/src/repurposemap/api/evidence.py`) constructs both with no arguments
+  today -- there is no `PUBMED_API_KEY`/`OPENFDA_API_KEY` environment
+  variable actually read anywhere in this codebase. Don't set either on a
+  real deployment expecting it to do anything until that wiring exists.
 
 ## Startup and memory
 

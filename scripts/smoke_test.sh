@@ -104,7 +104,18 @@ else
   FAILURES=$((FAILURES + 1))
 fi
 
-# 10. No secret-shaped values leak in the two static metadata responses.
+# 10. Same honesty check for target-scorecard (also a live external call).
+status=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE_URL/api/v1/target-scorecard" \
+  -H "Content-Type: application/json" \
+  -d '{"gene_symbol": "SMOKE1"}')
+if [ "$status" = "200" ] || [ "$status" = "404" ] || [ "$status" = "502" ]; then
+  echo "OK   POST /api/v1/target-scorecard answers honestly (got $status, not an unhandled crash)"
+else
+  echo "FAIL POST /api/v1/target-scorecard returned $status -- expected 200, 404 or 502"
+  FAILURES=$((FAILURES + 1))
+fi
+
+# 11. No secret-shaped values leak in the two static metadata responses.
 #    This is a cheap pattern check, not a substitute for the repo-level
 #    secrets audit in V1_RELEASE_CHECKLIST.md.
 for route in "/api/v1/system/info" "/openapi.json"; do
