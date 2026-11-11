@@ -64,12 +64,16 @@ Re-export `openapi.json` first if you've changed anything in
    ranking-method/provenance, candidate-universe description, and an
    explicit `generated_at`.
 2. `repurposemap.serving.loader` reads validated bundles from
-   `data/serving/*.json` (one file per disease, named `<disease_id>.json`).
+   `data/serving/*.json` (one file per disease, named
+   `<slugify_disease_id(disease_id)>.json` -- a real ID's `:` becomes `_`,
+   e.g. `MONDO:0005015` -> `MONDO_0005015.json` -- so the lookup always
+   matches regardless of what characters the real ID contains).
    A missing or malformed file is reported honestly, never silently
    substituted.
 3. `repurposemap.serving.export_rankings` is the offline CLI that builds
    a bundle from an already-ranked, already-approved candidate list and
-   writes it to `data/serving/` -- it never computes or re-ranks
+   writes it to `data/serving/` via `--output-dir` (recommended -- derives
+   the slugified filename automatically) -- it never computes or re-ranks
    anything itself (`python -m repurposemap.serving.export_rankings --help`).
 4. The router matches a request's `disease_id` or `disease_name` against
    bundles in `data/serving/` by exact match only (case-insensitive for

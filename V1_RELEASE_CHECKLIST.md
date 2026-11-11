@@ -156,8 +156,9 @@ configs, or locked-test material).
 first, in the other session -- nothing here can proceed until then)
 - Filling in `docs/FINAL_RESULTS.md`'s R-GCN row and interpretation.
 - Running and filling in any real `docs/CASE_STUDY_TEMPLATE.md` copy.
-- Exporting a real ranking bundle into `data/serving/` (mechanism already
-  exists, see "Precomputed ranking serving mechanism" above).
+- Exporting a real ranking bundle into `data/serving/` via
+  `ml/scripts/export_model_rankings.py` (see "Post-model-handoff
+  preparation" below).
 - Re-capturing the main-query screenshot in `docs/DEMO_MATERIALS.md` with a
   real ranked result, and updating `docs/PORTFOLIO.md`'s "Results
   placeholder" section.
@@ -169,8 +170,6 @@ first, in the other session -- nothing here can proceed until then)
 - Decide, before `docs/FINAL_RESULTS.md` is filled in, whether to backfill
   macro AP for the already-evaluated path/popularity/TransE locked-test rows
   or leave them blank with a footnote (see that file's own note on this).
-- Pick the statistical-significance method for `docs/FINAL_RESULTS.md` §3
-  (a bootstrap-over-diseases approach is suggested there, not mandated).
 
 **OPTIONAL / V2**
 - CI gate on push (`.github/workflows`) -- out of scope per existing
@@ -180,3 +179,56 @@ first, in the other session -- nothing here can proceed until then)
 - A results/KPI page in the frontend itself, beyond the `docs/FINAL_RESULTS.md`
   markdown skeleton -- not attempted this session; would be real new frontend
   work, not closure of something already scaffolded.
+
+## Post-model-handoff preparation (this session)
+
+Prepared so that once the frozen R-GCN final-training run (monitored in a
+separate session; untouched here) produces an approved checkpoint, the
+remaining work is a fast, mechanical batch rather than a from-scratch
+build. Nothing below was run against the real model -- there isn't one
+yet. Each script was exercised against synthetic fixture data only (see
+each test file's own docstring); `ml/scripts/export_model_rankings.py` and
+`ml/scripts/run_case_study.py` import `torch` and could not be executed in
+this session's sandbox (no `torch` in this `.venv`, consistent with
+"Known blockers" above) -- they were reviewed carefully and compile
+cleanly, but have not been run end-to-end by this session. Treat their
+first real run as the first real test.
+
+**Found and fixed: a real bug in the already-existing serving pipeline**
+(not something this session introduced) -- `GET /api/v1/rank/diseases`
+returns a bundle's real `disease_id` content (e.g. a PrimeKG ID with a
+colon), but `load_bundle_for_disease` built its filename directly from
+whatever `disease_id` it was given, so a client that did the natural
+thing (list diseases, then query by the returned `disease_id`) could get
+a false "not available" even though a bundle existed, if that bundle's
+filename didn't happen to match its own content byte-for-byte --
+`export_rankings.py`'s own documented example would have hit this.
+Fixed: `slugify_disease_id` (`repurposemap/serving/schemas.py`) is now
+applied on both the write side (`export_rankings.py`'s new `--output-dir`
+option) and the read side (`loader.py`), so the two can never
+mismatch again. Added `test_rank_by_disease_id_round_trips_the_id_rank_diseases_actually_returns`
+specifically covering the case the old tests didn't.
+
+**Also added:** a `validate_bundle` check for duplicate `drug_id`s within
+one bundle (only duplicate *ranks* were checked before).
+
+**Scripts added** (all refuse to run against a checkpoint that isn't
+`is_final_training`, and none read `locked_test_manifest.json`):
+- `ml/scripts/export_model_rankings.py` -- final checkpoint -> per-disease
+  full-universe ranking -> validated bundle -> `data/serving/`, in one
+  command per disease.
+- `ml/scripts/run_case_study.py` -- runs one real masked case study
+  (reuses `evaluation.case_study`'s graph-level masking unchanged; for
+  R-GCN specifically, also masks at the training-triples level and
+  re-encodes, since a message-passing model's embeddings depend on which
+  edges it sees -- read its module docstring before using).
+- `ml/scripts/fill_final_results.py` -- mechanically inserts a
+  `rgcn-evaluate --split locked-test` artifact's numbers into
+  `docs/FINAL_RESULTS.md`'s table row; fully tested (no torch needed),
+  including against the real file.
+
+**Frozen now, before any result exists:** `docs/FINAL_RESULTS.md` §3 now
+specifies the exact significance method (disease-level paired bootstrap
+over the 100 locked-test diseases, R-GCN vs. TransE, on MRR and Hits@10,
+95% percentile interval, report whether it excludes zero) -- not just "a
+method is needed."

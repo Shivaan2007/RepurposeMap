@@ -2,11 +2,35 @@
 
 Reusable structure for the 2-3 final masked case studies referenced in
 `V1_RELEASE_CHECKLIST.md` and `docs/FINAL_RESULTS.md`. This is a narrative
-writeup template for a human-readable report; the code-level masking and
-result-construction machinery it reports on lives in
-`ml/src/repurposemap/evaluation/case_study.py`
-(`CaseStudySpec` / `mask_known_indication` / `confirm_masked` /
-`build_case_study_result`).
+writeup template for a human-readable report; the actual runner is
+`ml/scripts/run_case_study.py`, which drives
+`ml/src/repurposemap/evaluation/case_study.py`'s masking/result machinery
+(`CaseStudySpec` / `mask_known_indication` / `build_case_study_result`)
+against a real final checkpoint and writes a JSON result -- fill sections
+3-9 below from that JSON plus a live PubMed/ClinicalTrials.gov/openFDA/
+DailyMed/Open Targets lookup for the same drug/disease pair.
+
+Run it once a final checkpoint exists and is approved, choosing a
+disease/drug pair that is an already-known indication for the disease
+(check `python -m repurposemap search --source primekg --query "..."` for
+IDs):
+
+```
+python ml/scripts/run_case_study.py \
+    --export-dir <the training export dir> \
+    --checkpoint <final checkpoint path> \
+    --model rgcn \
+    --disease-id <PrimeKG disease node ID> --known-drug-id <PrimeKG drug node ID> \
+    --ranking-method rgcn \
+    --output case_studies/<disease-slug>.json
+```
+
+Read `run_case_study.py`'s own module docstring before running it against
+R-GCN specifically -- it masks the known indication both in the loaded
+graph *and* in the training triples used to recompute the model's
+embeddings (a message-passing model's embeddings depend on which edges it
+sees, unlike TransE's), which is why it re-runs `model.encode()` rather
+than reusing the checkpoint's existing embeddings unchanged.
 
 **Gate: do not fill in a copy of this template with real content until a
 final model has been trained, locked-test-evaluated, and approved.** Before

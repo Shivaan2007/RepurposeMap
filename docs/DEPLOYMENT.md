@@ -66,10 +66,14 @@ a model is selected, in order of preference for a free/cheap V1 host:
 
 1. **Precomputed candidate bundle (recommended for V1, mechanism done).**
    Offline, after the final model is trained and locked-test-evaluated, run
-   inference once for every disease the demo supports and export the ranked
-   candidates + explanation paths as a `CandidateRankingBundle` JSON file
-   under `data/serving/` via `python -m repurposemap.serving.export_rankings`
-   (`API.md`'s "Precomputed ranking serving" section). The live API
+   `ml/scripts/export_model_rankings.py` once per demo disease (real
+   inference against the approved checkpoint -- see that script's own
+   docstring, including its ID-scheme note and its hard
+   `is_final_training` gate) to produce a validated `CandidateRankingBundle`
+   JSON file directly under `data/serving/`. That script is the thin
+   inference layer on top of `python -m repurposemap.serving.export_rankings`
+   (`API.md`'s "Precomputed ranking serving" section), which it calls
+   internally rather than duplicating the validation/writing logic. The live API
    (`POST /api/v1/rank`, `GET /api/v1/rank/diseases`) serves lookups from
    those files -- no graph, no model weights, no GPU, in the request path.
    This is clearly labeled in the UI and the response itself as

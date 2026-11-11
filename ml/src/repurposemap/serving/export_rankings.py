@@ -8,7 +8,9 @@ records (e.g. a disease-based evaluation run's own output, or a future
 trained model's inference output). Must never be run against the locked
 test set, and never invents, re-ranks, or re-scores a candidate.
 
-Usage::
+Usage (recommended -- lets the output filename be derived from
+``--disease-id`` via ``slugify_disease_id``, so it always matches what
+``repurposemap.serving.loader`` will look up)::
 
     python -m repurposemap.serving.export_rankings \\
         --disease-id MONDO:0005015 \\
@@ -17,7 +19,12 @@ Usage::
         --candidate-universe-description "drugs reachable within 3 hops of the disease in the training graph" \\
         --candidates candidates.json \\
         --top-k 10 \\
-        --output data/serving/MONDO_0005015.json
+        --output-dir data/serving/
+
+Pass an explicit ``--output PATH`` instead of ``--output-dir`` only for a
+one-off/test file outside the normal ``data/serving/`` convention --
+nothing then guarantees the filename matches what the loader will look
+up for this ``disease_id``.
 
 ``candidates.json`` must be a JSON list of already-ranked
 ``{"drug_id", "drug_name", "rank", "score"}`` objects (``score`` and
@@ -38,6 +45,7 @@ from repurposemap.serving.schemas import (
     CandidateUniverseDescription,
     RankedCandidateRecord,
     RankingArtifactProvenance,
+    slugify_disease_id,
     validate_bundle,
 )
 
@@ -117,7 +125,19 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--top-k", required=True, type=int)
     parser.add_argument("--source-experiment-file", default=None)
     parser.add_argument("--source-commit", default=None)
-    parser.add_argument("--output", required=True, type=Path)
+    output_group = parser.add_mutually_exclusive_group(required=True)
+    output_group.add_argument(
+        "--output-dir",
+        type=Path,
+        help="write to <output-dir>/<slugify_disease_id(disease_id)>.json -- the recommended option, "
+        "matches what repurposemap.serving.loader will look up",
+    )
+    output_group.add_argument(
+        "--output",
+        type=Path,
+        help="write to this exact path instead -- only for a one-off/test file; nothing then guarantees "
+        "the filename matches this disease_id's slug",
+    )
     return parser.parse_args(argv)
 
 
@@ -135,9 +155,10 @@ def main(argv: list[str] | None = None) -> int:
         source_experiment_file=args.source_experiment_file,
         source_commit=args.source_commit,
     )
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(bundle.model_dump(), indent=2) + "\n")
-    print(f"Wrote {len(bundle.candidates)} candidate(s) for {bundle.disease_name!r} to {args.output}")
+    output_path = args.output if args.output is not None else args.output_dir / f"{slugify_disease_id(args.disease_id)}.json"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(bundle.model_dump(), indent=2) + "\n")
+    print(f"Wrote {len(bundle.candidates)} candidate(s) for {bundle.disease_name!r} to {output_path}")
     return 0
 
 

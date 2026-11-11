@@ -107,6 +107,21 @@ def test_rank_by_disease_id_returns_the_precomputed_bundle(serving_dir):
     assert response.json()["model_status"] == "ready"
 
 
+def test_rank_by_disease_id_round_trips_the_id_rank_diseases_actually_returns(serving_dir):
+    """The realistic client flow: GET /api/v1/rank/diseases, then send
+    whatever disease_id it returned straight back to POST /api/v1/rank.
+    The bundle's own disease_id field is "DEMO:0001" (with a colon) --
+    not the "DEMO_0001" filename -- so this is the case
+    test_rank_by_disease_id_returns_the_precomputed_bundle above doesn't
+    cover."""
+    listed = client.get("/api/v1/rank/diseases").json()["diseases"]
+    real_disease_id = listed[0]["disease_id"]
+    assert real_disease_id == "DEMO:0001"
+
+    response = client.post("/api/v1/rank", json={"disease_id": real_disease_id, "top_k": 5})
+    assert response.json()["model_status"] == "ready"
+
+
 def test_rank_never_fabricates_candidates_for_an_unrelated_disease_name(serving_dir):
     response = client.post("/api/v1/rank", json={"disease_name": "a completely different disease", "top_k": 5})
     body = response.json()

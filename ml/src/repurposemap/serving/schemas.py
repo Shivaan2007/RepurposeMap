@@ -22,9 +22,27 @@ what gets written to disk.
 
 from __future__ import annotations
 
+import re
+
 from pydantic import BaseModel, Field
 
 SERVING_SCHEMA_VERSION = 1
+
+_UNSAFE_FILENAME_CHARS = re.compile(r"[^A-Za-z0-9_-]")
+
+
+def slugify_disease_id(disease_id: str) -> str:
+    """The filename stem a bundle for ``disease_id`` is stored/looked up
+    under in ``data/serving/`` -- every character other than
+    ``[A-Za-z0-9_-]`` (e.g. a real ID's ``:``) becomes ``_``.
+
+    This exists so the exporter and the loader derive the exact same
+    filename from the same ``disease_id`` by construction, rather than by
+    convention a human has to get right by hand: a real PrimeKG/MONDO ID
+    like ``MONDO:0005015`` contains a colon, which is a legal POSIX
+    filename character but an invalid one on NTFS (Windows reserves it for
+    alternate data streams) -- never written to disk unescaped here."""
+    return _UNSAFE_FILENAME_CHARS.sub("_", disease_id)
 
 
 class RankingArtifactProvenance(BaseModel):
@@ -136,3 +154,7 @@ def validate_bundle(bundle: CandidateRankingBundle) -> None:
         raise BundleValidationError(f"duplicate rank(s) in bundle for disease {bundle.disease_id!r}: {ranks}")
     if ranks != sorted(ranks):
         raise BundleValidationError(f"candidates in bundle for disease {bundle.disease_id!r} are not sorted by rank: {ranks}")
+    drug_ids = [c.drug_id for c in bundle.candidates]
+    if len(drug_ids) != len(set(drug_ids)):
+        duplicates = sorted({d for d in drug_ids if drug_ids.count(d) > 1})
+        raise BundleValidationError(f"duplicate drug_id(s) in bundle for disease {bundle.disease_id!r}: {duplicates}")

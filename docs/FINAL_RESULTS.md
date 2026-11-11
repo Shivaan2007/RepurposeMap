@@ -25,6 +25,11 @@ it's computed. The path/popularity/TransE values below are **copied
 verbatim** from the existing locked-test table -- no new locked-test
 evaluation is run to produce this file.
 
+Fill the R-GCN row mechanically, not by hand:
+`python ml/scripts/fill_final_results.py --artifact <the rgcn-evaluate --split locked-test --artifact JSON>`
+-- it replaces the exact `TBD` row below with that artifact's real numbers
+and refuses to run against anything but a `split: "locked-test"` artifact.
+
 | | Hits@1 | Hits@3 | Hits@10 | MRR | Macro AP |
 |---|---|---|---|---|---|
 | Path baseline (bounded candidates) | 0.01004 | 0.04016 | 0.08635 | 0.03329 | `TBD` |
@@ -49,21 +54,47 @@ metric formulas, but this is not the same ranking task across rows -- no
 "R-GCN is N times better/worse than path" claim should be made from this
 table alone.
 
-## 3. Statistical significance (placeholder -- not yet done)
+## 3. Statistical significance -- method frozen, result still `TBD`
 
-`TBD`. Nothing below is computed; this section exists so the question gets
-asked before publication, not after.
+**Method (frozen before any R-GCN locked-test number exists, same spirit as
+the R-GCN validation-search selection rule in `README.md`'s "Project
+status": decided once, in advance, never adjusted after seeing the result
+it will be applied to):**
 
-- Decide a method before looking at any R-GCN locked-test number: e.g.
-  bootstrap resampling over the 100 locked-test diseases (not the 498 pairs
-  individually, to respect the disease-held-out unit) to get a confidence
-  interval on each metric, per ranker.
-- Report whether R-GCN's interval overlaps TransE's and the path baseline's.
-  An R-GCN win with overlapping intervals is a different claim than a
-  non-overlapping one -- say which it is, don't just report point estimates.
-- If this is skipped for time, say so explicitly in the published writeup
-  ("not bootstrapped; point estimates only, N=100 diseases") rather than
-  silently omitting it.
+**Disease-level paired bootstrap over the 100 locked-test diseases,
+comparing R-GCN vs. TransE, on MRR and Hits@10.**
+
+- Unit of resampling is the **disease**, not the individual held-out pair --
+  this locked test holds out 100 diseases / 498 pairs (`README.md`'s
+  "Evaluation protocol"), and the disease is the actual independent unit the
+  held-out split was built around, so resampling individual pairs would
+  overstate the effective sample size for a disease with several held-out
+  drugs.
+- For each bootstrap iteration: resample the 100 diseases with replacement,
+  recompute MRR and Hits@10 for **both** R-GCN and TransE on that same
+  resampled set of diseases (paired -- both rankers see the identical
+  resampled diseases each iteration, not independently resampled sets), and
+  record the two metrics' *difference* (R-GCN minus TransE) for that
+  iteration.
+- Across iterations (a four-digit iteration count, e.g. 10,000, is enough at
+  this N and is cheap to compute -- no GPU, no retraining, pure
+  resampling over already-computed per-disease scores), report the
+  resulting distribution's 95% percentile interval for the MRR difference
+  and the Hits@10 difference separately.
+- **Report whether each interval excludes zero.** An interval that excludes
+  zero supports a real (R-GCN vs. TransE) difference on that metric; an
+  interval that includes zero does not, regardless of which point estimate
+  is numerically higher -- state this plainly, don't just report point
+  estimates and let the reader assume significance.
+- Explicitly **not** in scope for this method: R-GCN vs. the path or
+  popularity baselines (frozen here as TransE-only, since TransE is the
+  other full-universe learned baseline and the most informative single
+  comparison; a path/popularity comparison would need to additionally
+  account for the candidate-universe mismatch in `§2`, which this paired
+  resampling method does not attempt to solve).
+- Still **not computed** -- this section freezes the method, not the
+  result. Nothing here has been run against any R-GCN number, because no
+  R-GCN locked-test number exists yet.
 
 ## 4. Interpretation
 
@@ -76,9 +107,11 @@ clinical efficacy for any candidate drug.
 ## 5. Case studies
 
 Link out to the filled-in case studies once they exist -- see
-`docs/CASE_STUDY_TEMPLATE.md` for the per-case-study structure. Do not run or
-draft an actual case study until a real model's ranking output has been
-locked-test-evaluated and approved (see that template's own gating note).
+`docs/CASE_STUDY_TEMPLATE.md` for the per-case-study structure and
+`ml/scripts/run_case_study.py` for the runner that produces each one's
+`rank` and provenance JSON. Do not run or draft an actual case study until
+a real model's ranking output has been locked-test-evaluated and approved
+(see that template's own gating note).
 
 ## Owner sign-off before publishing
 
@@ -86,7 +119,8 @@ locked-test-evaluated and approved (see that template's own gating note).
       `assert_eligible_for_locked_test_evaluation`'s checks.
 - [ ] The result in this file matches the experiment JSON artifact's numbers
       exactly (copy-paste, not retyped).
-- [ ] Significance section (`§3`) is either filled in or explicitly marked
-      skipped, not left silently blank.
+- [ ] Significance section (`§3`) is filled in using the frozen paired-
+      bootstrap method exactly as specified there -- not a different method
+      chosen after seeing the result, and not left silently blank.
 - [ ] `docs/PORTFOLIO.md`'s "Results placeholder" section is updated in the
       same commit as this file, so the two never disagree about what's known.

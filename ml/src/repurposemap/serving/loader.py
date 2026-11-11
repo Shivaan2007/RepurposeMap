@@ -23,7 +23,7 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from repurposemap.serving.schemas import BundleValidationError, CandidateRankingBundle, validate_bundle
+from repurposemap.serving.schemas import BundleValidationError, CandidateRankingBundle, slugify_disease_id, validate_bundle
 
 SERVING_DIR = Path(__file__).resolve().parents[4] / "data" / "serving"
 
@@ -74,12 +74,18 @@ def load_bundle_for_disease(disease_id: str, serving_dir: Path | None = None) ->
     exists for it. Raises ``ServingArtifactError`` if a file for this
     disease exists but fails to parse or validate -- that is a
     data-integrity bug, not an absence, and must not be swallowed into
-    an honest-looking "not available"."""
+    an honest-looking "not available".
+
+    ``disease_id`` is slugified the same way ``export_rankings.py``
+    slugifies its output filename (see ``slugify_disease_id``), so a
+    real ID containing e.g. ``:`` (``MONDO:0005015``) resolves to the
+    same file a correctly-run export wrote, with no separate convention
+    for the caller to get right by hand."""
 
     directory = serving_dir if serving_dir is not None else SERVING_DIR
     if not directory.is_dir():
         return None
-    path = directory / f"{disease_id}.json"
+    path = directory / f"{slugify_disease_id(disease_id)}.json"
     if not path.is_file():
         return None
     return _load_file(path)

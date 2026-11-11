@@ -11,6 +11,7 @@ import json
 import pytest
 
 from repurposemap.serving.loader import ServingArtifactError, list_supported_diseases, load_bundle_for_disease
+from repurposemap.serving.schemas import slugify_disease_id
 
 _VALID_BUNDLE = {
     "schema_version": 1,
@@ -64,6 +65,23 @@ def test_list_supported_diseases_skips_malformed_files_rather_than_raising(tmp_p
     bundles = list_supported_diseases(serving_dir=tmp_path)
     assert len(bundles) == 1
     assert bundles[0].disease_name == "demo disease"
+
+
+def test_load_bundle_for_disease_resolves_a_real_id_with_a_colon(tmp_path):
+    """The round trip this bug actually broke: GET /api/v1/rank/diseases
+    returns a bundle's real disease_id content (e.g. "MONDO:0005015", with
+    a colon); a caller then sends that exact string back as
+    POST /api/v1/rank's disease_id. The file on disk must be named after
+    slugify_disease_id of that same real ID for the lookup to find it --
+    this is exactly what export_rankings.py's --output-dir path writes."""
+    real_id = "MONDO:0005015"
+    bundle = dict(_VALID_BUNDLE, disease_id=real_id)
+    (tmp_path / f"{slugify_disease_id(real_id)}.json").write_text(json.dumps(bundle))
+
+    loaded = load_bundle_for_disease(real_id, serving_dir=tmp_path)
+
+    assert loaded is not None
+    assert loaded.disease_id == real_id
 
 
 def test_list_supported_diseases_sorts_by_disease_name(tmp_path):
