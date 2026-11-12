@@ -92,6 +92,20 @@ recent commits; not yet run against a trained model).
   `ml/experiments/rgcn_sampled_validation_search_0f23fe3.json` for the
   full record. **Final training and the locked-test evaluation have not
   started and require explicit owner approval before proceeding.**
+- **Kaggle GPU quota blocker (new):** the Kaggle account's weekly 30-hour
+  GPU quota is exhausted, so the final-training kernel cannot currently
+  launch there. Not a code gap -- a provider-neutral Colab launcher is
+  prepared as a fallback (`colab_rgcn_final_runner/colab_rgcn_final_launcher.py`,
+  `docs/COLAB_RGCN_FINAL_RUNBOOK.md`). It reuses `train_sampled_final`
+  unchanged, verifies the same source archive hash and the real completed
+  `search_log.json` (fails closed if either disagrees with the frozen
+  `rgcn-wide`/3-epoch spec), and runs the same locked-test-absence safety
+  check as the Kaggle kernel. 13 new tests
+  (`ml/tests/test_colab_rgcn_final_launcher.py`) cover its fail-closed
+  paths, including an end-to-end check against the real committed
+  archive/search-log artifacts. Final training itself has not run on
+  Colab yet -- this is the launcher, not a completed run. Kaggle remains
+  untouched and is still the preferred path once its quota resets.
 
 ## Live deployment-day checklist
 
