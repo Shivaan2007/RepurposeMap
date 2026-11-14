@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      # No torch: the GPU-only tests are skipped by ml/tests/conftest.py, which is what
+      # the documented `pip install -e ".[api,dev]"` path gives a normal contributor.
+      - run: pip install -e ".[api,dev]"
+      - run: python -m pytest -q
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            web/client/package-lock.json
+            web/app/package-lock.json
+      - run: npm ci
+        working-directory: web/client
+      - run: npm ci
+        working-directory: web/app
+      - run: npm run build
+        working-directory: web/app
