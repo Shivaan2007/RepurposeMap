@@ -38,8 +38,11 @@ See [API.md](API.md) for the FastAPI / OpenAPI / TypeScript boundary in
 detail, [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full-stack
 layer breakdown, [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for hosting a
 split deployment, [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md) for a live walkthrough
-of what's runnable today, and [V1_RELEASE_CHECKLIST.md](V1_RELEASE_CHECKLIST.md)
-for an honest status of every V1 feature against PLAN.md.
+of what's runnable today, [V1_RELEASE_CHECKLIST.md](V1_RELEASE_CHECKLIST.md)
+for an honest status of every V1 feature against PLAN.md, and
+[docs/FINAL_RELEASE_CHECKLIST.md](docs/FINAL_RELEASE_CHECKLIST.md) for the
+exact sequence to run once R-GCN's final checkpoint and locked-test result
+exist.
 
 ## Project status
 
@@ -306,7 +309,8 @@ RepurposeMap/
 ├── docs/
 │   ├── ARCHITECTURE.md     # full-stack layer breakdown
 │   ├── DEPLOYMENT.md       # split-deployment + serving-strategy notes
-│   └── DEMO_SCRIPT.md      # live walkthrough script, current state only
+│   ├── DEMO_SCRIPT.md      # live walkthrough script, current state only
+│   └── FINAL_RELEASE_CHECKLIST.md  # exact post-R-GCN-checkpoint sequence
 ├── scripts/
 │   └── smoke_test.sh       # post-deploy/post-start health+CORS+honesty checks
 ├── data/
