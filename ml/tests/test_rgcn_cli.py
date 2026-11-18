@@ -4,6 +4,8 @@ test_transe_cli.py; there is deliberately no rgcn-export command)."""
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from repurposemap.cli import main
@@ -46,6 +48,30 @@ def test_rgcn_train_and_evaluate_do_not_call_the_graph_loader(rgcn_export_dir, t
 
     exit_code = main(["rgcn-evaluate", "--export-dir", str(output_dir), "--checkpoint", str(checkpoint_path), "--split", "validation"])
     assert exit_code == 0
+
+
+def test_rgcn_evaluate_writes_per_disease_outcomes(rgcn_export_dir, tmp_path):
+    output_dir, _manifest_path = rgcn_export_dir
+    checkpoint_path = tmp_path / "ckpt.pt"
+    main(
+        [
+            "rgcn-train", "--export-dir", str(output_dir), "--config-name", "rgcn-base",
+            "--epochs", "1", "--validate-every", "1", "--output", str(checkpoint_path),
+        ]
+    )
+
+    per_disease_path = tmp_path / "per_disease.json"
+    exit_code = main(
+        [
+            "rgcn-evaluate", "--export-dir", str(output_dir), "--checkpoint", str(checkpoint_path),
+            "--split", "validation", "--per-disease-output", str(per_disease_path),
+        ]
+    )
+    assert exit_code == 0
+    payload = json.loads(per_disease_path.read_text())
+    assert payload["split"] == "validation"
+    assert payload["outcomes"], "expected at least one per-disease outcome"
+    assert {"disease_id", "drug_id", "rank"} == set(payload["outcomes"][0])
 
 
 def test_rgcn_evaluate_refuses_locked_test_without_manifest(rgcn_export_dir, tmp_path):

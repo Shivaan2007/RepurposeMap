@@ -31,7 +31,7 @@ or file to touch — no step should require new design decisions.
 
 - [ ] Confirm `assert_eligible_for_locked_test_evaluation` passes for this
       checkpoint.
-- [ ] Run `repurposemap rgcn-evaluate --split locked-test` exactly once, on
+- [ ] Run `python -m repurposemap rgcn-evaluate --split locked-test` exactly once, on
       the frozen 100-disease / 498-pair split, ranking the full 7,957-drug
       universe.
 - [ ] Do **not** rerun it because of an unfavorable result — the result is

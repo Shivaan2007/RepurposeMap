@@ -6,7 +6,7 @@ Runner: `ml/kaggle/rgcn_sampled_kaggle_runner.py`. Full usage is in its docstrin
 2. **`smoke`** (GPU, minutes): 1 epoch on a subset, stop on a zero budget, resume, with a validation pass. Check `smoke_report.json`: `resume_ok` must be true; `estimated_full_epoch_s` should be near the profiled ~4.7 h and memory must fit. Do not launch the search if it fails.
 3. **`search`** (GPU, ~3 configs x 3 epochs x ~4.7 h, many sessions): rerun until `status: complete`. Keep `--max-wall-hours` at least one epoch (~5 h) below the session limit.
 4. **`final`** (GPU): trains once on `final_triples` with the winner; rerun until `stopped_for_time_budget: False`.
-5. **Locked-test evaluation** (local, exactly once): `repurposemap rgcn-evaluate --split locked-test`.
+5. **Locked-test evaluation** (local, exactly once): `python -m repurposemap rgcn-evaluate --split locked-test`.
 
 ## If Kaggle's weekly GPU quota is exhausted
 
