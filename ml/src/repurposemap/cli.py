@@ -291,6 +291,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="required for --split locked-test: the LOCAL-ONLY locked_test_manifest.json",
     )
     transe_evaluate.add_argument("--artifact", type=Path, default=None)
+    transe_evaluate.add_argument(
+        "--per-disease-output", type=Path, default=None,
+        help="optional: write each held-out pair's (disease_id, drug_id, rank) to this JSON path -- "
+        "the input the disease-level paired bootstrap significance script needs; --artifact's aggregate "
+        "metrics alone cannot be resampled by disease",
+    )
 
     rgcn_train = subparsers.add_parser(
         "rgcn-train",
@@ -321,6 +327,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="required for --split locked-test: the LOCAL-ONLY locked_test_manifest.json",
     )
     rgcn_evaluate.add_argument("--artifact", type=Path, default=None)
+    rgcn_evaluate.add_argument(
+        "--per-disease-output", type=Path, default=None,
+        help="optional: write each held-out pair's (disease_id, drug_id, rank) to this JSON path -- "
+        "the input the disease-level paired bootstrap significance script needs; --artifact's aggregate "
+        "metrics alone cannot be resampled by disease",
+    )
 
     return parser
 
@@ -567,6 +579,34 @@ def _run_transe_train(args: argparse.Namespace) -> str:
     )
 
 
+def _write_per_disease_outcomes(path: Path, split: str, outcomes) -> None:
+    """Write each held-out pair's (disease_id, drug_id, rank) to ``path``.
+
+    Shared by ``_run_transe_evaluate`` and ``_run_rgcn_evaluate`` -- both
+    produce the same ``TransEOutcome``-shaped tuples from
+    ``evaluate_transe_on_diseases`` (the model-agnostic evaluation glue).
+    This is the input ``ml/scripts/compute_significance.py``'s disease-level
+    paired bootstrap reads; the aggregate ``--artifact`` JSON alone has no
+    per-disease breakdown to resample.
+    """
+    path.write_text(
+        json.dumps(
+            {
+                "split": split,
+                "outcomes": [
+                    {
+                        "disease_id": outcome.disease_id,
+                        "drug_id": outcome.drug_id,
+                        "rank": outcome.transe_rank,
+                    }
+                    for outcome in outcomes
+                ],
+            },
+            indent=2,
+        )
+    )
+
+
 def _run_transe_evaluate(args: argparse.Namespace) -> str:
     loaded = load_export(args.export_dir)
     # Local evaluation always runs on CPU regardless of what device the
@@ -626,6 +666,9 @@ def _run_transe_evaluate(args: argparse.Namespace) -> str:
             )
         )
         lines.append(f"artifact written to {args.artifact}")
+    if args.per_disease_output is not None:
+        _write_per_disease_outcomes(args.per_disease_output, args.split, result.outcomes)
+        lines.append(f"per-disease outcomes written to {args.per_disease_output}")
     return "\n".join(lines)
 
 
@@ -771,6 +814,9 @@ def _run_rgcn_evaluate(args: argparse.Namespace) -> str:
             )
         )
         lines.append(f"artifact written to {args.artifact}")
+    if args.per_disease_output is not None:
+        _write_per_disease_outcomes(args.per_disease_output, args.split, result.outcomes)
+        lines.append(f"per-disease outcomes written to {args.per_disease_output}")
     return "\n".join(lines)
 
 

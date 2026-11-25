@@ -45,3 +45,7 @@ resume_gate_staging/
 kaggle_rgcn_v*_recovery/
 kaggle_rgcn_final_kernel/
 kaggle_rgcn_final_v*_recovery/
+
+# Local Colab upload staging (copies of already-tracked/verified artifacts
+# assembled for manual Drive upload -- never committed)
+colab_upload_bundle/

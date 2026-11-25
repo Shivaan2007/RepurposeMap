@@ -52,7 +52,7 @@ recent commits; not yet run against a trained model).
 | Large/raw files in repo | Clean -- `data/raw/`, Kaggle recovery/scratch dirs correctly gitignored and untracked |
 | Reproducible local Python setup | Done -- see "Known blockers" below for how this environment specifically got there; `README.md`'s documented `pip install -e ".[dev]"` path works on a normal machine |
 | Deployment config files | Done -- `render.yaml` (backend) and `web/app/vercel.json` (frontend), generic, no domains or secrets. Inspected for correctness, not yet exercised against a real Render/Vercel account |
-| Backend build dependency scope | **Fixed this session** -- `pyproject.toml`'s base `dependencies` previously included `torch`/`pandas`/`networkx` unconditionally, so Render's `pip install -e ".[api]"` would have pulled in a multi-GB torch install for a service that imports none of the three (confirmed by running `repurposemap.api.app` with none of them installed). Split into `api` (fastapi/uvicorn only, what's actually imported), `ml` (torch/pandas/networkx, for CLI/embeddings), and `dev` (pytest/httpx/pandas/networkx, no torch, for the non-GPU test surface). `python -m pytest` as documented in `README.md`'s "Setup"/"Run the tests" now genuinely passes clean (567 passed, 12 skipped, 0 failed) via a `collect_ignore` in `ml/tests/conftest.py` for the six torch-importing CLI test files when torch isn't installed, instead of erroring at collection. |
+| Backend build dependency scope | **Fixed this session** -- `pyproject.toml`'s base `dependencies` previously included `torch`/`pandas`/`networkx` unconditionally, so Render's `pip install -e ".[api]"` would have pulled in a multi-GB torch install for a service that imports none of the three (confirmed by running `repurposemap.api.app` with none of them installed). Split into `api` (fastapi/uvicorn only, what's actually imported), `ml` (torch/pandas/networkx, for CLI/embeddings), and `dev` (pytest/httpx/pandas/networkx, no torch, for the non-GPU test surface). `python -m pytest` as documented in `README.md`'s "Setup"/"Run the tests" now genuinely passes clean (596 passed, 14 skipped, 0 failed, re-verified 2026-11-17) via a `collect_ignore` in `ml/tests/conftest.py` for the torch-importing CLI/embeddings test files when torch isn't installed, instead of erroring at collection. |
 | Deployment smoke test | Done -- `scripts/smoke_test.sh` covers health, system-info, CORS (allowed/disallowed), OpenAPI servability, rank/rank-diseases honesty, evidence/disease-biology honest-failure (never an unhandled 500), and a no-secrets-exposed check |
 | Precomputed ranking serving mechanism | Done -- `repurposemap.serving` (schema, loader, offline exporter CLI), `POST /api/v1/rank` and `GET /api/v1/rank/diseases` wired to it end-to-end including the frontend, with tests. See `API.md`'s "Precomputed ranking serving" section |
 | Precomputed demo ranking data | Blocked, not a code gap -- every committed experiment artifact holds aggregate metrics only, never a per-disease candidate list, so `data/serving/` has nothing real to hold yet. Exporting one is a data step (`python -m repurposemap.serving.export_rankings`) once a model is trained and locked-test-evaluated, not a code change. See "Serving strategy" in `docs/DEPLOYMENT.md` |
@@ -69,18 +69,15 @@ recent commits; not yet run against a trained model).
   was not), verified each wheel's zip integrity, then installed offline
   with `pip install --no-index --no-deps`. This produced a real, working
   `.venv` in this repo.
-- **Result: 533 passed, 12 skipped, 0 failed** across the full non-GPU
-  test surface, including every test in this session's own changed files
-  (`test_api_cors.py`, `test_api_evidence.py`'s backstop test,
-  `test_provenance_service.py`'s most-recent-final-training-record test)
-  and the full pre-existing graph/scoring/ranking/evaluation/evidence/
-  biology/provenance suite. Excluded only: files that `import torch`
-  unconditionally (`cli.py`, `test_cli.py`, `test_primekg_cli.py`,
-  `test_scoring_cli.py`, `test_rgcn_cli.py`, `test_rgcn_sampling.py`,
-  `test_transe_cli.py`, and the `embeddings/` package) -- deliberately out
-  of scope per the resource policy (torch is a large, unnecessary install
-  for this test surface) and PLAN.md's model-training code, which the
-  R-GCN freeze covers anyway.
+- **Result (re-verified 2026-11-17): 596 passed, 14 skipped, 0 failed** across
+  the full non-GPU test surface, including the full graph/scoring/ranking/
+  evaluation/evidence/biology/provenance/serving/API suite. Skipped only:
+  files that `import torch` unconditionally (the embeddings/TransE/R-GCN
+  model, training and GPU-runner tests, plus `test_export_model_rankings.py`
+  and `test_run_case_study.py`) -- deliberately out of scope per the
+  resource policy (torch is a large, unnecessary install for this non-GPU
+  test surface) and PLAN.md's model-training code, which the R-GCN freeze
+  covers anyway.
 - R-GCN validation search is **complete** (Kaggle kernel
   `shivaanbhalla/repurposemap-rgcn-validation-search`, version 8,
   `KernelWorkerStatus.COMPLETE`). All three configs (`rgcn-base`,
@@ -92,6 +89,20 @@ recent commits; not yet run against a trained model).
   `ml/experiments/rgcn_sampled_validation_search_0f23fe3.json` for the
   full record. **Final training and the locked-test evaluation have not
   started and require explicit owner approval before proceeding.**
+- **Kaggle GPU quota blocker (new):** the Kaggle account's weekly 30-hour
+  GPU quota is exhausted, so the final-training kernel cannot currently
+  launch there. Not a code gap -- a provider-neutral Colab launcher is
+  prepared as a fallback (`colab_rgcn_final_runner/colab_rgcn_final_launcher.py`,
+  `docs/COLAB_RGCN_FINAL_RUNBOOK.md`). It reuses `train_sampled_final`
+  unchanged, verifies the same source archive hash and the real completed
+  `search_log.json` (fails closed if either disagrees with the frozen
+  `rgcn-wide`/3-epoch spec), and runs the same locked-test-absence safety
+  check as the Kaggle kernel. 13 new tests
+  (`ml/tests/test_colab_rgcn_final_launcher.py`) cover its fail-closed
+  paths, including an end-to-end check against the real committed
+  archive/search-log artifacts. Final training itself has not run on
+  Colab yet -- this is the launcher, not a completed run. Kaggle remains
+  untouched and is still the preferred path once its quota resets.
 
 ## Live deployment-day checklist
 

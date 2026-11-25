@@ -79,6 +79,38 @@ def test_transe_train_and_evaluate_do_not_call_the_graph_loader(primekg_export_c
     assert exit_code == 0
 
 
+def test_transe_evaluate_writes_per_disease_outcomes(primekg_export_csv, tmp_path):
+    output_dir = tmp_path / "transe_export"
+    manifest_path = tmp_path / "locked_test_manifest.json"
+    main(
+        [
+            "transe-export", "--source", "primekg", "--csv", str(primekg_export_csv),
+            "--output-dir", str(output_dir), "--manifest-path", str(manifest_path),
+            "--seed", "0", "--max-test-diseases", "1", "--test-fraction", "1.0", "--val-fraction", "0.0",
+        ]
+    )
+    checkpoint_path = tmp_path / "ckpt.pt"
+    main(
+        [
+            "transe-train", "--export-dir", str(output_dir), "--config-name", "search-dim64",
+            "--epochs", "1", "--validate-every", "1", "--output", str(checkpoint_path),
+        ]
+    )
+
+    per_disease_path = tmp_path / "per_disease.json"
+    exit_code = main(
+        [
+            "transe-evaluate", "--export-dir", str(output_dir), "--checkpoint", str(checkpoint_path),
+            "--split", "validation", "--per-disease-output", str(per_disease_path),
+        ]
+    )
+    assert exit_code == 0
+    payload = json.loads(per_disease_path.read_text())
+    assert payload["split"] == "validation"
+    assert payload["outcomes"], "expected at least one per-disease outcome"
+    assert {"disease_id", "drug_id", "rank"} == set(payload["outcomes"][0])
+
+
 def test_transe_evaluate_refuses_locked_test_without_manifest(primekg_export_csv, tmp_path):
     output_dir = tmp_path / "transe_export"
     manifest_path = tmp_path / "locked_test_manifest.json"
