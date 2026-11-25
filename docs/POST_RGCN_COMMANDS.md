@@ -10,6 +10,39 @@ config, seed, split, candidate universe, or evaluation rule
 Placeholders in angle brackets (`<...>`) are paths/IDs you fill in; nothing
 else should need to change.
 
+## Fast path: `scripts/post_checkpoint.py` (preferred)
+
+One stage per step, same order as below, with the safety checks in code. Tested end
+to end on synthetic data (verify, the single-run guard, evaluate, record, fill, export,
+case study, serving validation), never on the real checkpoint. `<sha8>` is the first 8
+hex digits of the checkpoint's SHA-256, which `verify` prints.
+
+```bash
+python scripts/post_checkpoint.py verify   --checkpoint <final.pt> --final-epoch 2 --provenance <colab_provenance.json>
+python scripts/post_checkpoint.py evaluate --checkpoint <final.pt> --final-epoch 2 --provenance <colab_provenance.json> \
+       --export-dir <export> --manifest <locked_test_manifest.json> --approve-single-locked-test-run
+python scripts/post_checkpoint.py fill
+python scripts/post_checkpoint.py export   --checkpoint <final.pt> --export-dir <export> --disease-id <id> [--disease-id <id> ...]
+python scripts/post_checkpoint.py case-study --checkpoint <final.pt> --export-dir <export> --disease-id <id> --known-drug-id <id> --slug <name>
+python scripts/post_checkpoint.py validate-serving
+python scripts/post_checkpoint.py qa
+```
+
+What it enforces: `evaluate` runs `verify` first; refuses without the approval flag; refuses
+if `ml/experiments/rgcn_final_locked_test_*.json` already exists (exactly once); refuses
+to restart an attempt that wrote no record unless `--allow-restart-after-incomplete`.
+It writes raw outputs to `ml/results/` and one schema-valid, read-only record to
+`ml/experiments/rgcn_final_locked_test_<sha8>.json`. Do not put raw artifacts in
+`ml/experiments/`: the provenance loader requires every file there to follow the
+experiment schema, and a flat metrics file fails `test_real_experiment_files_parse_as_valid`.
+
+Choosing case-study diseases: the known indication must be in the training graph, so
+use a **fit or validation** disease. A locked-test disease's indications were held out
+of `final_triples`, and `run_case_study.py` stops with "masking removed 0 rows". Exporting
+a ranking for a test disease is fine; a case study on one is not possible.
+
+The sections below are the same steps as raw commands, for reference.
+
 ## 0. Verify the checkpoint (before anything else)
 
 Two independent checks, both already real code -- neither is new:
@@ -62,8 +95,8 @@ python -m repurposemap rgcn-evaluate \
     --checkpoint <final_checkpoint.pt> \
     --split locked-test \
     --manifest <LOCAL-ONLY locked_test_manifest.json> \
-    --artifact ml/experiments/rgcn_final_locked_test_<commit>.json \
-    --per-disease-output ml/experiments/rgcn_final_locked_test_<commit>_per_disease.json
+    --artifact ml/results/rgcn_final_locked_test_<sha8>_raw.json \
+    --per-disease-output ml/results/rgcn_final_locked_test_<sha8>_per_disease.json
 ```
 
 - `--manifest` is the same local-only file `transe-export` originally wrote
@@ -95,11 +128,11 @@ session was explicitly told not to do.
 
 ```bash
 python ml/scripts/compute_significance.py \
-    --rgcn-outcomes ml/experiments/rgcn_final_locked_test_<commit>_per_disease.json \
+    --rgcn-outcomes ml/results/rgcn_final_locked_test_<sha8>_per_disease.json \
     --transe-outcomes <TransE's own --per-disease-output file -- see "Known gap" above> \
     --n-resamples 10000 \
     --seed 42 \
-    --output ml/experiments/rgcn_vs_transe_significance_<commit>.json
+    --output ml/results/rgcn_vs_transe_significance_<sha8>.json
 ```
 
 - New this session: `ml/scripts/compute_significance.py` +
@@ -121,7 +154,7 @@ python ml/scripts/compute_significance.py \
 
 ```bash
 python ml/scripts/fill_final_results.py \
-    --artifact ml/experiments/rgcn_final_locked_test_<commit>.json
+    --artifact ml/experiments/rgcn_final_locked_test_<sha8>.json   # the frozen record, not the raw file
 ```
 
 - Existing script, unchanged this session. Replaces the exact R-GCN `TBD`
@@ -144,7 +177,7 @@ python ml/scripts/export_model_rankings.py \
     --disease-id <id1> [--disease-id <id2> ...] \
     --top-k 10 \
     --ranking-method rgcn \
-    --source-experiment-file ml/experiments/rgcn_final_locked_test_<commit>.json \
+    --source-experiment-file ml/experiments/rgcn_final_locked_test_<sha8>.json \
     --output-dir data/serving/
 ```
 

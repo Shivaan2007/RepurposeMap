@@ -7,6 +7,8 @@ otherwise complete (see "Repo audit" below). Nothing here changes the frozen
 protocol, config, seed, split, candidate universe, or evaluation rule in
 `ml/RGCN_EVALUATION_PROTOCOL.md` / `ml/RGCN_RUNBOOK.md`.
 
+**Fast path:** `scripts/post_checkpoint.py` runs steps 0 to 4 and 8 as one stage each, with the verification and the exactly-once guard enforced in code (see `docs/POST_RGCN_COMMANDS.md`); `docs/DEPLOY_RUNBOOK.md` covers step 5; `docs/RELEASE_TEXT_TEMPLATES.md` holds the README, portfolio and resume text with `{{FILL}}` markers for the real numbers, and `python scripts/post_checkpoint.py placeholders` lists any left.
+
 This is the exact, ordered, mechanical sequence to run once that checkpoint
 exists. Each step names the precondition it depends on and the exact command
 or file to touch — no step should require new design decisions.
@@ -83,7 +85,7 @@ or file to touch — no step should require new design decisions.
 
 ## 4. Masked case studies
 
-- [ ] Pick 2–3 (disease, known-drug) pairs from the diseases exported above.
+- [ ] Pick 2–3 (disease, known-drug) pairs from the diseases exported above. The disease must be a fit or validation disease, not one of the 100 locked-test diseases (their indications are absent from the training graph, so there is nothing to mask).
 - [ ] `python ml/scripts/run_case_study.py --export-dir <export> --checkpoint
       <final.pt> --model rgcn --disease-id <id> --known-drug-id <id>
       --ranking-method rgcn --output case_studies/<slug>.json`
