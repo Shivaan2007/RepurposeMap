@@ -138,6 +138,8 @@ def test_rank_diseases_lists_supported_diseases(serving_dir):
     ]
 
 
-def test_rank_diseases_is_empty_when_no_bundles_exist():
+def test_rank_diseases_is_empty_when_no_bundles_exist(tmp_path, monkeypatch):
+    # An isolated empty directory: the real data/serving/ holds whatever has been exported by now.
+    monkeypatch.setattr(ranking_module, "list_supported_diseases", lambda: _real_list(tmp_path))
     response = client.get("/api/v1/rank/diseases")
     assert response.json()["diseases"] == []
