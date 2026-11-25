@@ -49,3 +49,6 @@ kaggle_rgcn_final_v*_recovery/
 # Local Colab upload staging (copies of already-tracked/verified artifacts
 # assembled for manual Drive upload -- never committed)
 colab_upload_bundle/
+
+# Local-only marker written by scripts/post_checkpoint.py before the one locked-test evaluation
+ml/results/.rgcn_locked_test_started
