@@ -68,11 +68,13 @@ exist.
 - `RepurposingHypothesis` domain object (`repurposemap.hypothesis`): shows how model score, explanation paths, evidence and safety will assemble once a real model and real adapters exist
 - 3-config TransE validation search (Kaggle, GPU) — see [ml/experiments/transe_stage_d_validation_search_606711d.json](ml/experiments/transe_stage_d_validation_search_606711d.json)
 - Final TransE training (`search-dim128`, 4 epochs, Kaggle GPU) and the exactly-once locked-test evaluation — see "Final TransE result (locked test)" below and [ml/experiments/transe_stage_d_final_locked_test_c8997e9.json](ml/experiments/transe_stage_d_final_locked_test_c8997e9.json)
+- Sampled R-GCN validation search, final training and the single locked-test evaluation: result in [`docs/FINAL_RESULTS.md`](docs/FINAL_RESULTS.md) and "Final R-GCN result (locked test)" above ([ml/experiments/rgcn_final_locked_test_ca9313b1.json](ml/experiments/rgcn_final_locked_test_ca9313b1.json))
+- Precomputed ranking serving for 5 diseases, 3 masked case studies in `case_studies/`
 
-**In progress / not yet complete**
+**Not done / out of scope for V1**
 
-- R-GCN validation search (3 predeclared configs x 3 epochs): **complete**. All three configs (`rgcn-base`, `rgcn-wide`, `rgcn-moreBases`) ran their full 3-epoch budget with no NaN/Inf detected. Applying the frozen selection rule (highest validation MRR; tie-break on macro AP within 0.0005; then smaller model), **`rgcn-wide` is the winner** -- validation MRR 0.0392 / macro AP 0.0551, beating the runner-up (`rgcn-base`, MRR 0.0271) by a margin far exceeding the tie-break threshold, so no tie-break was needed. See `ml/experiments/rgcn_sampled_validation_search_0f23fe3.json` for the full per-epoch record. This is a **validation-only** result -- it has not been evaluated against the locked test and is not yet a reportable R-GCN performance number.
-- R-GCN final training and the one locked-test evaluation: **not started, awaiting explicit owner approval** before proceeding, per the frozen protocol. Selection was on validation only; the locked test has now been observed once for TransE and must not become a tuning set for this or any future model.
+- Live model inference, the triage shortlist, the results page in the frontend, the time-travel test, the TxGNN comparison, expert review
+- Deployment on Render and Vercel (see `docs/FINAL_RELEASE_CHECKLIST.md` steps 5-8)
 
 **Planned**
 
@@ -105,9 +107,8 @@ On a controlled 100-disease, 498-pair benchmark (seed 42), the path baseline sco
 
 Not implemented yet, as of this writing:
 
-- **No trained or locked-test-evaluated R-GCN yet.** The model, the sampled trainer and the Kaggle runner have been profiled on real PrimeKG for feasibility (speed and memory only, not accuracy), and the 3-config validation search is now complete -- `rgcn-wide` won on validation MRR (see "Project status" above). Final training and the locked-test evaluation have not started and require explicit owner approval first, so there are still no R-GCN locked-test performance numbers.
 - Evidence/safety lookup is real but synchronous and uncached: PubMed, ClinicalTrials.gov, openFDA and DailyMed are all wired into `POST /api/v1/evidence` and `EvidencePanel` (see above), but each request queries all four sources in-process rather than through the background-job layer `PLAN.md`'s tech stack calls for.
-- The React frontend's ranking view (`web/app`) exists and queries the real `/api/v1/rank` + `/api/v1/rank/diseases` endpoints, backed by a real precomputed-serving mechanism (`repurposemap.serving`), but since `data/serving/` holds no real bundle yet it only ever shows the honest unavailable/empty state there -- see "Project status" above and [API.md](API.md). The evidence lookup view is real and live.
+- The React frontend's ranking view (`web/app`) exists and queries the real `/api/v1/rank` + `/api/v1/rank/diseases` endpoints, backed by a real precomputed-serving mechanism (`repurposemap.serving`), now serving 5 real R-GCN-ranked diseases -- see "Final R-GCN result (locked test)" above and [API.md](API.md). Any other disease still honestly returns `model_status: "not_available"`. The evidence lookup view is real and live.
 
 ## Evaluation protocol
 
@@ -149,6 +150,21 @@ Popularity's values are marked approximate because this repo currently only has 
 **Candidate-universe caveat (same one as above, restated for this table):** the path baseline ranks a bounded, per-disease discovered candidate set (0–500 candidates); popularity and TransE both rank the full 7,957-drug universe for every disease. All three share the same held-out pairs and metric formulas, but this is not the same ranking task, so no "TransE is N times better/worse than path" claim should be made from this table alone.
 
 **Interpretation.** Final TransE did not outperform the existing path baseline on the locked test, and landed only modestly above — or broadly near — the simple non-learning baselines on several of these metrics. This does not mean the project has failed: it means a pure translational embedding model, evaluated on this split, is not yet a strong candidate-ranker on its own. It motivates testing a relation-aware graph neural network (R-GCN) next, since R-GCN can condition directly on PrimeKG's typed relational structure the way the path baseline already does, rather than compressing it into a single embedding geometry the way TransE does. This result does not establish clinical efficacy for any candidate, and should not be read as one.
+
+### Final R-GCN result (locked test)
+
+The frozen sampled R-GCN (`rgcn-wide`, selected on validation only, trained once on the final training graph for 3 epochs) was evaluated against the same 100 locked test diseases / 498 held-out pairs **exactly once**. Provenance and metrics: [`ml/experiments/rgcn_final_locked_test_ca9313b1.json`](ml/experiments/rgcn_final_locked_test_ca9313b1.json). Protocol, fixed before any R-GCN result existed: [`ml/RGCN_EVALUATION_PROTOCOL.md`](ml/RGCN_EVALUATION_PROTOCOL.md).
+
+| | Hits@1 | Hits@3 | Hits@10 | MRR |
+|---|---|---|---|---|
+| Path baseline (bounded candidates) | 0.01004 | 0.04016 | 0.08635 | 0.03329 |
+| Popularity baseline (full universe, *approximate*) | 0.0 | ~0.004 | ~0.014 | ~0.0062 |
+| Final TransE (full universe) | 0.0020 | 0.0040 | 0.0161 | 0.0100 |
+| **Final R-GCN (full universe)** | **0.0120** | **0.0281** | **0.0622** | **0.0334** |
+
+**Candidate-universe caveat.** The path baseline ranks a bounded, per-disease discovered candidate set (0 to 500 candidates); popularity, TransE and R-GCN rank the full 7,957-drug universe. The rows share the same held-out pairs and metric formulas but are not the same ranking task, so no "N times better" claim between the path baseline and the others should be made from this table.
+
+**Interpretation.** R-GCN scored above TransE on both MRR (0.0334 vs 0.0100) and Hits@10 (0.0622 vs 0.0161), so by the pre-registered rule it counts as an improvement over TransE on this split. The paired bootstrap in `docs/FINAL_RESULTS.md` §3 needs TransE's per-disease outcomes, which were not saved when TransE's locked test ran (only aggregate metrics were), and rerunning that evaluation was not authorised, so no significance interval is reported and the comparison with TransE rests on the point estimates alone, on 498 pairs from 100 diseases. Absolute performance is still weak: the true drug lands in the top 10 for about 6 in 100 held-out pairs. This does not establish clinical efficacy for any candidate.
 
 ## Data
 
@@ -381,7 +397,7 @@ RepurposeMap generates research hypotheses for expert review. It does not prescr
 
 ## Roadmap
 
-1. Relational graph neural network (R-GCN) for drug-disease link prediction, motivated by the final TransE result above — selected on training/validation only, never on the now-spent locked test. **Validation search complete** (`rgcn-wide` selected); final training and the one locked-test evaluation await explicit owner approval (see "Project status").
+1. Relational graph neural network (R-GCN) for drug-disease link prediction, motivated by the final TransE result above — selected on training/validation only, never on the now-spent locked test. **Done** — final training and the one locked-test evaluation are complete; see "Final R-GCN result (locked test)" above and [docs/FINAL_RESULTS.md](docs/FINAL_RESULTS.md).
 2. Supporting evidence from PubMed, ClinicalTrials.gov, DailyMed and openFDA. **Done** — see "Evidence and safety domain" in "Project status" and [API.md](API.md#evidencesafety-domain).
 3. Drug safety information. **Done** — the same evidence domain above surfaces openFDA/DailyMed label warnings and contraindications.
 4. React research workspace, built against the generated TypeScript client in `web/client/`. **Done** — see `web/app`.
