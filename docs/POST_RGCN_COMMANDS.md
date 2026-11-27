@@ -22,6 +22,8 @@ python scripts/post_checkpoint.py verify   --checkpoint <final.pt> --final-epoch
 python scripts/post_checkpoint.py evaluate --checkpoint <final.pt> --final-epoch 2 --provenance <colab_provenance.json> \
        --export-dir <export> --manifest <locked_test_manifest.json> --approve-single-locked-test-run
 python scripts/post_checkpoint.py fill
+# choose diseases and pairs by a fixed, model-blind rule (see the script's docstring); prints the export and case-study commands below with real ids
+python scripts/pick_case_studies.py --export-dir <export> --primekg-csv data/raw/primekg/kg.csv
 python scripts/post_checkpoint.py export   --checkpoint <final.pt> --export-dir <export> --disease-id <id> [--disease-id <id> ...]
 python scripts/post_checkpoint.py case-study --checkpoint <final.pt> --export-dir <export> --disease-id <id> --known-drug-id <id> --slug <name>
 python scripts/post_checkpoint.py validate-serving

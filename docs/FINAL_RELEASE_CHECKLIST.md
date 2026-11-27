@@ -65,9 +65,9 @@ or file to touch — no step should require new design decisions.
 
 ## 3. Real serving rankings
 
-- [ ] Pick 3–5 diseases with real, interesting candidate structure (owner
-      judgment call — favor diseases with known indications in PrimeKG for
-      a meaningful case study later).
+- [ ] Pick 3–5 diseases. `python scripts/pick_case_studies.py --export-dir <export> --primekg-csv data/raw/primekg/kg.csv`
+      chooses them by a fixed rule that never looks at model output, and prints the commands for steps 3 and 4.
+      Override by hand only if you want a specific disease, and record why.
 - [ ] For each: `python ml/scripts/export_model_rankings.py --export-dir
       <export> --checkpoint <final.pt> --model rgcn --disease-id <id> --top-k
       10 --ranking-method rgcn --source-experiment-file <final-locked-test-artifact>
