@@ -21,25 +21,28 @@ it's computed. The path/popularity/TransE values below are **copied
 verbatim** from the existing locked-test table -- no new locked-test
 evaluation is run to produce this file.
 
-Fill the R-GCN row mechanically, not by hand:
-`python ml/scripts/fill_final_results.py --artifact <the rgcn-evaluate --split locked-test --artifact JSON>`
--- it replaces the exact `TBD` row below with that artifact's real numbers
-and refuses to run against anything but a `split: "locked-test"` artifact.
+The R-GCN row was filled mechanically from `ml/experiments/rgcn_final_locked_test_ca9313b1.json`
+(`ml/scripts/fill_final_results.py`), not by hand.
 
 | | Hits@1 | Hits@3 | Hits@10 | MRR | Macro AP |
 |---|---|---|---|---|---|
-| Path baseline (bounded candidates) | 0.01004 | 0.04016 | 0.08635 | 0.03329 | `TBD` |
-| Popularity baseline (full universe, *approximate*) | 0.0 | ~0.004 | ~0.014 | ~0.0062 | `TBD` |
-| Final TransE (full universe) | 0.0020 | 0.0040 | 0.0161 | 0.0100 | `TBD` |
+| Path baseline (bounded candidates) | 0.01004 | 0.04016 | 0.08635 | 0.03329 | not computed¹ |
+| Popularity baseline (full universe, *approximate*) | 0.0 | ~0.004 | ~0.014 | ~0.0062 | not computed¹ |
+| Final TransE (full universe) | 0.0020 | 0.0040 | 0.0161 | 0.0100 | not computed¹ |
 | **Final R-GCN (full universe)** | 0.0120 | 0.0281 | 0.0622 | 0.0334 | 0.0332 |
 
-Macro AP is `TBD` even for the three already-evaluated rankers above: it was
-computed for R-GCN's validation-search selection rule
-(`ml/experiments/rgcn_sampled_validation_search_0f23fe3.json`) but has not
-been computed against the locked test for path/popularity/TransE. Decide
-before filling this in whether backfilling it for the existing three is worth
-doing, or whether the R-GCN row alone should carry a macro AP value with the
-others left blank and footnoted as "not computed."
+¹ Macro AP was computed for R-GCN's validation-search selection rule and for the final R-GCN locked-test
+run. It was not computed against the locked test for the path, popularity and TransE rows, and it is left
+blank rather than backfilled: doing so would mean re-reading the locked-test labels for models whose one
+evaluation has already run.
+
+**Checkpoint provenance.** The R-GCN was trained on Google Colab (T4). The trained file's SHA-256 is
+`8d5d52417035659f78e394f97fef59c96ae7979fc55171010ddb2b0ccf7987eb` (recorded in its `colab_provenance.json`).
+The evaluation ran on a copy of it, SHA-256 `ca9313b1aaa4666c11c09b75063735b741efcfcdef67a5abf8c3b9ac14e1d35f`,
+that differs only in one restored field, `locked_test_manifest_fingerprint`: the training launcher refuses an
+export carrying that value, so the trained file could not record it and the locked-test eligibility gate would
+have refused every manifest. The value was restored from the original local export and checked against the one
+the TransE result recorded (`docs/POST_RGCN_COMMANDS.md`, `scripts/post_checkpoint.py stamp`). Weights and config are unchanged.
 
 ### Candidate-universe caveat (restate, don't re-derive)
 
@@ -109,8 +112,11 @@ significance interval is available for that difference (`§3`): the
 comparison rests on these point estimates alone. Absolute performance is
 still weak: on the full 7,957-drug universe, the true drug lands in the top
 10 for about 6 in 100 held-out pairs (Hits@10 = 0.0622), and in the top 1 for
-about 1 in 100 (Hits@1 = 0.0120). This does not establish clinical efficacy
-for any candidate drug.
+about 1 in 100 (Hits@1 = 0.0120). Against the path baseline, R-GCN's Hits@10
+(0.0622) is below the path baseline's (0.0863) and its MRR is about equal (0.0334
+vs. 0.0333); because the path baseline ranks a smaller candidate set (`§2`'s
+caveat), no ranking between them is claimed. This does not establish clinical
+efficacy for any candidate drug.
 
 ## 5. Case studies
 

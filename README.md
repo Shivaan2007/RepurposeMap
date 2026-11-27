@@ -19,6 +19,14 @@ RepurposeMap is **not** a treatment recommendation system. It does not:
 - treat a path in the graph as evidence that a drug works. Connectivity in a knowledge graph is not evidence of treatment efficacy.
 - treat future evidence/safety lookups (PubMed, ClinicalTrials.gov, DailyMed, openFDA) as anything beyond research context for a human reviewer
 
+## Live demo
+
+- Frontend: https://repurposemap.vercel.app
+- API: https://repurposemap-api.onrender.com (`/health`, `/api/v1/system/info`, `/openapi.json`)
+- The free API tier sleeps when idle, so the first request after a pause can take 30 to 60 seconds.
+- Candidate rankings are **precomputed** for 5 diseases and served from files, not computed live (`serving_mode: "precomputed"`). Any other disease honestly returns `model_status: "not_available"`.
+- Deployment details and how updates reach each side: [docs/DEPLOY_RUNBOOK.md](docs/DEPLOY_RUNBOOK.md).
+
 ## Architecture
 
 ```mermaid
@@ -69,12 +77,11 @@ exist.
 - 3-config TransE validation search (Kaggle, GPU) — see [ml/experiments/transe_stage_d_validation_search_606711d.json](ml/experiments/transe_stage_d_validation_search_606711d.json)
 - Final TransE training (`search-dim128`, 4 epochs, Kaggle GPU) and the exactly-once locked-test evaluation — see "Final TransE result (locked test)" below and [ml/experiments/transe_stage_d_final_locked_test_c8997e9.json](ml/experiments/transe_stage_d_final_locked_test_c8997e9.json)
 - Sampled R-GCN validation search, final training and the single locked-test evaluation: result in [`docs/FINAL_RESULTS.md`](docs/FINAL_RESULTS.md) and "Final R-GCN result (locked test)" above ([ml/experiments/rgcn_final_locked_test_ca9313b1.json](ml/experiments/rgcn_final_locked_test_ca9313b1.json))
-- Precomputed ranking serving for 5 diseases, 3 masked case studies in `case_studies/`
+- Precomputed ranking serving for 5 diseases, 3 masked case studies in `case_studies/`, deployment on Render (API) and Vercel (frontend), see "Live demo"
 
 **Not done / out of scope for V1**
 
 - Live model inference, the triage shortlist, the results page in the frontend, the time-travel test, the TxGNN comparison, expert review
-- Deployment on Render and Vercel (see `docs/FINAL_RELEASE_CHECKLIST.md` steps 5-8)
 
 **Planned**
 
@@ -164,7 +171,7 @@ The frozen sampled R-GCN (`rgcn-wide`, selected on validation only, trained once
 
 **Candidate-universe caveat.** The path baseline ranks a bounded, per-disease discovered candidate set (0 to 500 candidates); popularity, TransE and R-GCN rank the full 7,957-drug universe. The rows share the same held-out pairs and metric formulas but are not the same ranking task, so no "N times better" claim between the path baseline and the others should be made from this table.
 
-**Interpretation.** R-GCN scored above TransE on both MRR (0.0334 vs 0.0100) and Hits@10 (0.0622 vs 0.0161), so by the pre-registered rule it counts as an improvement over TransE on this split. The paired bootstrap in `docs/FINAL_RESULTS.md` §3 needs TransE's per-disease outcomes, which were not saved when TransE's locked test ran (only aggregate metrics were), and rerunning that evaluation was not authorised, so no significance interval is reported and the comparison with TransE rests on the point estimates alone, on 498 pairs from 100 diseases. Absolute performance is still weak: the true drug lands in the top 10 for about 6 in 100 held-out pairs. This does not establish clinical efficacy for any candidate.
+**Interpretation.** R-GCN scored above TransE on both MRR (0.0334 vs 0.0100) and Hits@10 (0.0622 vs 0.0161), so by the pre-registered rule it counts as an improvement over TransE on this split. The paired bootstrap in `docs/FINAL_RESULTS.md` §3 needs TransE's per-disease outcomes, which were not saved when TransE's locked test ran (only aggregate metrics were), and rerunning that evaluation was not authorised, so no significance interval is reported and the comparison with TransE rests on the point estimates alone, on 498 pairs from 100 diseases. Absolute performance is still weak: the true drug lands in the top 10 for about 6 in 100 held-out pairs. Against the path baseline, R-GCN's Hits@10 (0.0622) is below the path baseline's (0.0863) and its MRR is about equal (0.0334 vs 0.0333), but the path baseline ranks a smaller candidate set, so no ranking between them is claimed. This does not establish clinical efficacy for any candidate.
 
 ## Data
 
