@@ -18,14 +18,19 @@ case study, serving validation), never on the real checkpoint. `<sha8>` is the f
 hex digits of the checkpoint's SHA-256, which `verify` prints.
 
 ```bash
-python scripts/post_checkpoint.py verify   --checkpoint <final.pt> --final-epoch 2 --provenance <colab_provenance.json>
-python scripts/post_checkpoint.py evaluate --checkpoint <final.pt> --final-epoch 2 --provenance <colab_provenance.json> \
+# A checkpoint trained on Colab/Kaggle needs this first: the launcher refuses an export carrying the locked-test
+# manifest fingerprint, so the checkpoint recorded None and the eligibility gate would refuse every manifest.
+# `stamp` restores that one field from the ORIGINAL local export (it must equal the value in the TransE result),
+# writes final_checkpoint_stamped.pt, and leaves weights and config untouched. Use the stamped file below.
+python scripts/post_checkpoint.py stamp    --checkpoint <final.pt> --original-export-dir <original local export dir>
+python scripts/post_checkpoint.py verify   --checkpoint <final_stamped.pt> --final-epoch 2 --provenance <colab_provenance.json>
+python scripts/post_checkpoint.py evaluate --checkpoint <final_stamped.pt> --final-epoch 2 --provenance <colab_provenance.json> \
        --export-dir <export> --manifest <locked_test_manifest.json> --approve-single-locked-test-run
 python scripts/post_checkpoint.py fill
 # choose diseases and pairs by a fixed, model-blind rule (see the script's docstring); prints the export and case-study commands below with real ids
 python scripts/pick_case_studies.py --export-dir <export> --primekg-csv data/raw/primekg/kg.csv
-python scripts/post_checkpoint.py export   --checkpoint <final.pt> --export-dir <export> --disease-id <id> [--disease-id <id> ...]
-python scripts/post_checkpoint.py case-study --checkpoint <final.pt> --export-dir <export> --disease-id <id> --known-drug-id <id> --slug <name>
+python scripts/post_checkpoint.py export   --checkpoint <final_stamped.pt> --export-dir <export> --disease-id <id> [--disease-id <id> ...]
+python scripts/post_checkpoint.py case-study --checkpoint <final_stamped.pt> --export-dir <export> --disease-id <id> --known-drug-id <id> --slug <name>
 python scripts/post_checkpoint.py validate-serving
 python scripts/post_checkpoint.py qa
 ```

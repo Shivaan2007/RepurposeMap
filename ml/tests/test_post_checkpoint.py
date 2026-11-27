@@ -147,3 +147,30 @@ def test_unfilled_markers_are_found_and_filled_files_pass(tmp_path):
     (tmp_path / "README.md").write_text("all real now\n")
     (tmp_path / "docs" / "FINAL_RESULTS.md").write_text("| R-GCN | 0.0100 | 0.0161 |\n")
     assert pc.find_placeholders(tmp_path) == []
+
+
+def test_stamp_restores_only_the_manifest_fingerprint_from_the_original_export():
+    checkpoint = {**good_checkpoint(), "locked_test_manifest_fingerprint": None, "state_dict": {"w": 1}}
+    original = {"export_fingerprint": pc.FROZEN_EXPORT_FINGERPRINT, "locked_test_manifest_fingerprint": "m" * 64}
+    stamped, problems = pc.stamp_checkpoint(checkpoint, original, "m" * 64)
+    assert problems == [] and stamped["locked_test_manifest_fingerprint"] == "m" * 64
+    assert stamped["state_dict"] == checkpoint["state_dict"] and stamped["config"] == checkpoint["config"]
+    assert checkpoint["locked_test_manifest_fingerprint"] is None  # the input is not modified
+
+
+@pytest.mark.parametrize(
+    "checkpoint_change, original_change, recorded",
+    [
+        ({"locked_test_manifest_fingerprint": "already"}, {}, "m" * 64),          # nothing to stamp
+        ({}, {"locked_test_manifest_fingerprint": None}, "m" * 64),               # original export has none
+        ({}, {"export_fingerprint": "0" * 64}, "m" * 64),                          # different export
+        ({"export_fingerprint": "0" * 64}, {"export_fingerprint": "0" * 64}, "m" * 64),  # not the frozen export
+        ({}, {}, None),                                                            # nothing independent to compare
+        ({}, {}, "x" * 64),                                                        # disagrees with the TransE record
+    ],
+)
+def test_stamp_refuses_anything_that_does_not_line_up(checkpoint_change, original_change, recorded):
+    checkpoint = {**good_checkpoint(), "locked_test_manifest_fingerprint": None, **checkpoint_change}
+    original = {"export_fingerprint": pc.FROZEN_EXPORT_FINGERPRINT, "locked_test_manifest_fingerprint": "m" * 64, **original_change}
+    stamped, problems = pc.stamp_checkpoint(checkpoint, original, recorded)
+    assert stamped is None and problems
