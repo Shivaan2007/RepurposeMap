@@ -1,0 +1,19 @@
+{
+  "spec": {
+    "disease_id": "35771",
+    "disease_name": "breast neoplasm",
+    "known_drug_id": "14275",
+    "known_drug_name": "Doxorubicin",
+    "ranking_method": "rgcn",
+    "notes": ""
+  },
+  "rank": 20,
+  "provenance": {
+    "candidate_universe_size": 7957,
+    "triples_level_masking": "final_triples row(s) for this disease/drug removed before re-encoding (see module docstring)"
+  },
+  "limitations": [
+    "Single disease/drug anecdote -- not a benchmark result; see docs/FINAL_RESULTS.md for the benchmark locked-test table.",
+    "Candidate universe is the full PrimeKG drug universe used by this model's training -- see docs/FINAL_RESULTS.md's candidate-universe caveat."
+  ]
+}

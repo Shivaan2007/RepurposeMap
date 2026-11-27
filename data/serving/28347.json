@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "disease_id": "28347",
+  "disease_name": "hereditary breast carcinoma",
+  "ranking_method": "rgcn",
+  "provenance": {
+    "ranking_method": "rgcn",
+    "source_experiment_file": "/Users/shivaanbhalla/Developer/RepurposeMap/ml/experiments/rgcn_final_locked_test_ca9313b1.json",
+    "source_commit": "4e148af51e1d3fb1c8d02eb62a55cd478d3e62f6"
+  },
+  "generated_at": "2026-11-27T03:38:15.045691+00:00",
+  "candidate_universe": {
+    "description": "full PrimeKG drug universe used by rgcn training (7957 drugs)",
+    "size": 7957
+  },
+  "candidates": [
+    {
+      "drug_id": "14242",
+      "drug_name": "Meloxicam",
+      "rank": 1,
+      "score": 6.191323757171631,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "15134",
+      "drug_name": "Hydroxyurea",
+      "rank": 2,
+      "score": 6.143442153930664,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "17654",
+      "drug_name": "Valrubicin",
+      "rank": 3,
+      "score": 5.2227630615234375,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "17584",
+      "drug_name": "Adalimumab",
+      "rank": 4,
+      "score": 5.160539627075195,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "15982",
+      "drug_name": "Sulfasalazine",
+      "rank": 5,
+      "score": 5.026086330413818,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "15987",
+      "drug_name": "Choline magnesium trisalicylate",
+      "rank": 6,
+      "score": 4.906215667724609,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "18179",
+      "drug_name": "Sucralfate",
+      "rank": 7,
+      "score": 4.883638381958008,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "14868",
+      "drug_name": "Thiotepa",
+      "rank": 8,
+      "score": 4.838508605957031,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "14612",
+      "drug_name": "Trabectedin",
+      "rank": 9,
+      "score": 4.778593063354492,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "14875",
+      "drug_name": "Tretamine",
+      "rank": 10,
+      "score": 4.68589973449707,
+      "explanation_paths": []
+    }
+  ]
+}
