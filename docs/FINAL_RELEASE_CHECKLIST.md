@@ -118,7 +118,7 @@ credentials, not something this session can do.
 
 ## 6. Public smoke tests
 
-- [ ] `./scripts/smoke_test.sh <deployed-backend-url>` — health, system-info,
+- [ ] `./scripts/smoke_test.sh <deployed-backend-url> <deployed-frontend-origin>` — health, system-info,
       CORS (allowed/disallowed), OpenAPI servability, rank/rank-diseases
       honesty, evidence/disease-biology honest-failure, no-secret-exposed
       check.

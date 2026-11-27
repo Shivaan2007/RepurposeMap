@@ -35,9 +35,9 @@ Render, the service, Environment: set `REPURPOSEMAP_CORS_ORIGINS` to the exact V
 ## 4. Verify
 
 ```bash
-./scripts/smoke_test.sh https://<your-render-url>
+./scripts/smoke_test.sh https://<your-render-url> https://<your-vercel-origin>
 ```
-Then by hand: open the Vercel URL, confirm the status panel loads with no console error, `GET <API>/api/v1/rank/diseases` lists the exported diseases, a ranked disease returns `serving_mode: "precomputed"`, an unexported one returns `model_status: "not_available"`, and an empty disease name shows an honest error. Free Render instances sleep when idle, so the first request after a pause can be slow: retry before calling it broken.
+The second argument is the origin you put in `REPURPOSEMAP_CORS_ORIGINS`; without it the script checks `http://localhost:5173` and reports a false CORS failure on a real deployment. (`disease-biology` and `target-scorecard` answering 502 is the honest outcome when the host cannot reach Open Targets; it passes the script.) Then by hand: open the Vercel URL, confirm the status panel loads with no console error, `GET <API>/api/v1/rank/diseases` lists the exported diseases, a ranked disease returns `serving_mode: "precomputed"`, an unexported one returns `model_status: "not_available"`, and an empty disease name shows an honest error. Free Render instances sleep when idle, so the first request after a pause can be slow: retry before calling it broken.
 
 ## 5. Record it
 

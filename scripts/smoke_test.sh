@@ -4,12 +4,17 @@
 # any API key. Run this after `uvicorn repurposemap.api.app:app` is already
 # up (see DEMO.md) -- it does not start the server itself.
 #
-# Usage: ./scripts/smoke_test.sh [base_url]
-#   base_url defaults to http://localhost:8000
+# Usage: ./scripts/smoke_test.sh [base_url] [allowed_origin]
+#   base_url        defaults to http://localhost:8000
+#   allowed_origin  an origin the backend's REPURPOSEMAP_CORS_ORIGINS allows;
+#                   defaults to http://localhost:5173 (the Vite dev server).
+#                   Against a real deployment pass the deployed frontend's
+#                   origin, e.g. https://your-app.vercel.app
 
 set -euo pipefail
 
 BASE_URL="${1:-http://localhost:8000}"
+ALLOWED_ORIGIN="${2:-http://localhost:5173}"
 FAILURES=0
 
 check() {
@@ -38,12 +43,12 @@ status=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/api/v1/system/info")
 check "GET /api/v1/system/info" "$status" "200"
 
 # 3. CORS: an allowed origin gets the header back.
-cors_header=$(curl -s -D - -o /dev/null -H "Origin: http://localhost:5173" "$BASE_URL/health" \
+cors_header=$(curl -s -D - -o /dev/null -H "Origin: $ALLOWED_ORIGIN" "$BASE_URL/health" \
   | grep -i "^access-control-allow-origin:" | tr -d '\r' || true)
 if [ -n "$cors_header" ]; then
-  echo "OK   CORS header present for an allowed dev origin"
+  echo "OK   CORS header present for the allowed origin ($ALLOWED_ORIGIN)"
 else
-  echo "FAIL CORS header missing for http://localhost:5173 -- check REPURPOSEMAP_CORS_ORIGINS"
+  echo "FAIL CORS header missing for $ALLOWED_ORIGIN -- check REPURPOSEMAP_CORS_ORIGINS"
   FAILURES=$((FAILURES + 1))
 fi
 
