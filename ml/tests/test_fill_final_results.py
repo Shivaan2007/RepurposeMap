@@ -66,5 +66,7 @@ def test_fill_final_results_against_the_real_docs_file():
     row text in docs/FINAL_RESULTS.md matches what this script looks
     for, so a future real run doesn't fail on a docs/code drift."""
     real_path = Path(__file__).resolve().parents[2] / "docs" / "FINAL_RESULTS.md"
+    if _TBD_ROW not in real_path.read_text() and "| **Final R-GCN (full universe)** |" in real_path.read_text():
+        pytest.skip("docs/FINAL_RESULTS.md already holds the real R-GCN row; the TBD row this test patches is gone")
     updated = fill_final_results(_LOCKED_TEST_ARTIFACT, real_path)
     assert "0.0123" in updated

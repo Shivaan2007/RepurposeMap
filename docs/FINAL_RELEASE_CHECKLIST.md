@@ -7,6 +7,8 @@ otherwise complete (see "Repo audit" below). Nothing here changes the frozen
 protocol, config, seed, split, candidate universe, or evaluation rule in
 `ml/RGCN_EVALUATION_PROTOCOL.md` / `ml/RGCN_RUNBOOK.md`.
 
+**Fast path:** `scripts/post_checkpoint.py` runs steps 0 to 4 and 8 as one stage each, with the verification and the exactly-once guard enforced in code (see `docs/POST_RGCN_COMMANDS.md`); `docs/DEPLOY_RUNBOOK.md` covers step 5; `docs/RELEASE_TEXT_TEMPLATES.md` holds the README, portfolio and resume text with `{{FILL}}` markers for the real numbers, and `python scripts/post_checkpoint.py placeholders` lists any left.
+
 This is the exact, ordered, mechanical sequence to run once that checkpoint
 exists. Each step names the precondition it depends on and the exact command
 or file to touch — no step should require new design decisions.
@@ -63,9 +65,9 @@ or file to touch — no step should require new design decisions.
 
 ## 3. Real serving rankings
 
-- [ ] Pick 3–5 diseases with real, interesting candidate structure (owner
-      judgment call — favor diseases with known indications in PrimeKG for
-      a meaningful case study later).
+- [ ] Pick 3–5 diseases. `python scripts/pick_case_studies.py --export-dir <export> --primekg-csv data/raw/primekg/kg.csv`
+      chooses them by a fixed rule that never looks at model output, and prints the commands for steps 3 and 4.
+      Override by hand only if you want a specific disease, and record why.
 - [ ] For each: `python ml/scripts/export_model_rankings.py --export-dir
       <export> --checkpoint <final.pt> --model rgcn --disease-id <id> --top-k
       10 --ranking-method rgcn --source-experiment-file <final-locked-test-artifact>
@@ -83,7 +85,7 @@ or file to touch — no step should require new design decisions.
 
 ## 4. Masked case studies
 
-- [ ] Pick 2–3 (disease, known-drug) pairs from the diseases exported above.
+- [ ] Pick 2–3 (disease, known-drug) pairs from the diseases exported above. The disease must be a fit or validation disease, not one of the 100 locked-test diseases (their indications are absent from the training graph, so there is nothing to mask).
 - [ ] `python ml/scripts/run_case_study.py --export-dir <export> --checkpoint
       <final.pt> --model rgcn --disease-id <id> --known-drug-id <id>
       --ranking-method rgcn --output case_studies/<slug>.json`
@@ -116,7 +118,7 @@ credentials, not something this session can do.
 
 ## 6. Public smoke tests
 
-- [ ] `./scripts/smoke_test.sh <deployed-backend-url>` — health, system-info,
+- [ ] `./scripts/smoke_test.sh <deployed-backend-url> <deployed-frontend-origin>` — health, system-info,
       CORS (allowed/disallowed), OpenAPI servability, rank/rank-diseases
       honesty, evidence/disease-biology honest-failure, no-secret-exposed
       check.

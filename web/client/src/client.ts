@@ -41,7 +41,9 @@ export class RepurposeMapClient {
 
   constructor(options: RepurposeMapClientOptions) {
     this.baseUrl = options.baseUrl.replace(/\/$/, "");
-    this.fetchFn = options.fetchFn ?? fetch;
+    // Not `?? fetch`: storing the native fetch on `this` and calling it as a method throws
+    // "Illegal invocation" in browsers, so every request would fail before leaving the page.
+    this.fetchFn = options.fetchFn ?? ((input, init) => fetch(input, init));
   }
 
   private async request<T>(path: string, init?: RequestInit): Promise<T> {

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import fnmatch
 import json
 import sys
 
@@ -37,12 +38,18 @@ def test_validation_search_experiment_is_not_final():
         assert record.locked_test_evaluation_performed is False
 
 
-def test_only_the_transe_record_claims_final_training():
-    # TransE final training is done and recorded. R-GCN final training has
-    # not been run, so no R-GCN experiment file may claim it. When a real
-    # R-GCN final-training record is committed, update this list on purpose.
-    finals = sorted(r.experiment_file for r in REPO_EXPERIMENTS if r.is_final_training)
-    assert finals == ["transe_stage_d_final_locked_test_c8997e9.json"]
+def test_only_expected_records_claim_final_training():
+    # TransE final training is recorded. An R-GCN final-training record may exist only as the
+    # frozen record scripts/post_checkpoint.py writes (rgcn_final_locked_test_<sha8>.json), and
+    # only once its locked-test evaluation has actually been performed. Nothing else may claim it.
+    finals = [r for r in REPO_EXPERIMENTS if r.is_final_training]
+    for record in finals:
+        if record.experiment_file == "transe_stage_d_final_locked_test_c8997e9.json":
+            continue
+        assert fnmatch.fnmatch(record.experiment_file, "rgcn_final_locked_test_*.json"), record.experiment_file
+        assert record.locked_test_evaluation_performed is True
+    assert sum(r.experiment_file.startswith("transe_") for r in finals) == 1
+    assert sum(r.experiment_file.startswith("rgcn_") for r in finals) <= 1
 
 
 def test_historical_transe_final_record_is_read_from_its_own_blocks():
@@ -75,10 +82,11 @@ def test_legacy_blocks_are_read_only_when_both_explicit_flags_are_present(tmp_pa
     assert "safety_and_protocol" in by_name["none.json"].parse_errors[0]
 
 
-def test_transe_final_record_is_eligible_but_not_available():
+def test_a_final_record_makes_the_model_eligible_but_not_available():
     eligibility = get_model_eligibility(REPO_EXPERIMENTS)
     assert eligibility.eligible is True
-    assert eligibility.final_training_experiment_file == "transe_stage_d_final_locked_test_c8997e9.json"
+    finals = {r.experiment_file for r in REPO_EXPERIMENTS if r.is_final_training}
+    assert eligibility.final_training_experiment_file in finals
     # Eligible per the record's own claim; "available" still needs an
     # explicitly configured checkpoint.
     assert is_model_available(REPO_EXPERIMENTS) is False
@@ -273,7 +281,7 @@ def test_final_training_record_exposes_its_own_locked_test_metrics_as_evaluation
     None -- this is the one place today's schema reports an unambiguous
     metric set per record (see Part N / docs/ARCHITECTURE.md)."""
 
-    transe_final = next(r for r in REPO_EXPERIMENTS if r.kind == ExperimentKind.FINAL_TRAINING)
+    transe_final = next(r for r in REPO_EXPERIMENTS if r.experiment_file == "transe_stage_d_final_locked_test_c8997e9.json")
     summary = transe_final.evaluation_summary
     assert summary is not None
     assert summary.hits_at_1 == 0.002

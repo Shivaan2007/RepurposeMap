@@ -7,7 +7,8 @@
   "main": "./src/index.ts",
   "scripts": {
     "generate": "openapi-typescript ../../openapi.json -o src/types.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-transform-types --test test/*.test.mjs"
   },
   "devDependencies": {
     "openapi-typescript": "^7.4.0",

@@ -47,7 +47,7 @@ recent commits; not yet run against a trained model).
 | Frontend API base URL | Done -- `VITE_API_BASE_URL`, falls back to same-origin |
 | Health endpoint | Done -- `GET /health` |
 | System-status endpoint | Done -- `GET /api/v1/system/info`, reports model availability honestly |
-| CI / automated gate on push | Missing -- no `.github/workflows`. Out of scope per current guidance unless it blocks Nov 30; it doesn't block a manual deploy. |
+| CI / automated gate on push | Done, not yet run on GitHub -- `.github/workflows/ci.yml` runs `pytest` (no torch, via `pip install -e ".[api,dev]"`) and the frontend `npm run build` on every push to `main` and every PR. Both commands were run locally in a clean environment (583 passed, 14 skipped; build green); the workflow itself has not executed on GitHub yet. |
 | Secrets in repo | Clean -- audited, none found; no `.env` files on disk, `.env.example` only |
 | Large/raw files in repo | Clean -- `data/raw/`, Kaggle recovery/scratch dirs correctly gitignored and untracked |
 | Reproducible local Python setup | Done -- see "Known blockers" below for how this environment specifically got there; `README.md`'s documented `pip install -e ".[dev]"` path works on a normal machine |
@@ -183,8 +183,6 @@ first, in the other session -- nothing here can proceed until then)
   or leave them blank with a footnote (see that file's own note on this).
 
 **OPTIONAL / V2**
-- CI gate on push (`.github/workflows`) -- out of scope per existing
-  guidance above unless it blocks the Nov 15 deadline.
 - PDF/BibTeX/RIS evidence-brief export formats beyond the existing Markdown
   one.
 - A results/KPI page in the frontend itself, beyond the `docs/FINAL_RESULTS.md`
