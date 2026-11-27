@@ -275,7 +275,7 @@ def cmd_export(args) -> int:
     record = _frozen_record()
     command = [sys.executable, "ml/scripts/export_model_rankings.py", "--export-dir", str(args.export_dir), "--checkpoint", str(args.checkpoint),
                "--model", "rgcn", "--top-k", str(args.top_k), "--ranking-method", "rgcn",
-               "--source-experiment-file", str(record), "--output-dir", "data/serving/"]
+               "--source-experiment-file", record.relative_to(REPO).as_posix(), "--output-dir", "data/serving/"]
     for disease_id in args.disease_id:
         command += ["--disease-id", disease_id]
     if args.primekg_csv:

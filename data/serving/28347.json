@@ -5,7 +5,7 @@
   "ranking_method": "rgcn",
   "provenance": {
     "ranking_method": "rgcn",
-    "source_experiment_file": "/Users/shivaanbhalla/Developer/RepurposeMap/ml/experiments/rgcn_final_locked_test_ca9313b1.json",
+    "source_experiment_file": "ml/experiments/rgcn_final_locked_test_ca9313b1.json",
     "source_commit": "4e148af51e1d3fb1c8d02eb62a55cd478d3e62f6"
   },
   "generated_at": "2026-11-27T03:38:15.045691+00:00",
