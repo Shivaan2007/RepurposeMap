@@ -35,7 +35,7 @@ and refuses to run against anything but a `split: "locked-test"` artifact.
 | Path baseline (bounded candidates) | 0.01004 | 0.04016 | 0.08635 | 0.03329 | `TBD` |
 | Popularity baseline (full universe, *approximate*) | 0.0 | ~0.004 | ~0.014 | ~0.0062 | `TBD` |
 | Final TransE (full universe) | 0.0020 | 0.0040 | 0.0161 | 0.0100 | `TBD` |
-| **Final R-GCN (full universe)** | `TBD` | `TBD` | `TBD` | `TBD` | `TBD` |
+| **Final R-GCN (full universe)** | 0.0120 | 0.0281 | 0.0622 | 0.0334 | 0.0332 |
 
 Macro AP is `TBD` even for the three already-evaluated rankers above: it was
 computed for R-GCN's validation-search selection rule
