@@ -42,3 +42,22 @@ The second argument is the origin you put in `REPURPOSEMAP_CORS_ORIGINS`; withou
 ## 5. Record it
 
 Put the two URLs into the README "Live demo" block (`docs/RELEASE_TEXT_TEMPLATES.md` §B) and re-capture the screenshot from the live site (`docs/DEMO_MATERIALS.md`).
+
+## Deployed (2026-11-27)
+
+Done through the Render and Vercel APIs with short-lived tokens, not the dashboards.
+
+| | |
+|---|---|
+| Frontend | https://repurposemap.vercel.app (alias https://repurposemap-repurposemap.vercel.app) |
+| Backend | https://repurposemap-api.onrender.com (Render web service `repurposemap-api`, free plan, Oregon) |
+| `REPURPOSEMAP_CORS_ORIGINS` | both frontend origins above, comma-separated |
+| `VITE_API_BASE_URL` | baked into the frontend build: `https://repurposemap-api.onrender.com` |
+
+Checked after deploying: `./scripts/smoke_test.sh https://repurposemap-api.onrender.com https://repurposemap.vercel.app` passed, and the live site loaded in a real browser showed "API Connected" and the honest `not_available` state for a query, with no console errors. At that point `data/serving/` was empty, so every disease returned `not_available`.
+
+How updates reach each side:
+- **Backend:** Render deploys automatically on every push to `main`. Committing `data/serving/*.json` to `main` is all it takes to start serving real rankings.
+- **Frontend:** it was uploaded as built files, so it is NOT connected to git and does not redeploy on push. It only needs redeploying when the frontend code or the API URL changes: rebuild with `VITE_API_BASE_URL=https://repurposemap-api.onrender.com npm run build` in `web/app`, then redeploy the `dist/` output (or connect the repo in the Vercel dashboard, Root Directory `web/app`, to get automatic deploys).
+
+The tokens used to deploy are not needed for either update path above. Revoke the Render API key (Account Settings, API Keys) and the Vercel token (Account Settings, Tokens).
