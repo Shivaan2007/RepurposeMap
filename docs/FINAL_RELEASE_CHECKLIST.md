@@ -15,6 +15,8 @@ or file to touch — no step should require new design decisions.
 
 ## 0. Verify the final checkpoint (before touching anything else)
 
+**Colab/Kaggle-trained checkpoints first need `post_checkpoint.py stamp`** (see `docs/POST_RGCN_COMMANDS.md`): the training launcher refuses an export with a manifest fingerprint, so the checkpoint records `None` and `assert_eligible_for_locked_test_evaluation` refuses every manifest. Reproduced on synthetic data; the stamp restores that single field from the original local export and checks it against the value in the TransE result.
+
 - [ ] `colab_provenance.json` (or the Kaggle equivalent) shows 3/3 epochs
       complete, finite losses, `is_final_training: true`,
       `selected_name: "rgcn-wide"`.

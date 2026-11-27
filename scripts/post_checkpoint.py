@@ -1,5 +1,6 @@
 """Post-checkpoint closure, one stage per step, in the order it must run.
 
+    python scripts/post_checkpoint.py stamp    --checkpoint F --original-export-dir ORIG   # needed for a Colab/Kaggle-trained checkpoint
     python scripts/post_checkpoint.py verify   --checkpoint F --final-epoch 2 [--provenance colab_provenance.json]
     python scripts/post_checkpoint.py evaluate --checkpoint F --final-epoch 2 --export-dir E --manifest M --approve-single-locked-test-run
     python scripts/post_checkpoint.py fill
@@ -54,6 +55,40 @@ FROZEN_ARCHIVE_SHA256 = "bd26185f5db0ee0f5918936649c9f371d663034fad7bfff63939e3e
 FROZEN_EXPORT_FINGERPRINT = "8e41f866f9fb90b0017b9056c1eb69b585004e01e65e6c6e4d17b9dbf16cb1aa"
 FROZEN_PRIMEKG_SHA256 = "0a5a010fcd88dcec572a573d98c26c1c244a11567092b6161d3ded611cfb5c69"
 FROZEN_N_EPOCHS = 3
+
+
+TRANSE_RECORD = EXPERIMENTS / "transe_stage_d_final_locked_test_c8997e9.json"
+STAMP_NOTE = ("restored from the original local export's metadata.json: the Colab/Kaggle launcher refuses an export that "
+              "carries this value, so the training run could not record it")
+
+
+def stamp_checkpoint(checkpoint: dict, original_metadata: dict, recorded_elsewhere: str | None) -> tuple[dict | None, list[str]]:
+    """The checkpoint with its missing locked_test_manifest_fingerprint restored, or the reasons it must not be.
+
+    The launcher that trained this checkpoint refuses any export carrying a manifest fingerprint (so training
+    can never see test material), so the checkpoint records None, and the locked-test eligibility gate then
+    refuses every manifest. The value is restored here from the ORIGINAL local export's metadata, which was
+    written at export time and is independent of the manifest being evaluated; it must also equal the value
+    the TransE locked-test result recorded for the same export. Weights, config and every other field are
+    left untouched."""
+
+    problems: list[str] = []
+    if checkpoint.get("locked_test_manifest_fingerprint") is not None:
+        problems.append("the checkpoint already records a manifest fingerprint; nothing to stamp")
+    fingerprint = original_metadata.get("locked_test_manifest_fingerprint")
+    if not fingerprint:
+        problems.append("the original export's metadata.json has no locked_test_manifest_fingerprint")
+    if original_metadata.get("export_fingerprint") != checkpoint.get("export_fingerprint"):
+        problems.append("the original export's fingerprint differs from the checkpoint's")
+    if checkpoint.get("export_fingerprint") != FROZEN_EXPORT_FINGERPRINT:
+        problems.append("the checkpoint's export fingerprint is not the frozen one")
+    if recorded_elsewhere is None:
+        problems.append("no independently recorded manifest fingerprint to compare against")
+    elif fingerprint != recorded_elsewhere:
+        problems.append(f"the original export's manifest fingerprint {fingerprint!r} differs from the one recorded in the TransE result {recorded_elsewhere!r}")
+    if problems:
+        return None, problems
+    return {**checkpoint, "locked_test_manifest_fingerprint": fingerprint, "manifest_fingerprint_restored": STAMP_NOTE}, []
 
 
 def sha256_file(path: Path) -> str:
@@ -137,6 +172,7 @@ def build_experiment_record(raw: dict, *, checkpoint: dict, checkpoint_sha256: s
             "primekg_sha256": (checkpoint.get("primekg_fingerprint") or {}).get("sha256"),
             "locked_test_manifest_fingerprint": checkpoint.get("locked_test_manifest_fingerprint"),
             "checkpoint_sha256": checkpoint_sha256,
+            "manifest_fingerprint_restored": checkpoint.get("manifest_fingerprint_restored"),
         },
         "safety_and_protocol": {
             "final_training_performed": True,
@@ -174,6 +210,23 @@ def cmd_verify(args) -> int:
         print("VERIFY FAILED:\n  - " + "\n  - ".join(problems))
         return 1
     print("VERIFIED: matches the frozen spec.")
+    return 0
+
+
+def cmd_stamp(args) -> int:
+    import torch
+
+    checkpoint = _load_checkpoint(args.checkpoint)
+    original = json.loads((args.original_export_dir / "metadata.json").read_text())
+    recorded = json.loads(TRANSE_RECORD.read_text()).get("provenance", {}).get("locked_test_manifest_fingerprint")
+    stamped, problems = stamp_checkpoint(checkpoint, original, recorded)
+    if problems:
+        print("STAMP REFUSED:\n  - " + "\n  - ".join(problems))
+        return 1
+    output = args.output or args.checkpoint.with_name(args.checkpoint.stem + "_stamped.pt")
+    torch.save(stamped, output)
+    print(f"original checkpoint sha256: {sha256_file(args.checkpoint)}\nstamped checkpoint sha256:  {sha256_file(output)}\nwritten: {output}")
+    print("Use the stamped file for verify and evaluate. Weights and config are unchanged; only locked_test_manifest_fingerprint was restored.")
     return 0
 
 
@@ -321,6 +374,11 @@ def build_parser() -> argparse.ArgumentParser:
         p.add_argument("--final-epoch", type=int, required=evaluation, help="0-indexed last epoch; the frozen value is 2")
         p.add_argument("--provenance", type=Path, default=None, help="colab_provenance.json")
 
+    stamp = sub.add_parser("stamp", help="restore the manifest fingerprint the training launcher could not record")
+    stamp.add_argument("--checkpoint", type=Path, required=True)
+    stamp.add_argument("--original-export-dir", type=Path, required=True, help="the ORIGINAL local export (its metadata.json carries the fingerprint)")
+    stamp.add_argument("--output", type=Path, default=None)
+    stamp.set_defaults(func=cmd_stamp)
     verify = sub.add_parser("verify"); common(verify, True); verify.set_defaults(func=cmd_verify)
     evaluate = sub.add_parser("evaluate"); common(evaluate, True)
     evaluate.add_argument("--export-dir", type=Path, required=True)
