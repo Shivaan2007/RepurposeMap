@@ -161,6 +161,9 @@ def test_search_reports_total_count_and_builds_the_right_query():
     assert urllib.parse.urlparse(url).path.endswith("/studies")
     assert parsed["query.intr"] == ["Drug A"] and parsed["query.cond"] == ["Disease B"]
     assert parsed["pageSize"] == ["5"] and parsed["format"] == ["json"]
+    # The real API only returns totalCount when asked; the fake responses above always include it, which
+    # is how a live failure ("'totalCount' was missing") went unnoticed.
+    assert parsed["countTotal"] == ["true"]
 
 
 def test_search_with_no_matches_says_zero():
