@@ -6,37 +6,27 @@ GitHub project description. Companion to `docs/DEMO_SCRIPT.md` (the full
 click-through demo walkthrough) and `docs/PORTFOLIO.md` (resume bullets,
 tech stack, research/engineering contributions).
 
-Same ground rule as those two files: **nothing here states an R-GCN
-locked-test result, a "final model," or a live-deployment claim**, because
-none of those are true yet. Update this file, `docs/DEMO_SCRIPT.md`, and
-`docs/PORTFOLIO.md` together once they are.
+State as of 2026-11-28: the frozen R-GCN has been evaluated once on the locked test (see
+[`docs/FINAL_RESULTS.md`](FINAL_RESULTS.md)), 5 precomputed R-GCN rankings are served, and the app is live at
+https://repurposemap.vercel.app (API: https://repurposemap-api.onrender.com). Same ground rule as before: state only what
+is true, and **never** describe the rankings as live model inference, as evidence that a drug works, or as a
+validated benchmark. Update this file, `docs/DEMO_SCRIPT.md` and `docs/PORTFOLIO.md` together if anything changes.
 
-## Screenshot checklist
+## Screenshots
 
-Capture these from a local run (`DEMO.md`'s setup) at a normal laptop
-browser width, light mode, with real (not placeholder) data in every field:
+Captured on 2026-11-28 from the live deployment in a real browser (1280 px wide, light mode), with real data in every
+field. Nothing is mocked or edited.
 
-- [ ] Status panel showing `GET /api/v1/system/info`'s honest
-      `model_available: false` state -- this is the "never fakes a ready
-      model" screenshot, worth keeping even after R-GCN ships, relabeled.
-- [ ] Main query box with the list of diseases that have a deployed ranking
-      bundle shown above it (`GET /api/v1/rank/diseases`) -- today this list
-      is empty; re-capture once `data/serving/` has real bundles.
-- [ ] A disease search result showing the honest "not available for this
-      disease" explanation (not an empty table).
-- [ ] Disease biology panel with a real Open Targets gene/pathway result.
-- [ ] Target scorecard panel for one of those genes.
-- [ ] Evidence lookup panel for a real drug/disease pair, showing which of
-      PubMed/ClinicalTrials.gov/openFDA/DailyMed succeeded.
-- [ ] The "Download brief (Markdown)" button mid-click or the downloaded
-      file's content, to show the export is real.
-- [ ] Candidate comparison panel with 2-3 drugs side by side, showing
-      "Model score: not available" stated explicitly rather than blank.
-- [ ] Hypothesis notebook with one tracked candidate and a status/note.
-- [ ] Once R-GCN ships: the same main-query screenshot, now showing a real
-      ranked candidate list with scores and explanation paths -- this
-      replaces the "not available" screenshot above as the lead image, which
-      moves to an appendix/before-after comparison instead of being deleted.
+| File | What it shows |
+|---|---|
+| [`01-status-and-query.png`](screenshots/01-status-and-query.png) | System status ("API: Connected") and the list of diseases that have a deployed ranking. "Model: Unavailable" means live inference is unavailable; the rankings are precomputed. |
+| [`02-ranked-candidates.png`](screenshots/02-ranked-candidates.png) | Lead image: a real ranked candidate list for "breast neoplasm", labelled "Precomputed ranking ... Not a live model inference result". Scores only; no explanation paths. |
+| [`03-not-available.png`](screenshots/03-not-available.png) | The honest empty state for a disease with no ranking. |
+| [`04-disease-biology.png`](screenshots/04-disease-biology.png) | Disease biology for breast cancer: real Open Targets genes (top of the panel). |
+| [`05-target-scorecard.png`](screenshots/05-target-scorecard.png) | Target scorecard for ERBB2 from Open Targets. |
+| [`06-evidence-lookup.png`](screenshots/06-evidence-lookup.png) | Evidence lookup for doxorubicin and breast cancer: PubMed, ClinicalTrials.gov, openFDA and DailyMed all "ok" (top of the panel; the safety section below it is much longer). |
+
+Not captured: the Markdown brief download, the candidate comparison panel and the hypothesis notebook.
 
 ## 60-90 second demo script (elevator pitch)
 
@@ -53,14 +43,17 @@ video intro, a hallway conversation, the first 90 seconds of a longer demo.
 > whether a real ranking model is available right now, instead of showing
 > a plausible-looking fake number. That's a deliberate design choice, not
 > a missing feature: a wrong confident number in a drug-discovery tool is
-> worse than an honest "not yet." [one real query -- disease biology or
-> evidence lookup] This part is live, real data, right now. The ranking
-> model itself -- [name current status from
-> `V1_RELEASE_CHECKLIST.md`/`README.md`'s "Project status"] -- is the piece
-> I'm finishing next.
+> worse than an honest "not yet." [open a ranked disease, e.g. breast neoplasm]
+> This is a real ranking from a relational graph neural network I trained and
+> evaluated exactly once on a locked set of 100 held-out diseases -- it beats my
+> TransE baseline (Hits@10 0.062 vs 0.016), but it is still weak in absolute terms
+> and it is precomputed for five diseases, not live. [one real query -- disease
+> biology or evidence lookup] That part is live, real data, right now.
 
-Swap the bracketed status line for whatever's true when you give this --
-don't let it go stale.
+(Everything in the brackets is a stage direction; the numbers are from
+`docs/FINAL_RESULTS.md`. Do not add a claim that it finds new treatments.)
+
+Re-check the numbers against `docs/FINAL_RESULTS.md` before using this.
 
 ## 2-minute technical walkthrough
 
@@ -87,23 +80,26 @@ steps 1-3 and 9 of it, compressed.
 > embedding model isn't picking up enough of PrimeKG's relational structure
 > on its own. That's what motivated the next model, R-GCN -- a relational
 > graph neural network that conditions directly on edge types instead of
-> compressing everything into one embedding geometry -- [current status].
-> Whatever wins gets exported through a serving layer I built specifically
-> so that dropping in a real trained model's output is a data step, not a
-> code change -- the API and UI are already wired end-to-end against that
-> contract, they're just honestly reporting "not available" until a real
-> bundle exists.
+> compressing everything into one embedding geometry. I picked its configuration
+> on validation only, trained it once, and evaluated it once on the same locked
+> test: Hits@10 0.062 and MRR 0.033, against 0.016 and 0.010 for TransE. By the
+> rule I fixed in advance -- both metrics have to be higher -- that counts as an
+> improvement over TransE. It is not better than the path baseline on Hits@10,
+> and those two rank different-sized candidate sets, so I don't claim a ranking
+> between them; and with 498 pairs I can't give a significance interval, because
+> I never saved TransE's per-disease results. The model's output is exported
+> through a serving layer so the API and UI read precomputed files, not a live
+> model -- five diseases today.
 
 ## GitHub project description
 
 Short (for the repo's "About" field, ~350 characters):
 
 > Explainable drug-repurposing research tool over a 4M-edge biomedical
-> knowledge graph (PrimeKG). Path-quality, popularity, TransE and (in
-> progress) R-GCN rankers evaluated on a leakage-safe, disease-held-out,
-> single-locked-test protocol. FastAPI + React, live PubMed/ClinicalTrials.gov/
-> openFDA/DailyMed/Open Targets evidence. Research hypotheses only, not
-> treatment recommendations.
+> knowledge graph (PrimeKG). Path-quality, popularity, TransE and R-GCN rankers
+> evaluated on a leakage-safe, disease-held-out, single-locked-test protocol.
+> FastAPI + React, live PubMed/ClinicalTrials.gov/openFDA/DailyMed/Open Targets
+> evidence. Research hypotheses only, not treatment recommendations.
 
 One-line topics/tags: `drug-repurposing`, `knowledge-graph`,
 `graph-neural-networks`, `fastapi`, `react`, `bioinformatics`,

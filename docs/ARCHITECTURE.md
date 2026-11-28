@@ -45,9 +45,8 @@ hardcoded stub, once one exists. `schemas.py` defines
 validates bundles from `data/serving/*.json`; `export_rankings.py` is the
 offline CLI that builds one from an already-ranked, already-approved
 candidate list. This package never computes or fabricates a ranking --
-`data/serving/` is empty today (only a `.gitkeep`), because no committed
-experiment artifact anywhere holds a real per-disease ranked candidate
-list yet (see "What 'ranking' means today vs. later" below).
+`data/serving/` holds 5 bundles exported from the final R-GCN checkpoint
+(see "What 'ranking' means today vs. later" below).
 
 **Evidence/safety domain** (`ml/src/repurposemap/evidence`). Four live
 adapters (PubMed, ClinicalTrials.gov, openFDA, DailyMed), each raising its own
@@ -74,13 +73,10 @@ they ranked.
 `RankingResponse` schema -- candidates, scores, explanation paths, safety
 flags -- is part of the committed OpenAPI schema) and is now backed by a
 real serving mechanism (`repurposemap.serving`, see above), not a hardcoded
-stub. But its body still always returns `model_status: "not_available"`
-with zero candidates in practice, because `data/serving/` is empty: no
-committed experiment artifact anywhere holds a per-disease ranked candidate
-list to export from yet. This is intentional: PLAN.md's Hypothesis-generation
-step needs a trained R-GCN (or TransE) checkpoint, which does not exist yet
-(validation search in progress -- see `ml/RGCN_RUNBOOK.md` and
-`V1_RELEASE_CHECKLIST.md`). Wiring a real model in from here is a *data*
+stub. It now serves real rankings: `data/serving/` holds 5 bundles exported from the final
+R-GCN checkpoint (see `docs/FINAL_RESULTS.md` and `docs/POST_RGCN_COMMANDS.md`), and any other
+disease still returns `model_status: "not_available"` with zero candidates. The served
+bundles carry scores but no explanation paths. Wiring a real model in from here is a *data*
 step, not a *code* step: run `repurposemap.serving.export_rankings` against
 the model's approved ranking output for each deployed demo disease. The
 frontend rendering (`CandidateList.tsx`, `QueryForm.tsx`) and

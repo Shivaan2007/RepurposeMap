@@ -13,10 +13,10 @@ Seven real endpoints exist today: `/health`, `/api/v1/system/info`,
 `POST /api/v1/target-scorecard`, `POST /api/v1/rank`, and
 `GET /api/v1/rank/diseases`. `POST /api/v1/rank` is backed by the
 precomputed serving mechanism (`repurposemap.serving`) rather than live
-model inference -- see "Precomputed ranking serving" below. There is no
-trained model wired in yet, and `data/serving/` is empty today, so in
-practice this endpoint still always reports `model_status:
-"not_available"`. The evidence/biology/scorecard lookup endpoints are
+model inference -- see "Precomputed ranking serving" below. `data/serving/`
+holds precomputed R-GCN rankings for 5 diseases, which this endpoint serves
+(`model_status: "ready"`, `serving_mode: "precomputed"`); any other disease gets
+`model_status: "not_available"`. The evidence/biology/scorecard lookup endpoints are
 synchronous -- see "Evidence/safety domain" and "Disease biology domain"
 below for what that means and why.
 
@@ -79,14 +79,13 @@ Re-export `openapi.json` first if you've changed anything in
    bundles in `data/serving/` by exact match only (case-insensitive for
    names) -- never a fuzzy guess at which bundle a free-text name means.
 
-`data/serving/` is empty today (only a `.gitkeep`): no committed
-experiment artifact anywhere holds a real per-disease ranked candidate
-list yet (see `docs/ARCHITECTURE.md`). So in practice, every request to
-`/api/v1/rank` today still returns `model_status: "not_available"`,
-`serving_mode: "not_available"`, with an empty candidate list --
-exactly the same honest response this endpoint has always returned,
-just now backed by a real mechanism with nothing to serve yet rather
-than a hardcoded stub. `GET /api/v1/rank/diseases` lists whichever
+`data/serving/` holds 5 real bundles, exported from the final R-GCN checkpoint by
+`scripts/post_checkpoint.py export` (see `docs/POST_RGCN_COMMANDS.md`), each recording its
+source experiment record and commit. A request for one of those diseases returns
+`model_status: "ready"` and `serving_mode: "precomputed"` with the real candidates; any other
+disease returns `model_status: "not_available"`, `serving_mode: "not_available"` and an empty
+candidate list, never a fabricated one. The served candidates carry scores only: the bundles
+hold no explanation paths. `GET /api/v1/rank/diseases` lists whichever
 diseases do have a bundle, so a caller can discover this without a
 failed query first.
 
