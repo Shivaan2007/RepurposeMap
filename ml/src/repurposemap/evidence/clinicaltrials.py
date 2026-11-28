@@ -226,6 +226,8 @@ class ClinicalTrialsAdapter:
                 "query.intr": query.drug_name,
                 "query.cond": query.disease_name,
                 "pageSize": str(query.max_results),
+                # Without this the real API leaves totalCount out of the response, which the parser rejects.
+                "countTotal": "true",
                 "format": "json",
             }
         )
