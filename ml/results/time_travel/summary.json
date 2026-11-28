@@ -1,0 +1,117 @@
+{
+ "methods": {
+  "rgcn": {
+   "pairs": 2500,
+   "prior": 437,
+   "new": 2003,
+   "hits": 38,
+   "errors": 60,
+   "hit_rate": 0.018971542685971045,
+   "paper_hit_rate": 0.016475287069395907,
+   "trial_hit_rate": 0.003494757863205192,
+   "macro_hit_rate": 0.030532885406728758,
+   "diseases_with_new_pairs": 49
+  },
+  "popularity": {
+   "pairs": 2500,
+   "prior": 351,
+   "new": 2099,
+   "hits": 27,
+   "errors": 50,
+   "hit_rate": 0.012863268222963315,
+   "paper_hit_rate": 0.011434016198189614,
+   "trial_hit_rate": 0.0028585040495474035,
+   "macro_hit_rate": 0.016566642068586747,
+   "diseases_with_new_pairs": 49
+  },
+  "random": {
+   "pairs": 2500,
+   "prior": 70,
+   "new": 2249,
+   "hits": 12,
+   "errors": 181,
+   "hit_rate": 0.005335704757670075,
+   "paper_hit_rate": 0.0031124944419742106,
+   "trial_hit_rate": 0.0022232103156958646,
+   "macro_hit_rate": 0.0057475335412749,
+   "diseases_with_new_pairs": 49
+  }
+ },
+ "comparisons": {
+  "rgcn_minus_popularity": {
+   "difference": 0.00610827446300773,
+   "ci_low": -0.002945013630714523,
+   "ci_high": 0.015613400109949304,
+   "excludes_zero": false,
+   "resamples_used": 10000,
+   "resamples_dropped": 0
+  },
+  "rgcn_minus_random": {
+   "difference": 0.013635837928300969,
+   "ci_low": 0.00533976869395891,
+   "ci_high": 0.023699234308292707,
+   "excludes_zero": true,
+   "resamples_used": 10000,
+   "resamples_dropped": 0
+  }
+ },
+ "as_of": "2026-11-28",
+ "sensitivity_trial_errors_as_zero": {
+  "methods": {
+   "rgcn": {
+    "pairs": 2500,
+    "prior": 437,
+    "new": 2063,
+    "hits": 38,
+    "errors": 0,
+    "hit_rate": 0.018419777023751818,
+    "paper_hit_rate": 0.015996122152205527,
+    "trial_hit_rate": 0.0033931168201648087,
+    "macro_hit_rate": 0.029922227698594185,
+    "diseases_with_new_pairs": 50
+   },
+   "popularity": {
+    "pairs": 2500,
+    "prior": 351,
+    "new": 2149,
+    "hits": 27,
+    "errors": 0,
+    "hit_rate": 0.012563983248022336,
+    "paper_hit_rate": 0.011167985109353188,
+    "trial_hit_rate": 0.002791996277338297,
+    "macro_hit_rate": 0.016235309227215014,
+    "diseases_with_new_pairs": 50
+   },
+   "random": {
+    "pairs": 2500,
+    "prior": 70,
+    "new": 2430,
+    "hits": 12,
+    "errors": 0,
+    "hit_rate": 0.0049382716049382715,
+    "paper_hit_rate": 0.002880658436213992,
+    "trial_hit_rate": 0.00205761316872428,
+    "macro_hit_rate": 0.005248030054915376,
+    "diseases_with_new_pairs": 50
+   }
+  },
+  "comparisons": {
+   "rgcn_minus_popularity": {
+    "difference": 0.005855793775729482,
+    "ci_low": -0.002950659124672774,
+    "ci_high": 0.015180777199663079,
+    "excludes_zero": false,
+    "resamples_used": 10000,
+    "resamples_dropped": 0
+   },
+   "rgcn_minus_random": {
+    "difference": 0.013481505418813548,
+    "ci_low": 0.005419767721492328,
+    "ci_high": 0.023410432028305672,
+    "excludes_zero": true,
+    "resamples_used": 10000,
+    "resamples_dropped": 0
+   }
+  }
+ }
+}

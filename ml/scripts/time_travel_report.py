@@ -30,21 +30,26 @@ def load_jsonl(path: Path) -> dict[str, dict]:
     return out
 
 
-def pair_evidence(pubmed: dict, trials: dict, key: str) -> tt.PairEvidence:
+def pair_evidence(pubmed: dict, trials: dict, key: str, *, trial_error_as_zero: bool = False) -> tt.PairEvidence:
+    """``trial_error_as_zero`` is the labelled sensitivity analysis only: a failed trial lookup counts as no trials."""
+
     p, t = pubmed.get(key), trials.get(key)
     if p is None or t is None:
         return tt.PairEvidence(error="not collected")
-    error = p.get("error") or t.get("error")
-    if error:
-        return tt.PairEvidence(error=str(error))
+    if p.get("error"):
+        return tt.PairEvidence(error=str(p["error"]))
+    if t.get("error"):
+        if trial_error_as_zero:
+            return tt.PairEvidence(p["prior_papers"], p["later_papers"], 0, 0)
+        return tt.PairEvidence(error=str(t["error"]))
     return tt.PairEvidence(p["prior_papers"], p["later_papers"], t["prior_trials"], t["later_trials"])
 
 
-def analyse(rankings: dict, pubmed: dict, trials: dict) -> dict:
+def analyse(rankings: dict, pubmed: dict, trials: dict, *, trial_error_as_zero: bool = False) -> dict:
     per_method: dict[str, list[dict]] = {m: [] for m in METHODS}
     for disease in rankings["diseases"]:
         for method in METHODS:
-            evidences = [pair_evidence(pubmed, trials, f"{d['drug_id']}|{disease['disease_id']}") for d in disease[method]]
+            evidences = [pair_evidence(pubmed, trials, f"{d['drug_id']}|{disease['disease_id']}", trial_error_as_zero=trial_error_as_zero) for d in disease[method]]
             per_method[method].append(tt.counts(evidences))
     summary: dict = {"methods": {}, "comparisons": {}}
     for method, rows in per_method.items():
@@ -73,23 +78,50 @@ def pct(x: float | None) -> str:
     return "n/a" if x is None else f"{100 * x:.1f}%"
 
 
-def render(summary: dict, as_of: str) -> str:
-    m = summary["methods"]
-    lines = [
-        "# Time-travel test: results", "",
-        f"Protocol: `ml/TIME_TRAVEL_PROTOCOL.md` (fixed before any query). Cutoff {tt.CUTOFF}; later evidence counted through {as_of}. "
-        "50 locked-test diseases, top 50 drugs per ranker.", "",
-        "A hit is a co-mention in a PubMed title/abstract or a registered trial. It is not evidence that a drug works, and nothing here is a treatment suggestion.", "",
+def table(m: dict) -> list[str]:
+    rows = [
         "| Ranker | Pairs | Had prior evidence | New pairs | Hits | Hit rate | Papers only | Trials only | Macro avg | Errors |",
         "|---|---|---|---|---|---|---|---|---|---|",
     ]
     for k in METHODS:
         r = m[k]
-        lines.append(f"| {LABELS[k]} | {r['pairs']} | {r['prior']} | {r['new']} | {r['hits']} | {pct(r['hit_rate'])} | {pct(r['paper_hit_rate'])} | {pct(r['trial_hit_rate'])} | {pct(r['macro_hit_rate'])} | {r['errors']} |")
+        rows.append(f"| {LABELS[k]} | {r['pairs']} | {r['prior']} | {r['new']} | {r['hits']} | {pct(r['hit_rate'])} | {pct(r['paper_hit_rate'])} | {pct(r['trial_hit_rate'])} | {pct(r['macro_hit_rate'])} | {r['errors']} |")
+    return rows
+
+
+def render(summary: dict, as_of: str) -> str:
+    m = summary["methods"]
+    lines = [
+        "# Time-travel test: results", "",
+        f"Protocol: `ml/TIME_TRAVEL_PROTOCOL.md` (fixed before any query; Amendment 1 quotes trial query names). Cutoff {tt.CUTOFF}; later evidence counted through {as_of}. "
+        "50 locked-test diseases, top 50 drugs per ranker.", "",
+        "A hit is a co-mention in a PubMed title/abstract or a registered trial. It is not evidence that a drug works, and nothing here is a treatment suggestion.", "",
+    ]
+    lines += table(m)
     lines += ["", "## Pre-registered comparisons (disease-level paired bootstrap, 10,000 resamples, seed 42)", ""]
     for other in ("popularity", "random"):
         c = summary["comparisons"][f"rgcn_minus_{other}"]
         lines.append(f"- {verdict('rgcn', other, c)} Resamples used {c['resamples_used']}, dropped {c['resamples_dropped']}.")
+    sens = summary.get("sensitivity_trial_errors_as_zero")
+    if sens:
+        lines += ["", "## Sensitivity analysis (not the pre-registered result): failed trial lookups counted as no trials", "",
+                  "ClinicalTrials.gov rejected some drug names with HTTP 400, unevenly across rankers, and the primary analysis excludes those pairs. Here they are kept, with zero trials, so only PubMed decides them.", ""]
+        lines += table(sens["methods"])
+        lines.append("")
+        for other in ("popularity", "random"):
+            c = sens["comparisons"][f"rgcn_minus_{other}"]
+            lines.append(f"- {verdict('rgcn', other, c)} Resamples used {c['resamples_used']}, dropped {c['resamples_dropped']}.")
+    errors = {k: m[k]["errors"] for k in METHODS}
+    total_errors = sum(errors.values())
+    lines += [
+        "", "## Reading this result", "",
+        f"- Errors: {total_errors} of {sum(m[k]['pairs'] for k in METHODS)} ranker-pairs ({100 * total_errors / sum(m[k]['pairs'] for k in METHODS):.1f}%; "
+        f"R-GCN {errors['rgcn']}, popularity {errors['popularity']}, random {errors['random']}) could not be looked up on ClinicalTrials.gov (HTTP 400 on long or unusual chemical names, "
+        "unchanged by a retry), which is above the 2% line in the protocol. They are excluded in the primary analysis, as pre-registered, and the sensitivity analysis above shows the conclusions do not change.",
+        "- Absolute rates are low: roughly 2 in 100 new pairs gain any later co-mention or trial. A hit is a co-mention, not a finding that the drug works.",
+        "- \"Had prior evidence\" is counted before the filter. A ranker with many such pairs (R-GCN, popularity) is mostly recommending drugs that were already studied with the disease; random rarely is.",
+        "- The ranked lists are not filtered for known indications. Name matching uses PrimeKG's own names with no synonyms.",
+    ]
     lines += ["", "Name matching misses synonyms; popular drugs gain papers faster over time, so popularity is a strong baseline. Reported as found.", ""]
     return "\n".join(lines)
 
@@ -104,6 +136,9 @@ def main(argv: list[str] | None = None) -> int:
     rankings = json.loads(args.rankings.read_text())
     summary = analyse(rankings, load_jsonl(directory / "pubmed_cache.jsonl"), load_jsonl(directory / "trials_cache.jsonl"))
     summary["as_of"] = args.as_of
+    summary["sensitivity_trial_errors_as_zero"] = analyse(
+        rankings, load_jsonl(directory / "pubmed_cache.jsonl"), load_jsonl(directory / "trials_cache.jsonl"), trial_error_as_zero=True
+    )
     (directory / "summary.json").write_text(json.dumps(summary, indent=1) + "\n")
     args.docs_output.write_text(render(summary, args.as_of))
     print(render(summary, args.as_of))
