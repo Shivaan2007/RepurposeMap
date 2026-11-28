@@ -27,6 +27,10 @@ RepurposeMap is **not** a treatment recommendation system. It does not:
 - Candidate rankings are **precomputed** for 5 diseases and served from files, not computed live (`serving_mode: "precomputed"`). Any other disease honestly returns `model_status: "not_available"`.
 - Deployment details and how updates reach each side: [docs/DEPLOY_RUNBOOK.md](docs/DEPLOY_RUNBOOK.md).
 
+![Ranked candidates for breast neoplasm, from the live site](docs/screenshots/02-ranked-candidates.png)
+
+More screenshots, all from the live site: [docs/DEMO_MATERIALS.md](docs/DEMO_MATERIALS.md).
+
 ## Architecture
 
 ```mermaid

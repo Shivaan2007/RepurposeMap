@@ -1,12 +1,8 @@
-# Portfolio summary (draft)
+# Portfolio summary
 
-A concise, honest summary for a resume/portfolio context. Every claim
-here is sourced from `README.md` / `V1_RELEASE_CHECKLIST.md` as of this
-draft -- update it if either changes, rather than letting it drift.
-
-**Do not use this before updating it** once R-GCN's validation search
-finishes and/or the project is actually deployed -- several lines below
-are explicitly scoped to "as of now" and would become false otherwise.
+A concise, honest summary for a resume/portfolio context, as of 2026-11-28. Every number comes from
+[`docs/FINAL_RESULTS.md`](FINAL_RESULTS.md) and `README.md`; if either changes, update this rather than letting it drift.
+Live demo: https://repurposemap.vercel.app
 
 ## Project summary
 
@@ -20,26 +16,30 @@ single locked test set never touched during model development, and an
 API/UI that report "not available" rather than fabricate a result when
 no real ranking exists.
 
-## Resume bullets (draft -- verify current state before using)
+## Resume bullets
 
-- Built an explainable drug-repurposing research pipeline over a
-  4M-edge biomedical knowledge graph (PrimeKG), including a
-  leakage-safe disease-held-out evaluation harness, a path-quality
-  heuristic baseline, and a trained TransE knowledge-graph-embedding
-  baseline evaluated once against a single locked test set.
-- Designed and implemented a typed FastAPI + Pydantic service with a
-  deterministic OpenAPI-schema-to-TypeScript-client pipeline, a
-  precomputed-ranking serving contract decoupled from live model
-  inference, and a React research workspace integrating four live
-  external evidence/safety APIs (PubMed, ClinicalTrials.gov, openFDA,
-  DailyMed) plus Open Targets.
-- Enforced a strict experiment-provenance protocol across a
-  multi-week model search (TransE validation search -> locked test;
-  R-GCN validation search in progress on Kaggle), with an
-  honest-by-construction API layer that reports model availability
-  from read-only experiment records and refuses to report a model as
-  usable without both an eligible record and an explicitly configured
-  checkpoint.
+- Built an explainable drug-repurposing research pipeline over PrimeKG (8.1M edges): a leakage-safe,
+  disease-held-out evaluation harness, path-quality and popularity baselines, TransE, and a sampled relational
+  GNN (R-GCN) in PyTorch. Under a pre-registered protocol with one locked-test evaluation (100 held-out diseases,
+  498 pairs), the R-GCN reached Hits@10 0.062 and MRR 0.033 against 0.016 and 0.010 for TransE.
+- Designed a typed FastAPI + Pydantic service with an OpenAPI-to-TypeScript client pipeline, a precomputed-ranking
+  serving contract, and a React research workspace over live PubMed, ClinicalTrials.gov, openFDA, DailyMed and
+  Open Targets lookups; added CI and deployed it on Render and Vercel.
+- Enforced the experiment protocol in code, not just in documentation: frozen model-selection rule, an
+  exactly-once locked-test guard, checkpoint verification against the frozen spec, and provenance records;
+  found and fixed integration bugs (a browser fetch error that made every request fail, and a
+  ClinicalTrials.gov lookup that always failed) by testing the deployed system in a real browser.
+- Ran 3 masked case studies (a known indication removed from the message-passing graph at inference; known drugs
+  ranked 20, 151 and 190 of 7,957), reported as anecdotes, not validation.
+
+## What this project does not show
+
+- No claim that any drug works: outputs are research hypotheses, and the absolute accuracy is low (the true drug is
+  in the top 10 for about 6 in 100 held-out pairs).
+- No significance interval for R-GCN vs TransE (TransE's per-disease results were not saved), and the path
+  baseline ranks a smaller candidate set, so no ranking against it is claimed.
+- Rankings are precomputed for 5 diseases, not live, and carry scores but no explanation paths.
+- Not built: the time-travel test against later literature, the TxGNN comparison, expert review, a triage shortlist.
 
 ## Tech stack
 
@@ -51,8 +51,8 @@ no real ranking exists.
   (`openapi-typescript`).
 - **External integrations**: PubMed E-utilities, ClinicalTrials.gov
   API, openFDA, DailyMed, Open Targets GraphQL API.
-- **Deployment**: Render (backend), Vercel (frontend) -- config
-  committed, not yet exercised against a live account as of this draft.
+- **Deployment**: Render (backend, free tier) and Vercel (frontend), live; GitHub Actions CI (pytest and the
+  frontend build).
 
 ## Research contribution
 
@@ -67,10 +67,9 @@ no real ranking exists.
   documented, mechanical tie-break rule for selecting a winner --
   designed specifically to prevent post-hoc retuning after seeing
   results.
-- A masked case-study harness (remove a known indication edge in both
-  directions, confirm removal, then re-rank) for later qualitative
-  validation of a trained model, built before any model exists to run
-  it against.
+- A masked case-study harness (remove a known indication edge from the message-passing graph, confirm removal,
+  re-encode, then re-rank), used for 3 case studies. Limitation stated everywhere it is cited: the weights were
+  trained with that edge and not retrained, so this is weaker than a retrain-and-replay.
 
 ## Engineering contribution
 
