@@ -226,3 +226,26 @@ def test_missing_optional_modules_leave_new_fields_empty_not_fabricated():
     assert record.completion_date is None
     assert record.enrollment is None
     assert record.sponsor is None
+
+
+def _dates_page(dates, token=None):
+    studies = [{"protocolSection": {"statusModule": ({"startDateStruct": {"date": d}} if d else {})}} for d in dates]
+    return json.dumps({"studies": studies, **({"nextPageToken": token} if token else {})}).encode()
+
+
+def test_start_dates_follow_pages_and_keep_missing_dates_as_none():
+    fetcher = FakeFetcher(_dates_page(["2019-03", "2023-05-01"], token="T1"), _dates_page([None, "2022-04-25"]))
+    dates = make_adapter(fetcher).start_dates(ClinicalTrialsQuery(drug_name="Drug A", disease_name="Disease B"))
+    assert dates == ["2019-03", "2023-05-01", None, "2022-04-25"]
+    first, second = (urllib.parse.parse_qs(urllib.parse.urlparse(u).query) for u, _t in fetcher.urls)
+    assert first["fields"] == ["NCTId|StartDate"] and first["pageSize"] == ["1000"] and "pageToken" not in first
+    assert second["pageToken"] == ["T1"]
+
+
+def test_start_dates_refuses_a_partial_list_and_surfaces_bad_bodies():
+    endless = FakeFetcher(*[_dates_page(["2020"], token="T") for _ in range(3)])
+    with pytest.raises(ClinicalTrialsParseError):
+        make_adapter(endless).start_dates(ClinicalTrialsQuery(drug_name="x", disease_name="y"), max_pages=3)
+    for body in (b"not json", json.dumps({"nope": 1}).encode()):
+        with pytest.raises(ClinicalTrialsParseError):
+            make_adapter(FakeFetcher(body)).start_dates(ClinicalTrialsQuery(drug_name="x", disease_name="y"))
