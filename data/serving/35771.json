@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "disease_id": "35771",
+  "disease_name": "breast neoplasm",
+  "ranking_method": "rgcn",
+  "provenance": {
+    "ranking_method": "rgcn",
+    "source_experiment_file": "ml/experiments/rgcn_final_locked_test_ca9313b1.json",
+    "source_commit": "4e148af51e1d3fb1c8d02eb62a55cd478d3e62f6"
+  },
+  "generated_at": "2026-11-27T03:38:15.045691+00:00",
+  "candidate_universe": {
+    "description": "full PrimeKG drug universe used by rgcn training (7957 drugs)",
+    "size": 7957
+  },
+  "candidates": [
+    {
+      "drug_id": "15134",
+      "drug_name": "Hydroxyurea",
+      "rank": 1,
+      "score": 9.104947090148926,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "14242",
+      "drug_name": "Meloxicam",
+      "rank": 2,
+      "score": 8.19133186340332,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "14612",
+      "drug_name": "Trabectedin",
+      "rank": 3,
+      "score": 7.220370292663574,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "14155",
+      "drug_name": "Gefitinib",
+      "rank": 4,
+      "score": 7.132204055786133,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "14951",
+      "drug_name": "Quinine",
+      "rank": 5,
+      "score": 6.998862266540527,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "15481",
+      "drug_name": "Topotecan",
+      "rank": 6,
+      "score": 6.954436302185059,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "17584",
+      "drug_name": "Adalimumab",
+      "rank": 7,
+      "score": 6.909633636474609,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "14793",
+      "drug_name": "Docetaxel",
+      "rank": 8,
+      "score": 6.859479904174805,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "14231",
+      "drug_name": "Irinotecan",
+      "rank": 9,
+      "score": 6.787604331970215,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "14061",
+      "drug_name": "Diclofenac",
+      "rank": 10,
+      "score": 6.78134298324585,
+      "explanation_paths": []
+    }
+  ]
+}

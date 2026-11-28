@@ -89,17 +89,6 @@ no real ranking exists.
   genuinely distinct code paths, so that wiring in a real trained
   model's output is a data-export step, not a code change.
 
-## Results placeholder
+## Results
 
-**As of this draft**: TransE final training and its one locked-test
-evaluation are complete (see `README.md`'s results table) -- TransE did
-not outperform the path-quality baseline on the locked test. An R-GCN
-validation search (3 configs: base, wide, moreBases) is now complete on
-Kaggle -- `rgcn-wide` was selected on validation MRR -- but this is a
-validation-only result; final training and the one locked-test
-evaluation have not started and require explicit owner approval, so no
-R-GCN locked-test result exists yet. **Do not state an R-GCN locked-test
-result, a "final model," or a live-deployment claim in any portfolio material
-until both are actually true** -- update this section (and the resume
-bullets above) only once the locked-test evaluation for whichever model
-is selected has actually been run and approved.
+The one locked-test result for the frozen R-GCN, next to the path, popularity and TransE baselines, is in [`docs/FINAL_RESULTS.md`](FINAL_RESULTS.md). Headline: the frozen sampled R-GCN (`rgcn-wide`), evaluated once on the 100-disease / 498-pair locked test, beat the final TransE baseline on both MRR (0.0334 vs. 0.0100) and Hits@10 (0.0622 vs. 0.0161) under the pre-registered decision rule, though absolute performance on the full 7,957-drug universe remains weak. Caveats stated there: a small test set (100 diseases, 498 pairs), a path baseline that ranks a different candidate set, and no claim of clinical efficacy.

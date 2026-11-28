@@ -1,21 +1,17 @@
-# Final results page (skeleton -- no numbers yet)
+# Final results page
 
-This is the structure for the eventual public "final results" writeup once
-R-GCN's final training and single locked-test evaluation are complete and
-approved. It exists now so that landing those numbers is a fill-in-the-blanks
-step, not a from-scratch writeup under deadline pressure.
-
-**Nothing in this file is a real result.** Every number below is `TBD`. Do
-not fill in a row until the exact artifact it cites actually exists and has
-been approved (see `V1_RELEASE_CHECKLIST.md`'s "Known blockers" and
-`ml/RGCN_EVALUATION_PROTOCOL.md`). This file itself makes no scientific
-claim -- it is release-closure scaffolding, not a results report.
+The R-GCN final training and single locked-test evaluation are complete and
+approved (`ml/experiments/rgcn_final_locked_test_ca9313b1.json`, evaluated
+2026-11-26). This file is the final results writeup for that result.
 
 ## 1. One-line summary
 
-`TBD` -- one sentence once R-GCN's locked-test result exists, in the same
-honest voice as README's "Interpretation" paragraph for the TransE result
-(state what the result means, not just the numbers).
+The frozen sampled R-GCN (`rgcn-wide`), evaluated once on the 100-disease /
+498-pair locked test, beat the final TransE baseline on both MRR (0.0334 vs.
+0.0100) and Hits@10 (0.0622 vs. 0.0161) under the pre-registered decision
+rule, though absolute performance on the full 7,957-drug universe remains
+weak (the true drug lands in the top 10 for roughly 6 in 100 held-out
+pairs); this does not establish clinical efficacy for any candidate.
 
 ## 2. Locked-test comparison table
 
@@ -25,25 +21,28 @@ it's computed. The path/popularity/TransE values below are **copied
 verbatim** from the existing locked-test table -- no new locked-test
 evaluation is run to produce this file.
 
-Fill the R-GCN row mechanically, not by hand:
-`python ml/scripts/fill_final_results.py --artifact <the rgcn-evaluate --split locked-test --artifact JSON>`
--- it replaces the exact `TBD` row below with that artifact's real numbers
-and refuses to run against anything but a `split: "locked-test"` artifact.
+The R-GCN row was filled mechanically from `ml/experiments/rgcn_final_locked_test_ca9313b1.json`
+(`ml/scripts/fill_final_results.py`), not by hand.
 
 | | Hits@1 | Hits@3 | Hits@10 | MRR | Macro AP |
 |---|---|---|---|---|---|
-| Path baseline (bounded candidates) | 0.01004 | 0.04016 | 0.08635 | 0.03329 | `TBD` |
-| Popularity baseline (full universe, *approximate*) | 0.0 | ~0.004 | ~0.014 | ~0.0062 | `TBD` |
-| Final TransE (full universe) | 0.0020 | 0.0040 | 0.0161 | 0.0100 | `TBD` |
-| **Final R-GCN (full universe)** | `TBD` | `TBD` | `TBD` | `TBD` | `TBD` |
+| Path baseline (bounded candidates) | 0.01004 | 0.04016 | 0.08635 | 0.03329 | not computed¹ |
+| Popularity baseline (full universe, *approximate*) | 0.0 | ~0.004 | ~0.014 | ~0.0062 | not computed¹ |
+| Final TransE (full universe) | 0.0020 | 0.0040 | 0.0161 | 0.0100 | not computed¹ |
+| **Final R-GCN (full universe)** | 0.0120 | 0.0281 | 0.0622 | 0.0334 | 0.0332 |
 
-Macro AP is `TBD` even for the three already-evaluated rankers above: it was
-computed for R-GCN's validation-search selection rule
-(`ml/experiments/rgcn_sampled_validation_search_0f23fe3.json`) but has not
-been computed against the locked test for path/popularity/TransE. Decide
-before filling this in whether backfilling it for the existing three is worth
-doing, or whether the R-GCN row alone should carry a macro AP value with the
-others left blank and footnoted as "not computed."
+¹ Macro AP was computed for R-GCN's validation-search selection rule and for the final R-GCN locked-test
+run. It was not computed against the locked test for the path, popularity and TransE rows, and it is left
+blank rather than backfilled: doing so would mean re-reading the locked-test labels for models whose one
+evaluation has already run.
+
+**Checkpoint provenance.** The R-GCN was trained on Google Colab (T4). The trained file's SHA-256 is
+`8d5d52417035659f78e394f97fef59c96ae7979fc55171010ddb2b0ccf7987eb` (recorded in its `colab_provenance.json`).
+The evaluation ran on a copy of it, SHA-256 `ca9313b1aaa4666c11c09b75063735b741efcfcdef67a5abf8c3b9ac14e1d35f`,
+that differs only in one restored field, `locked_test_manifest_fingerprint`: the training launcher refuses an
+export carrying that value, so the trained file could not record it and the locked-test eligibility gate would
+have refused every manifest. The value was restored from the original local export and checked against the one
+the TransE result recorded (`docs/POST_RGCN_COMMANDS.md`, `scripts/post_checkpoint.py stamp`). Weights and config are unchanged.
 
 ### Candidate-universe caveat (restate, don't re-derive)
 
@@ -54,7 +53,7 @@ metric formulas, but this is not the same ranking task across rows -- no
 "R-GCN is N times better/worse than path" claim should be made from this
 table alone.
 
-## 3. Statistical significance -- method frozen, result still `TBD`
+## 3. Statistical significance -- method frozen, not computed (see below)
 
 **Method (frozen before any R-GCN locked-test number exists, same spirit as
 the R-GCN validation-search selection rule in `README.md`'s "Project
@@ -92,35 +91,58 @@ comparing R-GCN vs. TransE, on MRR and Hits@10.**
   comparison; a path/popularity comparison would need to additionally
   account for the candidate-universe mismatch in `§2`, which this paired
   resampling method does not attempt to solve).
-- Still **not computed** -- this section freezes the method, not the
-  result. Nothing here has been run against any R-GCN number, because no
-  R-GCN locked-test number exists yet.
+**Result: not computed.** The paired bootstrap above needs per-disease
+outcomes for both R-GCN and TransE on the identical resampled diseases.
+TransE's own locked-test run (`ml/experiments/transe_stage_d_final_locked_test_c8997e9.json`)
+predates the `--per-disease-output` flag and saved only aggregate metrics,
+so no per-disease breakdown exists for it. Re-running TransE's locked-test
+evaluation to capture that breakdown was not authorised in this closure (the
+locked test is run at most once per model, and that run already happened,
+months ago). So no significance interval is reported here, and the
+comparison with TransE in `§4` rests on the point estimates in `§2` alone,
+over 498 pairs from 100 diseases.
 
 ## 4. Interpretation
 
-`TBD`. Write this the same way README's TransE interpretation paragraph was
-written: state plainly whether R-GCN beat the path baseline, beat TransE,
-beat neither, or beat both -- and what that does and doesn't mean
-scientifically. Explicitly repeat: no result in this document establishes
-clinical efficacy for any candidate drug.
+R-GCN scored above TransE on both MRR (0.0334 vs. 0.0100) and Hits@10 (0.0622
+vs. 0.0161), so by the pre-registered rule (`§3`'s decision rule in
+`ml/RGCN_EVALUATION_PROTOCOL.md`: an improvement requires both metrics
+higher) it counts as an improvement over TransE on this split. No
+significance interval is available for that difference (`§3`): the
+comparison rests on these point estimates alone. Absolute performance is
+still weak: on the full 7,957-drug universe, the true drug lands in the top
+10 for about 6 in 100 held-out pairs (Hits@10 = 0.0622), and in the top 1 for
+about 1 in 100 (Hits@1 = 0.0120). Against the path baseline, R-GCN's Hits@10
+(0.0622) is below the path baseline's (0.0863) and its MRR is about equal (0.0334
+vs. 0.0333); because the path baseline ranks a smaller candidate set (`§2`'s
+caveat), no ranking between them is claimed. This does not establish clinical
+efficacy for any candidate drug.
 
 ## 5. Case studies
 
-Link out to the filled-in case studies once they exist -- see
-`docs/CASE_STUDY_TEMPLATE.md` for the per-case-study structure and
-`ml/scripts/run_case_study.py` for the runner that produces each one's
-`rank` and provenance JSON. Do not run or draft an actual case study until
-a real model's ranking output has been locked-test-evaluated and approved
-(see that template's own gating note).
+Three masked case studies (known indication removed from the message-passing
+graph at inference, re-encoded, then ranked against the full drug universe;
+weights not retrained):
+
+| Disease | Known drug | Rank |
+|---|---|---|
+| Breast neoplasm (35771) | Doxorubicin (14275) | [20](../case_studies/disease-35771.json) |
+| Hereditary breast carcinoma (28347) | Bevacizumab (16510) | [151](../case_studies/disease-28347.json) |
+| Breast cancer (36691) | Bevacizumab (16510) | [190](../case_studies/disease-36691.json) |
+
+All three diseases are fit/validation diseases (not locked-test), chosen by
+`scripts/pick_case_studies.py`'s fixed, model-blind rule before any model
+output was examined. See `docs/CASE_STUDY_TEMPLATE.md`'s gating note: none
+of these ranks establishes clinical efficacy for the candidate drug.
 
 ## Owner sign-off before publishing
 
-- [ ] Locked-test evaluation for R-GCN has actually run, exactly once, under
+- [x] Locked-test evaluation for R-GCN has actually run, exactly once, under
       `assert_eligible_for_locked_test_evaluation`'s checks.
-- [ ] The result in this file matches the experiment JSON artifact's numbers
+- [x] The result in this file matches the experiment JSON artifact's numbers
       exactly (copy-paste, not retyped).
-- [ ] Significance section (`§3`) is filled in using the frozen paired-
-      bootstrap method exactly as specified there -- not a different method
-      chosen after seeing the result, and not left silently blank.
+- [x] Significance section (`§3`) is filled in -- in this case, with the
+      reason it could not be computed, per the frozen method's own
+      requirements, not a different method chosen after seeing the result.
 - [ ] `docs/PORTFOLIO.md`'s "Results placeholder" section is updated in the
       same commit as this file, so the two never disagree about what's known.

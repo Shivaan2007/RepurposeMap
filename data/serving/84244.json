@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "disease_id": "84244",
+  "disease_name": "undifferentiated carcinoma of the corpus uteri",
+  "ranking_method": "rgcn",
+  "provenance": {
+    "ranking_method": "rgcn",
+    "source_experiment_file": "ml/experiments/rgcn_final_locked_test_ca9313b1.json",
+    "source_commit": "4e148af51e1d3fb1c8d02eb62a55cd478d3e62f6"
+  },
+  "generated_at": "2026-11-27T03:38:15.045691+00:00",
+  "candidate_universe": {
+    "description": "full PrimeKG drug universe used by rgcn training (7957 drugs)",
+    "size": 7957
+  },
+  "candidates": [
+    {
+      "drug_id": "15134",
+      "drug_name": "Hydroxyurea",
+      "rank": 1,
+      "score": 7.63011360168457,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "15481",
+      "drug_name": "Topotecan",
+      "rank": 2,
+      "score": 6.559678077697754,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "14155",
+      "drug_name": "Gefitinib",
+      "rank": 3,
+      "score": 6.210831642150879,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "14242",
+      "drug_name": "Meloxicam",
+      "rank": 4,
+      "score": 5.945030212402344,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "14186",
+      "drug_name": "Cisplatin",
+      "rank": 5,
+      "score": 5.825654983520508,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "14612",
+      "drug_name": "Trabectedin",
+      "rank": 6,
+      "score": 5.817802429199219,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "14231",
+      "drug_name": "Irinotecan",
+      "rank": 7,
+      "score": 5.77109432220459,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "14955",
+      "drug_name": "Vincristine",
+      "rank": 8,
+      "score": 5.725423336029053,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "15413",
+      "drug_name": "Gemcitabine",
+      "rank": 9,
+      "score": 5.620678901672363,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "15057",
+      "drug_name": "Rucaparib",
+      "rank": 10,
+      "score": 5.581296920776367,
+      "explanation_paths": []
+    }
+  ]
+}

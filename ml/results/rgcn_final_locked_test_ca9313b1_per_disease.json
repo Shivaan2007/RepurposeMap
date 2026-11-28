@@ -1,0 +1,2495 @@
+{
+  "split": "locked-test",
+  "outcomes": [
+    {
+      "disease_id": "27446",
+      "drug_id": "17286",
+      "rank": 1911
+    },
+    {
+      "disease_id": "28005",
+      "drug_id": "14656",
+      "rank": 130
+    },
+    {
+      "disease_id": "28005",
+      "drug_id": "15231",
+      "rank": 386
+    },
+    {
+      "disease_id": "28005",
+      "drug_id": "15782",
+      "rank": 956
+    },
+    {
+      "disease_id": "28059",
+      "drug_id": "16510",
+      "rank": 202
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "14166",
+      "rank": 1340
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "14222",
+      "rank": 1728
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "14259",
+      "rank": 837
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "14280",
+      "rank": 845
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "14293",
+      "rank": 4562
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "14303",
+      "rank": 4109
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "14304",
+      "rank": 2880
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "14306",
+      "rank": 906
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "14385",
+      "rank": 287
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "14455",
+      "rank": 1357
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "14475",
+      "rank": 560
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "14551",
+      "rank": 1687
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "14603",
+      "rank": 1067
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "14799",
+      "rank": 2368
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "14813",
+      "rank": 1947
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "15013",
+      "rank": 492
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "15198",
+      "rank": 1105
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "15201",
+      "rank": 1377
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "15282",
+      "rank": 1833
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "15283",
+      "rank": 3372
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "15373",
+      "rank": 2605
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "15501",
+      "rank": 1679
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "15598",
+      "rank": 1101
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "15753",
+      "rank": 987
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "15770",
+      "rank": 1167
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "15778",
+      "rank": 1150
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "15784",
+      "rank": 2936
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "15785",
+      "rank": 2096
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "15796",
+      "rank": 1174
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "15801",
+      "rank": 3007
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "15847",
+      "rank": 676
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "15878",
+      "rank": 1872
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "16588",
+      "rank": 833
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "17832",
+      "rank": 2559
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "17833",
+      "rank": 434
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "17903",
+      "rank": 586
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "17949",
+      "rank": 296
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "17950",
+      "rank": 1478
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "17951",
+      "rank": 2970
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "20278",
+      "rank": 1931
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "20513",
+      "rank": 2787
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "20514",
+      "rank": 3161
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "20515",
+      "rank": 4369
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "20516",
+      "rank": 3470
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "20517",
+      "rank": 1898
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "20518",
+      "rank": 2088
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "20519",
+      "rank": 2007
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "20520",
+      "rank": 1994
+    },
+    {
+      "disease_id": "28208",
+      "drug_id": "20521",
+      "rank": 1178
+    },
+    {
+      "disease_id": "28313",
+      "drug_id": "14140",
+      "rank": 3
+    },
+    {
+      "disease_id": "28313",
+      "drug_id": "14161",
+      "rank": 11
+    },
+    {
+      "disease_id": "28313",
+      "drug_id": "14178",
+      "rank": 155
+    },
+    {
+      "disease_id": "28313",
+      "drug_id": "14223",
+      "rank": 13
+    },
+    {
+      "disease_id": "28313",
+      "drug_id": "14323",
+      "rank": 90
+    },
+    {
+      "disease_id": "28313",
+      "drug_id": "14351",
+      "rank": 2458
+    },
+    {
+      "disease_id": "28313",
+      "drug_id": "14380",
+      "rank": 13
+    },
+    {
+      "disease_id": "28313",
+      "drug_id": "14420",
+      "rank": 1383
+    },
+    {
+      "disease_id": "28313",
+      "drug_id": "14485",
+      "rank": 6148
+    },
+    {
+      "disease_id": "28313",
+      "drug_id": "14633",
+      "rank": 574
+    },
+    {
+      "disease_id": "28313",
+      "drug_id": "14829",
+      "rank": 146
+    },
+    {
+      "disease_id": "28313",
+      "drug_id": "14839",
+      "rank": 5592
+    },
+    {
+      "disease_id": "28313",
+      "drug_id": "14913",
+      "rank": 29
+    },
+    {
+      "disease_id": "28313",
+      "drug_id": "14952",
+      "rank": 47
+    },
+    {
+      "disease_id": "28313",
+      "drug_id": "14999",
+      "rank": 85
+    },
+    {
+      "disease_id": "28313",
+      "drug_id": "15001",
+      "rank": 144
+    },
+    {
+      "disease_id": "28313",
+      "drug_id": "15006",
+      "rank": 285
+    },
+    {
+      "disease_id": "28313",
+      "drug_id": "15098",
+      "rank": 60
+    },
+    {
+      "disease_id": "28313",
+      "drug_id": "15100",
+      "rank": 499
+    },
+    {
+      "disease_id": "28313",
+      "drug_id": "15110",
+      "rank": 27
+    },
+    {
+      "disease_id": "28313",
+      "drug_id": "15127",
+      "rank": 447
+    },
+    {
+      "disease_id": "28313",
+      "drug_id": "15131",
+      "rank": 376
+    },
+    {
+      "disease_id": "28313",
+      "drug_id": "15177",
+      "rank": 1168
+    },
+    {
+      "disease_id": "28313",
+      "drug_id": "15194",
+      "rank": 14
+    },
+    {
+      "disease_id": "28313",
+      "drug_id": "15196",
+      "rank": 429
+    },
+    {
+      "disease_id": "28313",
+      "drug_id": "15223",
+      "rank": 463
+    },
+    {
+      "disease_id": "28313",
+      "drug_id": "15232",
+      "rank": 14
+    },
+    {
+      "disease_id": "28313",
+      "drug_id": "15538",
+      "rank": 863
+    },
+    {
+      "disease_id": "28313",
+      "drug_id": "15590",
+      "rank": 10
+    },
+    {
+      "disease_id": "28313",
+      "drug_id": "16011",
+      "rank": 40
+    },
+    {
+      "disease_id": "28313",
+      "drug_id": "16014",
+      "rank": 321
+    },
+    {
+      "disease_id": "28313",
+      "drug_id": "16317",
+      "rank": 114
+    },
+    {
+      "disease_id": "28313",
+      "drug_id": "20300",
+      "rank": 444
+    },
+    {
+      "disease_id": "28313",
+      "drug_id": "20560",
+      "rank": 3942
+    },
+    {
+      "disease_id": "28313",
+      "drug_id": "20561",
+      "rank": 861
+    },
+    {
+      "disease_id": "28542",
+      "drug_id": "14207",
+      "rank": 497
+    },
+    {
+      "disease_id": "28542",
+      "drug_id": "14729",
+      "rank": 119
+    },
+    {
+      "disease_id": "28542",
+      "drug_id": "15018",
+      "rank": 234
+    },
+    {
+      "disease_id": "28542",
+      "drug_id": "15144",
+      "rank": 434
+    },
+    {
+      "disease_id": "28542",
+      "drug_id": "18755",
+      "rank": 491
+    },
+    {
+      "disease_id": "28640",
+      "drug_id": "14945",
+      "rank": 354
+    },
+    {
+      "disease_id": "28640",
+      "drug_id": "14975",
+      "rank": 14
+    },
+    {
+      "disease_id": "28640",
+      "drug_id": "15002",
+      "rank": 732
+    },
+    {
+      "disease_id": "28640",
+      "drug_id": "15012",
+      "rank": 110
+    },
+    {
+      "disease_id": "28640",
+      "drug_id": "15020",
+      "rank": 14
+    },
+    {
+      "disease_id": "28640",
+      "drug_id": "15176",
+      "rank": 4014
+    },
+    {
+      "disease_id": "28640",
+      "drug_id": "15205",
+      "rank": 92
+    },
+    {
+      "disease_id": "28640",
+      "drug_id": "15230",
+      "rank": 135
+    },
+    {
+      "disease_id": "28640",
+      "drug_id": "15596",
+      "rank": 123
+    },
+    {
+      "disease_id": "28640",
+      "drug_id": "20324",
+      "rank": 87
+    },
+    {
+      "disease_id": "28640",
+      "drug_id": "20597",
+      "rank": 542
+    },
+    {
+      "disease_id": "28921",
+      "drug_id": "15134",
+      "rank": 302
+    },
+    {
+      "disease_id": "28921",
+      "drug_id": "15747",
+      "rank": 720
+    },
+    {
+      "disease_id": "29275",
+      "drug_id": "14975",
+      "rank": 475
+    },
+    {
+      "disease_id": "29408",
+      "drug_id": "14725",
+      "rank": 406
+    },
+    {
+      "disease_id": "29408",
+      "drug_id": "15218",
+      "rank": 213
+    },
+    {
+      "disease_id": "29606",
+      "drug_id": "14924",
+      "rank": 724
+    },
+    {
+      "disease_id": "29887",
+      "drug_id": "15898",
+      "rank": 2084
+    },
+    {
+      "disease_id": "29887",
+      "drug_id": "20497",
+      "rank": 1510
+    },
+    {
+      "disease_id": "29908",
+      "drug_id": "16572",
+      "rank": 462
+    },
+    {
+      "disease_id": "29908",
+      "drug_id": "16575",
+      "rank": 259
+    },
+    {
+      "disease_id": "29908",
+      "drug_id": "16580",
+      "rank": 979
+    },
+    {
+      "disease_id": "30371",
+      "drug_id": "15338",
+      "rank": 2257
+    },
+    {
+      "disease_id": "30371",
+      "drug_id": "15891",
+      "rank": 1492
+    },
+    {
+      "disease_id": "30371",
+      "drug_id": "20642",
+      "rank": 313
+    },
+    {
+      "disease_id": "30494",
+      "drug_id": "14275",
+      "rank": 46
+    },
+    {
+      "disease_id": "30494",
+      "drug_id": "14320",
+      "rank": 3
+    },
+    {
+      "disease_id": "30494",
+      "drug_id": "14493",
+      "rank": 2121
+    },
+    {
+      "disease_id": "30494",
+      "drug_id": "14606",
+      "rank": 685
+    },
+    {
+      "disease_id": "30494",
+      "drug_id": "14954",
+      "rank": 142
+    },
+    {
+      "disease_id": "30494",
+      "drug_id": "15077",
+      "rank": 617
+    },
+    {
+      "disease_id": "30494",
+      "drug_id": "15206",
+      "rank": 995
+    },
+    {
+      "disease_id": "30494",
+      "drug_id": "15240",
+      "rank": 5223
+    },
+    {
+      "disease_id": "30494",
+      "drug_id": "15367",
+      "rank": 6811
+    },
+    {
+      "disease_id": "30494",
+      "drug_id": "16753",
+      "rank": 2209
+    },
+    {
+      "disease_id": "30494",
+      "drug_id": "17524",
+      "rank": 274
+    },
+    {
+      "disease_id": "30494",
+      "drug_id": "18102",
+      "rank": 7175
+    },
+    {
+      "disease_id": "30494",
+      "drug_id": "19281",
+      "rank": 4520
+    },
+    {
+      "disease_id": "30494",
+      "drug_id": "19641",
+      "rank": 438
+    },
+    {
+      "disease_id": "30494",
+      "drug_id": "20158",
+      "rank": 2465
+    },
+    {
+      "disease_id": "30494",
+      "drug_id": "20159",
+      "rank": 2170
+    },
+    {
+      "disease_id": "30494",
+      "drug_id": "20212",
+      "rank": 107
+    },
+    {
+      "disease_id": "30602",
+      "drug_id": "14019",
+      "rank": 4637
+    },
+    {
+      "disease_id": "30602",
+      "drug_id": "14023",
+      "rank": 4159
+    },
+    {
+      "disease_id": "30602",
+      "drug_id": "14024",
+      "rank": 1657
+    },
+    {
+      "disease_id": "30602",
+      "drug_id": "14028",
+      "rank": 4334
+    },
+    {
+      "disease_id": "30602",
+      "drug_id": "14030",
+      "rank": 1626
+    },
+    {
+      "disease_id": "30602",
+      "drug_id": "14269",
+      "rank": 3374
+    },
+    {
+      "disease_id": "30602",
+      "drug_id": "14320",
+      "rank": 2718
+    },
+    {
+      "disease_id": "30602",
+      "drug_id": "15003",
+      "rank": 3805
+    },
+    {
+      "disease_id": "30715",
+      "drug_id": "14245",
+      "rank": 193
+    },
+    {
+      "disease_id": "30715",
+      "drug_id": "15570",
+      "rank": 1200
+    },
+    {
+      "disease_id": "30715",
+      "drug_id": "20129",
+      "rank": 906
+    },
+    {
+      "disease_id": "30816",
+      "drug_id": "14554",
+      "rank": 111
+    },
+    {
+      "disease_id": "30816",
+      "drug_id": "16041",
+      "rank": 1156
+    },
+    {
+      "disease_id": "30827",
+      "drug_id": "14203",
+      "rank": 144
+    },
+    {
+      "disease_id": "30827",
+      "drug_id": "14685",
+      "rank": 30
+    },
+    {
+      "disease_id": "30827",
+      "drug_id": "15435",
+      "rank": 13
+    },
+    {
+      "disease_id": "31245",
+      "drug_id": "15055",
+      "rank": 243
+    },
+    {
+      "disease_id": "31245",
+      "drug_id": "15185",
+      "rank": 72
+    },
+    {
+      "disease_id": "31768",
+      "drug_id": "18416",
+      "rank": 6796
+    },
+    {
+      "disease_id": "32293",
+      "drug_id": "15290",
+      "rank": 4934
+    },
+    {
+      "disease_id": "32354",
+      "drug_id": "14557",
+      "rank": 59
+    },
+    {
+      "disease_id": "32354",
+      "drug_id": "14594",
+      "rank": 46
+    },
+    {
+      "disease_id": "32354",
+      "drug_id": "14595",
+      "rank": 1201
+    },
+    {
+      "disease_id": "32354",
+      "drug_id": "14619",
+      "rank": 365
+    },
+    {
+      "disease_id": "32354",
+      "drug_id": "14621",
+      "rank": 220
+    },
+    {
+      "disease_id": "32354",
+      "drug_id": "14622",
+      "rank": 306
+    },
+    {
+      "disease_id": "32354",
+      "drug_id": "15975",
+      "rank": 173
+    },
+    {
+      "disease_id": "32354",
+      "drug_id": "15979",
+      "rank": 145
+    },
+    {
+      "disease_id": "32354",
+      "drug_id": "16179",
+      "rank": 61
+    },
+    {
+      "disease_id": "32354",
+      "drug_id": "16634",
+      "rank": 91
+    },
+    {
+      "disease_id": "32354",
+      "drug_id": "16671",
+      "rank": 87
+    },
+    {
+      "disease_id": "32354",
+      "drug_id": "18411",
+      "rank": 446
+    },
+    {
+      "disease_id": "32354",
+      "drug_id": "18413",
+      "rank": 294
+    },
+    {
+      "disease_id": "32354",
+      "drug_id": "20646",
+      "rank": 2380
+    },
+    {
+      "disease_id": "32617",
+      "drug_id": "14186",
+      "rank": 11
+    },
+    {
+      "disease_id": "32617",
+      "drug_id": "14275",
+      "rank": 173
+    },
+    {
+      "disease_id": "32617",
+      "drug_id": "14612",
+      "rank": 4
+    },
+    {
+      "disease_id": "32617",
+      "drug_id": "14737",
+      "rank": 165
+    },
+    {
+      "disease_id": "32617",
+      "drug_id": "14792",
+      "rank": 225
+    },
+    {
+      "disease_id": "32617",
+      "drug_id": "14868",
+      "rank": 14
+    },
+    {
+      "disease_id": "32617",
+      "drug_id": "14875",
+      "rank": 50
+    },
+    {
+      "disease_id": "32617",
+      "drug_id": "15036",
+      "rank": 101
+    },
+    {
+      "disease_id": "32617",
+      "drug_id": "15057",
+      "rank": 18
+    },
+    {
+      "disease_id": "32617",
+      "drug_id": "15134",
+      "rank": 1
+    },
+    {
+      "disease_id": "32617",
+      "drug_id": "15413",
+      "rank": 72
+    },
+    {
+      "disease_id": "32617",
+      "drug_id": "15481",
+      "rank": 166
+    },
+    {
+      "disease_id": "32617",
+      "drug_id": "16510",
+      "rank": 55
+    },
+    {
+      "disease_id": "32617",
+      "drug_id": "20212",
+      "rank": 325
+    },
+    {
+      "disease_id": "32617",
+      "drug_id": "20434",
+      "rank": 79
+    },
+    {
+      "disease_id": "32617",
+      "drug_id": "20509",
+      "rank": 76
+    },
+    {
+      "disease_id": "32617",
+      "drug_id": "20630",
+      "rank": 315
+    },
+    {
+      "disease_id": "32635",
+      "drug_id": "16271",
+      "rank": 217
+    },
+    {
+      "disease_id": "32702",
+      "drug_id": "14028",
+      "rank": 396
+    },
+    {
+      "disease_id": "32702",
+      "drug_id": "14030",
+      "rank": 664
+    },
+    {
+      "disease_id": "32702",
+      "drug_id": "14042",
+      "rank": 577
+    },
+    {
+      "disease_id": "32702",
+      "drug_id": "14320",
+      "rank": 310
+    },
+    {
+      "disease_id": "32702",
+      "drug_id": "15003",
+      "rank": 971
+    },
+    {
+      "disease_id": "32702",
+      "drug_id": "15180",
+      "rank": 815
+    },
+    {
+      "disease_id": "32702",
+      "drug_id": "18036",
+      "rank": 198
+    },
+    {
+      "disease_id": "32702",
+      "drug_id": "20418",
+      "rank": 165
+    },
+    {
+      "disease_id": "32710",
+      "drug_id": "14288",
+      "rank": 25
+    },
+    {
+      "disease_id": "32710",
+      "drug_id": "15180",
+      "rank": 65
+    },
+    {
+      "disease_id": "32710",
+      "drug_id": "15425",
+      "rank": 244
+    },
+    {
+      "disease_id": "32710",
+      "drug_id": "20536",
+      "rank": 1264
+    },
+    {
+      "disease_id": "32710",
+      "drug_id": "20537",
+      "rank": 1173
+    },
+    {
+      "disease_id": "32847",
+      "drug_id": "14127",
+      "rank": 185
+    },
+    {
+      "disease_id": "32847",
+      "drug_id": "14695",
+      "rank": 51
+    },
+    {
+      "disease_id": "32847",
+      "drug_id": "15448",
+      "rank": 4980
+    },
+    {
+      "disease_id": "32847",
+      "drug_id": "15493",
+      "rank": 1539
+    },
+    {
+      "disease_id": "32847",
+      "drug_id": "15584",
+      "rank": 632
+    },
+    {
+      "disease_id": "33249",
+      "drug_id": "14063",
+      "rank": 1606
+    },
+    {
+      "disease_id": "33249",
+      "drug_id": "16975",
+      "rank": 7731
+    },
+    {
+      "disease_id": "33334",
+      "drug_id": "14279",
+      "rank": 8
+    },
+    {
+      "disease_id": "33334",
+      "drug_id": "15771",
+      "rank": 42
+    },
+    {
+      "disease_id": "33494",
+      "drug_id": "14247",
+      "rank": 546
+    },
+    {
+      "disease_id": "33518",
+      "drug_id": "15584",
+      "rank": 806
+    },
+    {
+      "disease_id": "33534",
+      "drug_id": "14019",
+      "rank": 109
+    },
+    {
+      "disease_id": "33534",
+      "drug_id": "14023",
+      "rank": 86
+    },
+    {
+      "disease_id": "33534",
+      "drug_id": "14024",
+      "rank": 41
+    },
+    {
+      "disease_id": "33534",
+      "drug_id": "14028",
+      "rank": 13
+    },
+    {
+      "disease_id": "33534",
+      "drug_id": "14030",
+      "rank": 142
+    },
+    {
+      "disease_id": "33534",
+      "drug_id": "14042",
+      "rank": 3
+    },
+    {
+      "disease_id": "33534",
+      "drug_id": "14206",
+      "rank": 136
+    },
+    {
+      "disease_id": "33534",
+      "drug_id": "14269",
+      "rank": 142
+    },
+    {
+      "disease_id": "33534",
+      "drug_id": "14320",
+      "rank": 31
+    },
+    {
+      "disease_id": "33534",
+      "drug_id": "14347",
+      "rank": 67
+    },
+    {
+      "disease_id": "33534",
+      "drug_id": "14623",
+      "rank": 402
+    },
+    {
+      "disease_id": "33534",
+      "drug_id": "15003",
+      "rank": 162
+    },
+    {
+      "disease_id": "33534",
+      "drug_id": "18283",
+      "rank": 2253
+    },
+    {
+      "disease_id": "33567",
+      "drug_id": "14016",
+      "rank": 173
+    },
+    {
+      "disease_id": "33567",
+      "drug_id": "14017",
+      "rank": 55
+    },
+    {
+      "disease_id": "33567",
+      "drug_id": "14028",
+      "rank": 36
+    },
+    {
+      "disease_id": "33567",
+      "drug_id": "14030",
+      "rank": 54
+    },
+    {
+      "disease_id": "33567",
+      "drug_id": "14320",
+      "rank": 94
+    },
+    {
+      "disease_id": "33567",
+      "drug_id": "15003",
+      "rank": 28
+    },
+    {
+      "disease_id": "33586",
+      "drug_id": "15868",
+      "rank": 635
+    },
+    {
+      "disease_id": "33589",
+      "drug_id": "14646",
+      "rank": 154
+    },
+    {
+      "disease_id": "33589",
+      "drug_id": "14678",
+      "rank": 15
+    },
+    {
+      "disease_id": "33589",
+      "drug_id": "14706",
+      "rank": 124
+    },
+    {
+      "disease_id": "33589",
+      "drug_id": "14707",
+      "rank": 19
+    },
+    {
+      "disease_id": "33589",
+      "drug_id": "15892",
+      "rank": 108
+    },
+    {
+      "disease_id": "33589",
+      "drug_id": "16341",
+      "rank": 183
+    },
+    {
+      "disease_id": "33589",
+      "drug_id": "16344",
+      "rank": 103
+    },
+    {
+      "disease_id": "33589",
+      "drug_id": "16347",
+      "rank": 212
+    },
+    {
+      "disease_id": "33589",
+      "drug_id": "20200",
+      "rank": 686
+    },
+    {
+      "disease_id": "33589",
+      "drug_id": "20438",
+      "rank": 68
+    },
+    {
+      "disease_id": "33589",
+      "drug_id": "20446",
+      "rank": 323
+    },
+    {
+      "disease_id": "33589",
+      "drug_id": "20447",
+      "rank": 724
+    },
+    {
+      "disease_id": "33591",
+      "drug_id": "16036",
+      "rank": 52
+    },
+    {
+      "disease_id": "33591",
+      "drug_id": "16281",
+      "rank": 988
+    },
+    {
+      "disease_id": "33591",
+      "drug_id": "17023",
+      "rank": 124
+    },
+    {
+      "disease_id": "33602",
+      "drug_id": "20644",
+      "rank": 4302
+    },
+    {
+      "disease_id": "33625",
+      "drug_id": "14559",
+      "rank": 107
+    },
+    {
+      "disease_id": "33625",
+      "drug_id": "14704",
+      "rank": 29
+    },
+    {
+      "disease_id": "33625",
+      "drug_id": "17739",
+      "rank": 190
+    },
+    {
+      "disease_id": "33625",
+      "drug_id": "20290",
+      "rank": 139
+    },
+    {
+      "disease_id": "33643",
+      "drug_id": "14945",
+      "rank": 98
+    },
+    {
+      "disease_id": "33643",
+      "drug_id": "14975",
+      "rank": 77
+    },
+    {
+      "disease_id": "33643",
+      "drug_id": "15002",
+      "rank": 202
+    },
+    {
+      "disease_id": "33643",
+      "drug_id": "15012",
+      "rank": 77
+    },
+    {
+      "disease_id": "33643",
+      "drug_id": "15020",
+      "rank": 5
+    },
+    {
+      "disease_id": "33643",
+      "drug_id": "15176",
+      "rank": 2827
+    },
+    {
+      "disease_id": "33643",
+      "drug_id": "15205",
+      "rank": 15
+    },
+    {
+      "disease_id": "33643",
+      "drug_id": "15230",
+      "rank": 203
+    },
+    {
+      "disease_id": "33643",
+      "drug_id": "15596",
+      "rank": 110
+    },
+    {
+      "disease_id": "33643",
+      "drug_id": "20324",
+      "rank": 217
+    },
+    {
+      "disease_id": "33643",
+      "drug_id": "20597",
+      "rank": 451
+    },
+    {
+      "disease_id": "33657",
+      "drug_id": "14059",
+      "rank": 862
+    },
+    {
+      "disease_id": "33657",
+      "drug_id": "14060",
+      "rank": 113
+    },
+    {
+      "disease_id": "35523",
+      "drug_id": "14288",
+      "rank": 43
+    },
+    {
+      "disease_id": "35523",
+      "drug_id": "15180",
+      "rank": 41
+    },
+    {
+      "disease_id": "35523",
+      "drug_id": "15425",
+      "rank": 185
+    },
+    {
+      "disease_id": "35745",
+      "drug_id": "18098",
+      "rank": 1096
+    },
+    {
+      "disease_id": "35786",
+      "drug_id": "17524",
+      "rank": 8
+    },
+    {
+      "disease_id": "35823",
+      "drug_id": "14019",
+      "rank": 1118
+    },
+    {
+      "disease_id": "35823",
+      "drug_id": "14023",
+      "rank": 1263
+    },
+    {
+      "disease_id": "35823",
+      "drug_id": "14028",
+      "rank": 81
+    },
+    {
+      "disease_id": "35823",
+      "drug_id": "14030",
+      "rank": 253
+    },
+    {
+      "disease_id": "35823",
+      "drug_id": "14042",
+      "rank": 119
+    },
+    {
+      "disease_id": "35823",
+      "drug_id": "14269",
+      "rank": 119
+    },
+    {
+      "disease_id": "35823",
+      "drug_id": "14320",
+      "rank": 207
+    },
+    {
+      "disease_id": "35823",
+      "drug_id": "15003",
+      "rank": 309
+    },
+    {
+      "disease_id": "35849",
+      "drug_id": "14510",
+      "rank": 1161
+    },
+    {
+      "disease_id": "35849",
+      "drug_id": "14768",
+      "rank": 48
+    },
+    {
+      "disease_id": "35849",
+      "drug_id": "14774",
+      "rank": 5
+    },
+    {
+      "disease_id": "35849",
+      "drug_id": "16825",
+      "rank": 5
+    },
+    {
+      "disease_id": "35849",
+      "drug_id": "20332",
+      "rank": 72
+    },
+    {
+      "disease_id": "35849",
+      "drug_id": "20333",
+      "rank": 43
+    },
+    {
+      "disease_id": "35849",
+      "drug_id": "20334",
+      "rank": 229
+    },
+    {
+      "disease_id": "35909",
+      "drug_id": "14297",
+      "rank": 230
+    },
+    {
+      "disease_id": "35909",
+      "drug_id": "14298",
+      "rank": 202
+    },
+    {
+      "disease_id": "35909",
+      "drug_id": "14836",
+      "rank": 445
+    },
+    {
+      "disease_id": "35909",
+      "drug_id": "14944",
+      "rank": 302
+    },
+    {
+      "disease_id": "35909",
+      "drug_id": "14961",
+      "rank": 311
+    },
+    {
+      "disease_id": "35909",
+      "drug_id": "15610",
+      "rank": 1010
+    },
+    {
+      "disease_id": "35909",
+      "drug_id": "15712",
+      "rank": 1909
+    },
+    {
+      "disease_id": "35909",
+      "drug_id": "15836",
+      "rank": 17
+    },
+    {
+      "disease_id": "35909",
+      "drug_id": "16337",
+      "rank": 342
+    },
+    {
+      "disease_id": "35909",
+      "drug_id": "17407",
+      "rank": 324
+    },
+    {
+      "disease_id": "35909",
+      "drug_id": "20487",
+      "rank": 335
+    },
+    {
+      "disease_id": "35909",
+      "drug_id": "20553",
+      "rank": 1235
+    },
+    {
+      "disease_id": "35909",
+      "drug_id": "20554",
+      "rank": 3879
+    },
+    {
+      "disease_id": "35956",
+      "drug_id": "14281",
+      "rank": 52
+    },
+    {
+      "disease_id": "35956",
+      "drug_id": "14992",
+      "rank": 34
+    },
+    {
+      "disease_id": "35956",
+      "drug_id": "15456",
+      "rank": 107
+    },
+    {
+      "disease_id": "35956",
+      "drug_id": "15502",
+      "rank": 190
+    },
+    {
+      "disease_id": "35956",
+      "drug_id": "15573",
+      "rank": 250
+    },
+    {
+      "disease_id": "36068",
+      "drug_id": "20415",
+      "rank": 3530
+    },
+    {
+      "disease_id": "36112",
+      "drug_id": "14986",
+      "rank": 1059
+    },
+    {
+      "disease_id": "36112",
+      "drug_id": "15142",
+      "rank": 3205
+    },
+    {
+      "disease_id": "36112",
+      "drug_id": "20627",
+      "rank": 334
+    },
+    {
+      "disease_id": "36344",
+      "drug_id": "14383",
+      "rank": 801
+    },
+    {
+      "disease_id": "36344",
+      "drug_id": "19611",
+      "rank": 2650
+    },
+    {
+      "disease_id": "36348",
+      "drug_id": "14288",
+      "rank": 2
+    },
+    {
+      "disease_id": "36348",
+      "drug_id": "14318",
+      "rank": 110
+    },
+    {
+      "disease_id": "36527",
+      "drug_id": "14186",
+      "rank": 1
+    },
+    {
+      "disease_id": "36527",
+      "drug_id": "14275",
+      "rank": 5
+    },
+    {
+      "disease_id": "36527",
+      "drug_id": "14604",
+      "rank": 14
+    },
+    {
+      "disease_id": "36527",
+      "drug_id": "14612",
+      "rank": 1
+    },
+    {
+      "disease_id": "36527",
+      "drug_id": "14737",
+      "rank": 6
+    },
+    {
+      "disease_id": "36527",
+      "drug_id": "14792",
+      "rank": 36
+    },
+    {
+      "disease_id": "36527",
+      "drug_id": "14868",
+      "rank": 14
+    },
+    {
+      "disease_id": "36527",
+      "drug_id": "14875",
+      "rank": 29
+    },
+    {
+      "disease_id": "36527",
+      "drug_id": "15036",
+      "rank": 19
+    },
+    {
+      "disease_id": "36527",
+      "drug_id": "15057",
+      "rank": 11
+    },
+    {
+      "disease_id": "36527",
+      "drug_id": "15107",
+      "rank": 10
+    },
+    {
+      "disease_id": "36527",
+      "drug_id": "15134",
+      "rank": 1
+    },
+    {
+      "disease_id": "36527",
+      "drug_id": "15413",
+      "rank": 7
+    },
+    {
+      "disease_id": "36527",
+      "drug_id": "15481",
+      "rank": 13
+    },
+    {
+      "disease_id": "36527",
+      "drug_id": "20156",
+      "rank": 127
+    },
+    {
+      "disease_id": "36527",
+      "drug_id": "20212",
+      "rank": 20
+    },
+    {
+      "disease_id": "36527",
+      "drug_id": "20434",
+      "rank": 75
+    },
+    {
+      "disease_id": "36527",
+      "drug_id": "20509",
+      "rank": 7
+    },
+    {
+      "disease_id": "36527",
+      "drug_id": "20541",
+      "rank": 144
+    },
+    {
+      "disease_id": "36751",
+      "drug_id": "14238",
+      "rank": 727
+    },
+    {
+      "disease_id": "36821",
+      "drug_id": "14792",
+      "rank": 2434
+    },
+    {
+      "disease_id": "36821",
+      "drug_id": "16510",
+      "rank": 137
+    },
+    {
+      "disease_id": "36909",
+      "drug_id": "15893",
+      "rank": 30
+    },
+    {
+      "disease_id": "37166",
+      "drug_id": "14401",
+      "rank": 121
+    },
+    {
+      "disease_id": "37166",
+      "drug_id": "15622",
+      "rank": 20
+    },
+    {
+      "disease_id": "37343",
+      "drug_id": "14604",
+      "rank": 15
+    },
+    {
+      "disease_id": "37343",
+      "drug_id": "15107",
+      "rank": 11
+    },
+    {
+      "disease_id": "37343",
+      "drug_id": "20156",
+      "rank": 217
+    },
+    {
+      "disease_id": "37343",
+      "drug_id": "20541",
+      "rank": 32
+    },
+    {
+      "disease_id": "37438",
+      "drug_id": "17524",
+      "rank": 29
+    },
+    {
+      "disease_id": "37558",
+      "drug_id": "14237",
+      "rank": 112
+    },
+    {
+      "disease_id": "37613",
+      "drug_id": "14207",
+      "rank": 302
+    },
+    {
+      "disease_id": "37738",
+      "drug_id": "14401",
+      "rank": 87
+    },
+    {
+      "disease_id": "37738",
+      "drug_id": "15622",
+      "rank": 28
+    },
+    {
+      "disease_id": "37753",
+      "drug_id": "14314",
+      "rank": 263
+    },
+    {
+      "disease_id": "37753",
+      "drug_id": "14981",
+      "rank": 184
+    },
+    {
+      "disease_id": "37753",
+      "drug_id": "15497",
+      "rank": 162
+    },
+    {
+      "disease_id": "37753",
+      "drug_id": "17724",
+      "rank": 51
+    },
+    {
+      "disease_id": "37753",
+      "drug_id": "20629",
+      "rank": 2354
+    },
+    {
+      "disease_id": "37759",
+      "drug_id": "14844",
+      "rank": 1110
+    },
+    {
+      "disease_id": "37887",
+      "drug_id": "14545",
+      "rank": 1205
+    },
+    {
+      "disease_id": "37887",
+      "drug_id": "20415",
+      "rank": 456
+    },
+    {
+      "disease_id": "38018",
+      "drug_id": "14262",
+      "rank": 5368
+    },
+    {
+      "disease_id": "38018",
+      "drug_id": "14585",
+      "rank": 2183
+    },
+    {
+      "disease_id": "38018",
+      "drug_id": "20382",
+      "rank": 3502
+    },
+    {
+      "disease_id": "38550",
+      "drug_id": "18098",
+      "rank": 6824
+    },
+    {
+      "disease_id": "38640",
+      "drug_id": "14194",
+      "rank": 165
+    },
+    {
+      "disease_id": "38640",
+      "drug_id": "15107",
+      "rank": 420
+    },
+    {
+      "disease_id": "38640",
+      "drug_id": "16220",
+      "rank": 359
+    },
+    {
+      "disease_id": "38640",
+      "drug_id": "19699",
+      "rank": 712
+    },
+    {
+      "disease_id": "38640",
+      "drug_id": "20156",
+      "rank": 1116
+    },
+    {
+      "disease_id": "38641",
+      "drug_id": "14680",
+      "rank": 487
+    },
+    {
+      "disease_id": "38641",
+      "drug_id": "20239",
+      "rank": 153
+    },
+    {
+      "disease_id": "38641",
+      "drug_id": "20324",
+      "rank": 203
+    },
+    {
+      "disease_id": "39535",
+      "drug_id": "14595",
+      "rank": 638
+    },
+    {
+      "disease_id": "39535",
+      "drug_id": "15902",
+      "rank": 1462
+    },
+    {
+      "disease_id": "39535",
+      "drug_id": "15903",
+      "rank": 6284
+    },
+    {
+      "disease_id": "39619",
+      "drug_id": "14782",
+      "rank": 4414
+    },
+    {
+      "disease_id": "39773",
+      "drug_id": "14014",
+      "rank": 303
+    },
+    {
+      "disease_id": "39773",
+      "drug_id": "14018",
+      "rank": 40
+    },
+    {
+      "disease_id": "39773",
+      "drug_id": "14019",
+      "rank": 72
+    },
+    {
+      "disease_id": "39773",
+      "drug_id": "14020",
+      "rank": 78
+    },
+    {
+      "disease_id": "39773",
+      "drug_id": "14023",
+      "rank": 21
+    },
+    {
+      "disease_id": "39773",
+      "drug_id": "14024",
+      "rank": 48
+    },
+    {
+      "disease_id": "39773",
+      "drug_id": "14028",
+      "rank": 5
+    },
+    {
+      "disease_id": "39773",
+      "drug_id": "14030",
+      "rank": 25
+    },
+    {
+      "disease_id": "39773",
+      "drug_id": "14034",
+      "rank": 181
+    },
+    {
+      "disease_id": "39773",
+      "drug_id": "14036",
+      "rank": 273
+    },
+    {
+      "disease_id": "39773",
+      "drug_id": "14038",
+      "rank": 86
+    },
+    {
+      "disease_id": "39773",
+      "drug_id": "14042",
+      "rank": 1
+    },
+    {
+      "disease_id": "39773",
+      "drug_id": "14226",
+      "rank": 1594
+    },
+    {
+      "disease_id": "39773",
+      "drug_id": "14263",
+      "rank": 140
+    },
+    {
+      "disease_id": "39773",
+      "drug_id": "14269",
+      "rank": 3
+    },
+    {
+      "disease_id": "39773",
+      "drug_id": "14272",
+      "rank": 118
+    },
+    {
+      "disease_id": "39773",
+      "drug_id": "14320",
+      "rank": 7
+    },
+    {
+      "disease_id": "39773",
+      "drug_id": "14599",
+      "rank": 519
+    },
+    {
+      "disease_id": "39773",
+      "drug_id": "14601",
+      "rank": 466
+    },
+    {
+      "disease_id": "39773",
+      "drug_id": "14784",
+      "rank": 321
+    },
+    {
+      "disease_id": "39773",
+      "drug_id": "14848",
+      "rank": 139
+    },
+    {
+      "disease_id": "39773",
+      "drug_id": "15003",
+      "rank": 15
+    },
+    {
+      "disease_id": "39773",
+      "drug_id": "15064",
+      "rank": 24
+    },
+    {
+      "disease_id": "39773",
+      "drug_id": "15166",
+      "rank": 391
+    },
+    {
+      "disease_id": "39773",
+      "drug_id": "15399",
+      "rank": 1001
+    },
+    {
+      "disease_id": "39773",
+      "drug_id": "15500",
+      "rank": 504
+    },
+    {
+      "disease_id": "39773",
+      "drug_id": "15511",
+      "rank": 1235
+    },
+    {
+      "disease_id": "39773",
+      "drug_id": "15586",
+      "rank": 1040
+    },
+    {
+      "disease_id": "39773",
+      "drug_id": "15614",
+      "rank": 1645
+    },
+    {
+      "disease_id": "39773",
+      "drug_id": "15956",
+      "rank": 714
+    },
+    {
+      "disease_id": "39773",
+      "drug_id": "15971",
+      "rank": 332
+    },
+    {
+      "disease_id": "39773",
+      "drug_id": "16323",
+      "rank": 2631
+    },
+    {
+      "disease_id": "39773",
+      "drug_id": "16352",
+      "rank": 149
+    },
+    {
+      "disease_id": "39773",
+      "drug_id": "16532",
+      "rank": 296
+    },
+    {
+      "disease_id": "39773",
+      "drug_id": "17224",
+      "rank": 2511
+    },
+    {
+      "disease_id": "39773",
+      "drug_id": "17560",
+      "rank": 410
+    },
+    {
+      "disease_id": "39773",
+      "drug_id": "17561",
+      "rank": 200
+    },
+    {
+      "disease_id": "39773",
+      "drug_id": "17568",
+      "rank": 388
+    },
+    {
+      "disease_id": "39773",
+      "drug_id": "18755",
+      "rank": 286
+    },
+    {
+      "disease_id": "39773",
+      "drug_id": "20457",
+      "rank": 1168
+    },
+    {
+      "disease_id": "39773",
+      "drug_id": "20458",
+      "rank": 859
+    },
+    {
+      "disease_id": "39773",
+      "drug_id": "20459",
+      "rank": 554
+    },
+    {
+      "disease_id": "39774",
+      "drug_id": "15288",
+      "rank": 102
+    },
+    {
+      "disease_id": "39774",
+      "drug_id": "15461",
+      "rank": 601
+    },
+    {
+      "disease_id": "39774",
+      "drug_id": "16478",
+      "rank": 901
+    },
+    {
+      "disease_id": "39774",
+      "drug_id": "20380",
+      "rank": 2501
+    },
+    {
+      "disease_id": "39774",
+      "drug_id": "20381",
+      "rank": 4775
+    },
+    {
+      "disease_id": "39774",
+      "drug_id": "20382",
+      "rank": 2617
+    },
+    {
+      "disease_id": "39815",
+      "drug_id": "14141",
+      "rank": 35
+    },
+    {
+      "disease_id": "39815",
+      "drug_id": "14192",
+      "rank": 3
+    },
+    {
+      "disease_id": "39815",
+      "drug_id": "14294",
+      "rank": 1
+    },
+    {
+      "disease_id": "39815",
+      "drug_id": "14956",
+      "rank": 93
+    },
+    {
+      "disease_id": "39815",
+      "drug_id": "14993",
+      "rank": 180
+    },
+    {
+      "disease_id": "39815",
+      "drug_id": "15311",
+      "rank": 92
+    },
+    {
+      "disease_id": "39815",
+      "drug_id": "15416",
+      "rank": 4
+    },
+    {
+      "disease_id": "83826",
+      "drug_id": "17524",
+      "rank": 63
+    },
+    {
+      "disease_id": "83826",
+      "drug_id": "20336",
+      "rank": 857
+    },
+    {
+      "disease_id": "83839",
+      "drug_id": "14784",
+      "rank": 155
+    },
+    {
+      "disease_id": "83839",
+      "drug_id": "16532",
+      "rank": 3314
+    },
+    {
+      "disease_id": "83921",
+      "drug_id": "14578",
+      "rank": 79
+    },
+    {
+      "disease_id": "83921",
+      "drug_id": "14711",
+      "rank": 601
+    },
+    {
+      "disease_id": "83921",
+      "drug_id": "15822",
+      "rank": 1272
+    },
+    {
+      "disease_id": "83929",
+      "drug_id": "14250",
+      "rank": 101
+    },
+    {
+      "disease_id": "83929",
+      "drug_id": "14300",
+      "rank": 411
+    },
+    {
+      "disease_id": "83929",
+      "drug_id": "15296",
+      "rank": 321
+    },
+    {
+      "disease_id": "83929",
+      "drug_id": "17628",
+      "rank": 35
+    },
+    {
+      "disease_id": "83929",
+      "drug_id": "20562",
+      "rank": 6002
+    },
+    {
+      "disease_id": "83929",
+      "drug_id": "20563",
+      "rank": 2643
+    },
+    {
+      "disease_id": "83960",
+      "drug_id": "15113",
+      "rank": 477
+    },
+    {
+      "disease_id": "83960",
+      "drug_id": "15126",
+      "rank": 99
+    },
+    {
+      "disease_id": "83960",
+      "drug_id": "15294",
+      "rank": 257
+    },
+    {
+      "disease_id": "83960",
+      "drug_id": "17174",
+      "rank": 317
+    },
+    {
+      "disease_id": "83960",
+      "drug_id": "20185",
+      "rank": 205
+    },
+    {
+      "disease_id": "83960",
+      "drug_id": "20211",
+      "rank": 75
+    },
+    {
+      "disease_id": "83960",
+      "drug_id": "20575",
+      "rank": 1460
+    },
+    {
+      "disease_id": "83978",
+      "drug_id": "15862",
+      "rank": 1475
+    },
+    {
+      "disease_id": "83988",
+      "drug_id": "14935",
+      "rank": 1278
+    },
+    {
+      "disease_id": "83997",
+      "drug_id": "16511",
+      "rank": 809
+    },
+    {
+      "disease_id": "83997",
+      "drug_id": "16517",
+      "rank": 1976
+    },
+    {
+      "disease_id": "84013",
+      "drug_id": "14291",
+      "rank": 16
+    },
+    {
+      "disease_id": "84013",
+      "drug_id": "15289",
+      "rank": 276
+    },
+    {
+      "disease_id": "84013",
+      "drug_id": "15322",
+      "rank": 55
+    },
+    {
+      "disease_id": "84013",
+      "drug_id": "15325",
+      "rank": 554
+    },
+    {
+      "disease_id": "84013",
+      "drug_id": "20289",
+      "rank": 379
+    },
+    {
+      "disease_id": "84046",
+      "drug_id": "18309",
+      "rank": 630
+    },
+    {
+      "disease_id": "84046",
+      "drug_id": "20457",
+      "rank": 2266
+    },
+    {
+      "disease_id": "84080",
+      "drug_id": "14201",
+      "rank": 6
+    },
+    {
+      "disease_id": "84080",
+      "drug_id": "14230",
+      "rank": 90
+    },
+    {
+      "disease_id": "84080",
+      "drug_id": "15180",
+      "rank": 465
+    },
+    {
+      "disease_id": "84080",
+      "drug_id": "15425",
+      "rank": 32
+    },
+    {
+      "disease_id": "84085",
+      "drug_id": "14634",
+      "rank": 748
+    },
+    {
+      "disease_id": "84085",
+      "drug_id": "16337",
+      "rank": 1598
+    },
+    {
+      "disease_id": "84085",
+      "drug_id": "20499",
+      "rank": 426
+    },
+    {
+      "disease_id": "84111",
+      "drug_id": "14727",
+      "rank": 204
+    },
+    {
+      "disease_id": "84111",
+      "drug_id": "15009",
+      "rank": 1663
+    },
+    {
+      "disease_id": "84111",
+      "drug_id": "16740",
+      "rank": 185
+    },
+    {
+      "disease_id": "84111",
+      "drug_id": "20194",
+      "rank": 32
+    },
+    {
+      "disease_id": "84115",
+      "drug_id": "14318",
+      "rank": 90
+    },
+    {
+      "disease_id": "84115",
+      "drug_id": "14335",
+      "rank": 305
+    },
+    {
+      "disease_id": "84115",
+      "drug_id": "14980",
+      "rank": 418
+    },
+    {
+      "disease_id": "84115",
+      "drug_id": "20250",
+      "rank": 129
+    },
+    {
+      "disease_id": "84115",
+      "drug_id": "20360",
+      "rank": 772
+    },
+    {
+      "disease_id": "84115",
+      "drug_id": "20414",
+      "rank": 1568
+    },
+    {
+      "disease_id": "84133",
+      "drug_id": "14262",
+      "rank": 3944
+    },
+    {
+      "disease_id": "84155",
+      "drug_id": "14024",
+      "rank": 29
+    },
+    {
+      "disease_id": "84155",
+      "drug_id": "14275",
+      "rank": 3
+    },
+    {
+      "disease_id": "84155",
+      "drug_id": "14320",
+      "rank": 58
+    },
+    {
+      "disease_id": "84155",
+      "drug_id": "14955",
+      "rank": 18
+    },
+    {
+      "disease_id": "84155",
+      "drug_id": "15893",
+      "rank": 43
+    },
+    {
+      "disease_id": "84155",
+      "drug_id": "17524",
+      "rank": 2
+    },
+    {
+      "disease_id": "84183",
+      "drug_id": "14288",
+      "rank": 4
+    },
+    {
+      "disease_id": "84183",
+      "drug_id": "20409",
+      "rank": 578
+    },
+    {
+      "disease_id": "84203",
+      "drug_id": "14178",
+      "rank": 1107
+    },
+    {
+      "disease_id": "84203",
+      "drug_id": "15098",
+      "rank": 195
+    },
+    {
+      "disease_id": "84204",
+      "drug_id": "14156",
+      "rank": 499
+    },
+    {
+      "disease_id": "84204",
+      "drug_id": "14164",
+      "rank": 2101
+    },
+    {
+      "disease_id": "84204",
+      "drug_id": "14542",
+      "rank": 356
+    },
+    {
+      "disease_id": "84204",
+      "drug_id": "15127",
+      "rank": 2046
+    },
+    {
+      "disease_id": "84204",
+      "drug_id": "20129",
+      "rank": 739
+    },
+    {
+      "disease_id": "84226",
+      "drug_id": "14735",
+      "rank": 126
+    },
+    {
+      "disease_id": "84229",
+      "drug_id": "14544",
+      "rank": 1140
+    },
+    {
+      "disease_id": "84229",
+      "drug_id": "14880",
+      "rank": 320
+    },
+    {
+      "disease_id": "84239",
+      "drug_id": "14196",
+      "rank": 1169
+    },
+    {
+      "disease_id": "84260",
+      "drug_id": "14019",
+      "rank": 5915
+    },
+    {
+      "disease_id": "84260",
+      "drug_id": "14032",
+      "rank": 5612
+    },
+    {
+      "disease_id": "84263",
+      "drug_id": "16510",
+      "rank": 2191
+    },
+    {
+      "disease_id": "84263",
+      "drug_id": "17711",
+      "rank": 837
+    },
+    {
+      "disease_id": "84297",
+      "drug_id": "15502",
+      "rank": 674
+    },
+    {
+      "disease_id": "84319",
+      "drug_id": "14313",
+      "rank": 85
+    }
+  ]
+}

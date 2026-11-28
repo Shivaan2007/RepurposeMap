@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "disease_id": "84243",
+  "disease_name": "squamous cell carcinoma of the corpus uteri",
+  "ranking_method": "rgcn",
+  "provenance": {
+    "ranking_method": "rgcn",
+    "source_experiment_file": "ml/experiments/rgcn_final_locked_test_ca9313b1.json",
+    "source_commit": "4e148af51e1d3fb1c8d02eb62a55cd478d3e62f6"
+  },
+  "generated_at": "2026-11-27T03:38:15.045691+00:00",
+  "candidate_universe": {
+    "description": "full PrimeKG drug universe used by rgcn training (7957 drugs)",
+    "size": 7957
+  },
+  "candidates": [
+    {
+      "drug_id": "15134",
+      "drug_name": "Hydroxyurea",
+      "rank": 1,
+      "score": 7.381914138793945,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "14242",
+      "drug_name": "Meloxicam",
+      "rank": 2,
+      "score": 6.556558132171631,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "14142",
+      "drug_name": "Metoprolol",
+      "rank": 3,
+      "score": 6.475152015686035,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "15481",
+      "drug_name": "Topotecan",
+      "rank": 4,
+      "score": 6.314942836761475,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "14951",
+      "drug_name": "Quinine",
+      "rank": 5,
+      "score": 6.262324333190918,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "14155",
+      "drug_name": "Gefitinib",
+      "rank": 6,
+      "score": 6.209184646606445,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "14186",
+      "drug_name": "Cisplatin",
+      "rank": 7,
+      "score": 6.116973876953125,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "14231",
+      "drug_name": "Irinotecan",
+      "rank": 8,
+      "score": 6.048462867736816,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "14281",
+      "drug_name": "Ketoconazole",
+      "rank": 9,
+      "score": 5.986300945281982,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "14162",
+      "drug_name": "Atenolol",
+      "rank": 10,
+      "score": 5.957015037536621,
+      "explanation_paths": []
+    }
+  ]
+}

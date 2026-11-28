@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "disease_id": "36691",
+  "disease_name": "breast cancer",
+  "ranking_method": "rgcn",
+  "provenance": {
+    "ranking_method": "rgcn",
+    "source_experiment_file": "ml/experiments/rgcn_final_locked_test_ca9313b1.json",
+    "source_commit": "4e148af51e1d3fb1c8d02eb62a55cd478d3e62f6"
+  },
+  "generated_at": "2026-11-27T03:38:15.045691+00:00",
+  "candidate_universe": {
+    "description": "full PrimeKG drug universe used by rgcn training (7957 drugs)",
+    "size": 7957
+  },
+  "candidates": [
+    {
+      "drug_id": "15134",
+      "drug_name": "Hydroxyurea",
+      "rank": 1,
+      "score": 7.181124687194824,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "14242",
+      "drug_name": "Meloxicam",
+      "rank": 2,
+      "score": 6.899062633514404,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "17584",
+      "drug_name": "Adalimumab",
+      "rank": 3,
+      "score": 6.067470550537109,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "14155",
+      "drug_name": "Gefitinib",
+      "rank": 4,
+      "score": 5.834650039672852,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "14612",
+      "drug_name": "Trabectedin",
+      "rank": 5,
+      "score": 5.792919158935547,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "14951",
+      "drug_name": "Quinine",
+      "rank": 6,
+      "score": 5.556597709655762,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "14281",
+      "drug_name": "Ketoconazole",
+      "rank": 7,
+      "score": 5.443236827850342,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "17883",
+      "drug_name": "Abatacept",
+      "rank": 8,
+      "score": 5.400186061859131,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "15205",
+      "drug_name": "Pazopanib",
+      "rank": 9,
+      "score": 5.377148151397705,
+      "explanation_paths": []
+    },
+    {
+      "drug_id": "15126",
+      "drug_name": "Donepezil",
+      "rank": 10,
+      "score": 5.373469352722168,
+      "explanation_paths": []
+    }
+  ]
+}
