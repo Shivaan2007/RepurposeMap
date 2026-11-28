@@ -124,12 +124,11 @@ correctness against the commands and env vars documented here.
 
 ## Known limitations
 
-- **No precomputed ranking data exists yet.** `POST /api/v1/rank` is
-  backed by a real serving mechanism (`repurposemap.serving`), but
-  `data/serving/` is empty until a real R-GCN (or TransE) model is
-  trained, locked-test-evaluated, and exported for specific demo
-  diseases -- see API.md's "Precomputed ranking serving" section. It
-  never fabricates a ranking.
+- **Rankings exist for 5 diseases only, and are precomputed.** `POST /api/v1/rank`
+  serves real R-GCN rankings from `data/serving/` for those 5 (breast cancer, breast
+  neoplasm, hereditary breast carcinoma and two uterine carcinomas); any other disease
+  honestly reports `not_available`. They carry scores but no explanation paths, and
+  nothing is computed live -- see API.md's "Precomputed ranking serving" section.
 - **The evidence/biology endpoints are synchronous.** Each request calls
   up to four external APIs in-process on the request thread, so a slow or
   rate-limited source adds directly to response latency. PLAN.md calls
@@ -138,13 +137,10 @@ correctness against the commands and env vars documented here.
 - **The hypothesis notebook has no server-side persistence.** It is a
   deliberate, documented limitation (see `HypothesisNotebookPanel.tsx`),
   not an oversight.
-- **R-GCN final training is not complete.** The frozen 3-config
-  validation search on Kaggle is now complete (`rgcn-wide` selected on
-  validation MRR); no final R-GCN model exists yet, since final
-  training and the one locked-test evaluation have not started and
-  require explicit owner approval first. `model_status` will not
-  change until that finishes and a model's approved output is exported
-  via `repurposemap.serving.export_rankings`.
+- **The R-GCN result is modest.** The frozen R-GCN was evaluated once on the locked test:
+  Hits@10 0.0622 and MRR 0.0334, above TransE (0.0161 / 0.0100) but below the path baseline's
+  Hits@10 (0.0863), which ranks a smaller candidate set. See `docs/FINAL_RESULTS.md`; nothing
+  here establishes that any candidate drug works.
 
 ## Deployment readiness audit (audit only -- nothing below was deployed)
 

@@ -1,5 +1,9 @@
 # Final release checklist (post-R-GCN-checkpoint)
 
+> **Status as of 2026-11-28:** steps 0 to 4 are done (locked-test result, rankings, 3 case studies) and the
+> backend and frontend are deployed (step 5; see `docs/DEPLOY_RUNBOOK.md`). The line below that says everything is
+> "blocked on one thing" is dated 2026-11-17 and no longer true.
+
 **Status as of 2026-11-17: everything in this file is blocked on one thing —
 the final, verified R-GCN checkpoint from the Colab/Kaggle run described in
 `docs/COLAB_RGCN_FINAL_RUNBOOK.md`.** Non-scientific release-prep work is

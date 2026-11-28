@@ -15,10 +15,9 @@ export function CandidateList({ result }: CandidateListProps) {
           <strong>Ranked candidates are not available for this disease in the current deployed dataset.</strong>
         </p>
         <p className="hint">
-          TransE final training and its one locked-test evaluation are complete, and an R-GCN validation search is in
-          progress -- but no R-GCN final model has been selected or trained yet. Separately, no precomputed ranking
-          bundle has been exported for this disease yet (see <code>GET /api/v1/rank/diseases</code> for the current
-          list). This page will show ranked candidates once either exists -- it never substitutes a mock or random
+          Rankings here are precomputed offline by the final R-GCN for a small set of diseases -- see{" "}
+          <code>GET /api/v1/rank/diseases</code> for the current list -- and no ranking bundle has been exported for
+          this one. Rankings for other diseases are not computed live. This page never substitutes a mock or random
           ranking.
         </p>
       </div>

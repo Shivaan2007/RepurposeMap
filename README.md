@@ -40,7 +40,7 @@ flowchart LR
     G --> H[TypeScript client + React research workspace]
 ```
 
-Built today: everything up to the ranking for the path, popularity and TransE models, the typed API, and the React workspace shell. R-GCN's validation search is in progress (see Project status). Explanation paths exist for the path baseline only. Evidence and safety are live lookups across PubMed, ClinicalTrials.gov, openFDA and DailyMed, wired into the API and UI (see "Evidence/safety domain" below) -- disease biology and target scorecard (Open Targets) are live as well.
+Built today: everything up to the ranking for the path, popularity, TransE and R-GCN models (R-GCN's rankings are precomputed for 5 diseases and served from files, see "Live demo"), the typed API, and the React workspace. Explanation paths exist for the path baseline only; the served R-GCN rankings carry scores but no reasoning paths. Evidence and safety are live lookups across PubMed, ClinicalTrials.gov, openFDA and DailyMed, wired into the API and UI (see "Evidence/safety domain" below) -- disease biology and target scorecard (Open Targets) are live as well.
 
 See [API.md](API.md) for the FastAPI / OpenAPI / TypeScript boundary in
 detail, [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full-stack

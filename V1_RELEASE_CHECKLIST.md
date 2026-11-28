@@ -1,5 +1,11 @@
 # V1 release checklist
 
+> **Status as of 2026-11-28:** R-GCN final training, the single locked-test evaluation, the serving export (5 diseases)
+> and the Render/Vercel deployment are done (`docs/FINAL_RESULTS.md`, README "Live demo", `docs/DEPLOY_RUNBOOK.md`).
+> The sections below that say these are "not started", "blocked" or "awaiting approval" are dated history from before
+> then. Still not built: the triage shortlist, a results page in the frontend, the time-travel test, the TxGNN
+> comparison, expert review, and explanation paths on the served rankings.
+
 Status against PLAN.md's Core (Version 1) feature table and researcher
 workflow, as of the current repo state. Labels are honest, not aspirational:
 **Done**, **Partial** (something real exists but doesn't fully match the
@@ -11,7 +17,7 @@ available" rather than a fake result), or **Missing**.
 | Feature | Status | Notes |
 |---|---|---|
 | Disease search | Partial | `repurposemap.graph.search` does exact/fuzzy entity matching over the loaded graph; Open Targets name resolution (with `resolved_from` alternates) backs `/api/v1/disease-biology` and `/api/v1/target-scorecard`. No dedicated rare-disease-synonym table beyond what PrimeKG/Open Targets already encode. |
-| Ranked candidates | **Mechanism done, no data yet** | `POST /api/v1/rank` is now backed by a real precomputed-serving mechanism (`repurposemap.serving`, `GET /api/v1/rank/diseases` for discovery) rather than a hardcoded stub, but `data/serving/` is empty -- every request still honestly returns `model_status: "not_available"`. R-GCN's validation search is now complete (`rgcn-wide` selected, see "Known blockers" below), but final training and the locked-test evaluation -- the step that would produce a real approved ranking to export -- have not started and require explicit owner approval. Not a code gap. |
+| Ranked candidates | **Done for 5 diseases** | `POST /api/v1/rank` serves precomputed rankings from the final R-GCN (`model_status: "ready"`, `serving_mode: "precomputed"`) for 5 diseases in `data/serving/`; any other disease honestly returns `not_available`. The served candidates carry scores but no explanation paths. Result and caveats: `docs/FINAL_RESULTS.md`. |
 | Reasoning paths | Partial | `graph/paths.py` + `scoring/path_quality.py` implement path-finding and a heuristic path-quality score; `RankingResponse.ExplanationPath` schema is wired end-to-end in the frontend (`CandidateList.tsx`) and in the serving bundle schema (`ExplanationPathRecord`). Not independently exercisable without a real ranking result, since `/rank` has nothing in `data/serving/` to serve yet. |
 | Evidence check | Partial | Real PubMed + ClinicalTrials.gov adapters exist and are labeled by a deterministic, source-controlled-vocabulary `EvidenceStrength` (`unknown` / `case_report` / `observational` / `controlled_trial` / `systematic_review`). This is a different, finer taxonomy than PLAN.md's three-way "Novel / Some early evidence / Already tested" -- the three-way label is not implemented. |
 | Safety check | Done | Real openFDA + DailyMed adapters; `boxed_warning_present` and `contraindication_text` are surfaced in both the API response and `EvidencePanel`. |
@@ -51,7 +57,7 @@ recent commits; not yet run against a trained model).
 | Secrets in repo | Clean -- audited, none found; no `.env` files on disk, `.env.example` only |
 | Large/raw files in repo | Clean -- `data/raw/`, Kaggle recovery/scratch dirs correctly gitignored and untracked |
 | Reproducible local Python setup | Done -- see "Known blockers" below for how this environment specifically got there; `README.md`'s documented `pip install -e ".[dev]"` path works on a normal machine |
-| Deployment config files | Done -- `render.yaml` (backend) and `web/app/vercel.json` (frontend), generic, no domains or secrets. Inspected for correctness, not yet exercised against a real Render/Vercel account |
+| Deployment config files | Done -- `render.yaml` (backend) and `web/app/vercel.json` (frontend), generic, no domains or secrets. Exercised on 2026-11-27: the backend is live on Render and the frontend on Vercel (URLs in README "Live demo"; details in `docs/DEPLOY_RUNBOOK.md`) |
 | Backend build dependency scope | **Fixed this session** -- `pyproject.toml`'s base `dependencies` previously included `torch`/`pandas`/`networkx` unconditionally, so Render's `pip install -e ".[api]"` would have pulled in a multi-GB torch install for a service that imports none of the three (confirmed by running `repurposemap.api.app` with none of them installed). Split into `api` (fastapi/uvicorn only, what's actually imported), `ml` (torch/pandas/networkx, for CLI/embeddings), and `dev` (pytest/httpx/pandas/networkx, no torch, for the non-GPU test surface). `python -m pytest` as documented in `README.md`'s "Setup"/"Run the tests" now genuinely passes clean (596 passed, 14 skipped, 0 failed, re-verified 2026-11-17) via a `collect_ignore` in `ml/tests/conftest.py` for the torch-importing CLI/embeddings test files when torch isn't installed, instead of erroring at collection. |
 | Deployment smoke test | Done -- `scripts/smoke_test.sh` covers health, system-info, CORS (allowed/disallowed), OpenAPI servability, rank/rank-diseases honesty, evidence/disease-biology honest-failure (never an unhandled 500), and a no-secrets-exposed check |
 | Precomputed ranking serving mechanism | Done -- `repurposemap.serving` (schema, loader, offline exporter CLI), `POST /api/v1/rank` and `GET /api/v1/rank/diseases` wired to it end-to-end including the frontend, with tests. See `API.md`'s "Precomputed ranking serving" section |
