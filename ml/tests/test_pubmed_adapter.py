@@ -231,3 +231,21 @@ def test_requests_are_spaced_by_the_minimum_interval():
 def test_invalid_timeout_is_rejected():
     with pytest.raises(ValueError):
         PubMedEUtilsAdapter(timeout_s=0)
+
+
+def test_count_in_range_sends_a_count_only_dated_query_and_returns_the_total():
+    fetcher = FakeFetcher(esearch_json([], count=137))
+    adapter = make_adapter(fetcher)
+    total = adapter.count_in_range(PubMedQuery(drug_name="Drug A", disease_name="Disease B"), mindate="1900/01/01", maxdate="2022/04/25")
+    assert total == 137
+    (url, _timeout), = fetcher.urls
+    query = urllib.parse.parse_qs(urllib.parse.urlparse(url).query)
+    assert query["retmax"] == ["0"] and query["datetype"] == ["pdat"]
+    assert query["mindate"] == ["1900/01/01"] and query["maxdate"] == ["2022/04/25"]
+    assert query["term"] == ['"Drug A"[Title/Abstract] AND "Disease B"[Title/Abstract]']
+
+
+def test_count_in_range_surfaces_failures_instead_of_returning_zero():
+    adapter = make_adapter(FakeFetcher(urllib.error.URLError("down")))
+    with pytest.raises(PubMedRequestError):
+        adapter.count_in_range(PubMedQuery(drug_name="x", disease_name="y"), mindate="1900/01/01", maxdate="2022/04/25")

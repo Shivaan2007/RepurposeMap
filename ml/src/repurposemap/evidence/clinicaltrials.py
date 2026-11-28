@@ -241,6 +241,41 @@ class ClinicalTrialsAdapter:
             retrieved_at=retrieved_at,
         )
 
+    def start_dates(self, query: ClinicalTrialsQuery, *, max_pages: int = 20) -> list[str | None]:
+        """The start date of every study matching the drug and condition (``None`` where a study has none).
+
+        Reads only ``NCTId`` and ``StartDate``, 1,000 studies per page, following ``nextPageToken``. Used by the
+        time-travel test (``ml/TIME_TRAVEL_PROTOCOL.md``). More than ``max_pages`` pages raises rather than returning a
+        partial list that would look complete."""
+
+        dates: list[str | None] = []
+        token: str | None = None
+        for _ in range(max_pages):
+            params = {
+                "query.intr": query.drug_name,
+                "query.cond": query.disease_name,
+                "fields": "NCTId|StartDate",
+                "pageSize": "1000",
+                "format": "json",
+            }
+            if token:
+                params["pageToken"] = token
+            try:
+                payload = json.loads(self._get(params))
+            except ValueError as error:
+                raise ClinicalTrialsParseError(f"studies returned invalid JSON: {error}") from error
+            studies = payload.get("studies") if isinstance(payload, dict) else None
+            if not isinstance(studies, list):
+                raise ClinicalTrialsParseError("response has no 'studies' list")
+            for study in studies:
+                start = ((study.get("protocolSection") or {}).get("statusModule") or {}).get("startDateStruct") or {}
+                date = start.get("date") if isinstance(start, dict) else None
+                dates.append(date if isinstance(date, str) and date else None)
+            token = payload.get("nextPageToken")
+            if not token:
+                return dates
+        raise ClinicalTrialsParseError(f"more than {max_pages} pages of studies; refusing to return a partial list")
+
     def search(self, drug_name: str, disease_name: str, max_results: int = 10) -> list[ClinicalTrialEvidence]:
         return self.search_with_provenance(
             ClinicalTrialsQuery(drug_name=drug_name, disease_name=disease_name, max_results=max_results)

@@ -286,6 +286,20 @@ class PubMedEUtilsAdapter:
             query_term=query.term, query_translation=translation, total_count=total, records=records, retrieved_at=retrieved_at
         )
 
+    def count_in_range(self, query: PubMedQuery, *, mindate: str, maxdate: str) -> int:
+        """How many PubMed records match ``query.term`` with a publication date in [mindate, maxdate].
+
+        Dates are ``YYYY/MM/DD``. One ``esearch`` call with ``retmax=0``: only the count is read, no records. Used by the
+        time-travel test (``ml/TIME_TRAVEL_PROTOCOL.md``)."""
+
+        _ids, total, _translation = parse_esearch_json(
+            self._get(
+                "esearch.fcgi",
+                {"db": "pubmed", "term": query.term, "retmax": "0", "retmode": "json", "datetype": "pdat", "mindate": mindate, "maxdate": maxdate},
+            )
+        )
+        return total
+
     def search(self, drug_name: str, disease_name: str, max_results: int = 10) -> list[PubMedEvidence]:
         return self.search_with_provenance(
             PubMedQuery(drug_name=drug_name, disease_name=disease_name, max_results=max_results)

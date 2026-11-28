@@ -86,3 +86,13 @@ three rankers alike.
 - `ml/scripts/time_travel_collect.py`: stage 2, needs network; queries each unique pair once, resumable.
 - `ml/scripts/time_travel_report.py`: stage 3, computes the tables and intervals.
 - Results: `docs/TIME_TRAVEL_RESULTS.md` and `ml/results/time_travel/`.
+
+## Amendment 1 (2026-11-28, before any result was analysed)
+
+**Reason:** the first trial lookups returned HTTP 400 for drugs whose PrimeKG names contain brackets or commas (for
+example `...-INDENO[1,2-.C.] PYRAZOLE`), because ClinicalTrials.gov parses them as query syntax. All four failures seen
+were random-baseline drugs, so leaving them would have dropped pairs unevenly across the rankers.
+
+**Change:** `query.intr` and `query.cond` are sent as quoted phrases (`"<drug>"`, `"<disease>"`) for **every** pair of
+every ranker. PubMed already used quoted phrases. Nothing else changes. The trial cache was discarded and the trial
+lookups restarted under the quoted form. No result had been looked at.
