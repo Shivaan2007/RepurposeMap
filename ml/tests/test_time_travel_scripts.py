@@ -76,3 +76,8 @@ def test_popularity_degrees_counts_head_or_tail():
 
     out = rankings_mod.popularity_degrees([(0, 0, 5), (5, 0, 0), (1, 0, 5)], Idx, ["a", "b"])
     assert out == {"a": 2, "b": 1}
+
+
+def test_trial_names_are_sent_as_quoted_phrases():
+    assert collect.quoted("N-[(2S)-x]") == '"N-[(2S)-x]"'
+    assert collect.quoted('a "b" c') == '"a  b  c"'

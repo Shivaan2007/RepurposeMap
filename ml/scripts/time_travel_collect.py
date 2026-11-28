@@ -112,9 +112,16 @@ def make_pubmed_query(adapter: PubMedEUtilsAdapter, as_of: str) -> Callable[[dic
     return query
 
 
+def quoted(name: str) -> str:
+    """Send a name to ClinicalTrials.gov as one quoted phrase. Unquoted, brackets and commas in chemical names are
+    parsed as query syntax and the API answers HTTP 400 (see the 2026-11-28 amendment in the protocol)."""
+
+    return '"' + name.replace('"', " ") + '"'
+
+
 def make_trials_query(adapter: ClinicalTrialsAdapter) -> Callable[[dict], dict]:
     def query(pair: dict) -> dict:
-        dates = adapter.start_dates(ClinicalTrialsQuery(drug_name=pair["drug"], disease_name=pair["disease"]))
+        dates = adapter.start_dates(ClinicalTrialsQuery(drug_name=quoted(pair["drug"]), disease_name=quoted(pair["disease"])))
         prior = sum(1 for d in dates if tt.trial_is_prior(d))
         return {"prior_trials": prior, "later_trials": len(dates) - prior}
 
